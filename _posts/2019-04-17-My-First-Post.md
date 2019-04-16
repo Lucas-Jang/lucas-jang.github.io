@@ -8,7 +8,7 @@ tag:
 comments: flase
 ---
 
-##내 첫 포스트
+## 내 첫 포스트
 안녕하세요 Lucas Jang입니다. 
 
 >#include<stdio.h>
