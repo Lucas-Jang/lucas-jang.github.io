@@ -1,4 +1,14 @@
 # Site navigation links
 
+- title: Blog
+  url: /blog/
+
 - title: Projects
   url: /projects/
+
+- title: About
+  url: /about/
+
+- title: Moon
+  url: http://lucas-jang.github.io
+  
