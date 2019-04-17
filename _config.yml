@@ -5,7 +5,7 @@ description:        "Lucas-Jang description"
 reading_time:       true
 words_per_minute:   200
 logo:               'assets/img/logo2.png'
-background:         'assets/img/spidermanbg.jpg'
+background:         'assets/img/spidermanbg2.jpg'
 tiled_bg:           false   # Set this true if you want to tile your background image, otherwise it will be covered
 locale:             en_US
 url:                https://lucas-jang.github.io
