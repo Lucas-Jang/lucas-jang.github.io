@@ -8,13 +8,9 @@ tag:
 comments: false
 ---
 
-# <center> About Us </center>
+![Spooky_Urf_profileicon](https://user-images.githubusercontent.com/43315868/57128327-07057700-6dce-11e9-988b-d54d1defea0d.png)
 
 <center> 우리는 <b> TEAM URF </b> 입니다.</center>
-
-
-
-
 
 ## 구성원 소개
 
@@ -41,4 +37,7 @@ comments: false
 > 지식 공학자
 
 확실한 점만을 내세워 아이디어의 실현을 돕는다. 새로운 물품에 사족을 못 쓴다. 프로젝트의 전반적인 진행을 맡고 있다.
+
+
+![우르프팀 사진](https://user-images.githubusercontent.com/43315868/57128344-0ec51b80-6dce-11e9-97bd-11826d90f3a3.jpg)
 
