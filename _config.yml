@@ -1,10 +1,10 @@
 # Site
-title:              머신러닝 스터디 그룹 [URF]
-bio:                'Neither Man, nor machine can replace its creator.'
+title:              Lucas Jang's Blog
+bio:                리뉴얼될 예정입니다.
 description:        "Lucas-Jang description"
 reading_time:       true
 words_per_minute:   200
-logo:               'assets/img/logo3.png'
+logo:               'assets/img/logo.png'
 background:         'assets/img/placeholder-big.jpg'
 tiled_bg:           false   # Set this true if you want to tile your background image, otherwise it will be covered
 locale:             en_US
