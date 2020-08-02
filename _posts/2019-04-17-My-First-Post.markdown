@@ -11,7 +11,6 @@ author:lucas jang
 description: Markdown summary with different options
 ---
 
-
 ## 내 첫 포스트
 
 안녕하세요 Lucas Jang입니다. 
