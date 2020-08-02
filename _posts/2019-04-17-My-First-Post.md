@@ -1,14 +1,19 @@
 ---
+title: "My First Post on Moon"
 layout: post
-title:  "My First Post on Moon"
-date:   2019-04-17
-excerpt: "Custom written post descriptions are the way to go... if you're not lazy."
+date: 2019-04-17
+image: /assets/images/markdown.jpg
+headerImage: false
 tag:
-- post
-comments: flase
+- markdown
+category: blog
+author:lucas jang
+description: Markdown summary with different options
 ---
 
+
 ## 내 첫 포스트
+
 안녕하세요 Lucas Jang입니다. 
 
 >#include<stdio.h>
