@@ -7,7 +7,7 @@ headerImage: false
 tag:
 - markdown
 category: blog
-author:lucas jang
+author:lucas-jang
 description: Markdown summary with different options
 ---
 
