@@ -115,7 +115,7 @@ plugins:
   - jekyll-paginate-v2
 
 jekyll-mentions:
-  base_url: https://github.com/Lucas-Jang
+  base_url: https://github.com
 
 compress_html:
   ignore:
