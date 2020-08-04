@@ -34,14 +34,14 @@ permalink: /:title/
 #  categories: [blog, project] # only show disqus for posts that have these categories
 
 # if you don't have any of social below, comment the line
-facebook: https://www.facebook.com/lucasjang0913
+facebook: lucasjang0913
 # twitter: mytwitter
 # instagram: myinstagram
 # pinterest: mypinterest
 # linkedin: mylinkedin
-youtube: https://www.youtube.com/channel/UCqiAshKnms8KgFW80zUddtw/
+youtube: UCqiAshKnms8KgFW80zUddtw
 # spotify: myspotify
-github: https://github.com/Lucas-Jang
+github: Lucas-Jang
 # gitlab: mygitlab
 # lastfm: mylastfm
 # stackoverflow: 7044681/mystackoverflow
