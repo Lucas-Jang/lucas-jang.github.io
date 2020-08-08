@@ -1,2 +1,4 @@
 User-agent: *
-Disallow:
+Allow: /
+
+Sitemap: http://lucas-jang.github.io/sitemap.xml
