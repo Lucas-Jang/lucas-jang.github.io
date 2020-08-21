@@ -1,4 +1,3 @@
----
 title: "[Algorithm]정수 범위를 넘는 산술 연산의 간단한 처리법"
 layout: post
 date: 2020-08-11
@@ -9,7 +8,6 @@ tag:
 category: blog
 author: lucas-jang
 description: What is 1LL?
----
 
 ![ViewCount](https://views.whatilearened.today/views/github/<user>/<repo>.svg)
 
@@ -73,8 +71,3 @@ C 언어에서는 자료형을 섞어서 쓰면 컴파일러에서 `암시적 �
 [^2]: [자료형의 확장과 축소 알아보기](https://dojang.io/mod/page/view.php?id=112)
 
 ---
-
-[![HitCount](http://hits.dwyl.com/lucas-jang//lucas-janggithubio/%EC%9D%B8%ED%8A%B8%EB%B2%94%EC%9C%84%EB%A5%BC-%EB%84%98%EB%8A%94-%EA%B3%84%EC%.svg)](http://hits.dwyl.com/lucas-jang//lucas-janggithubio/%EC%9D%B8%ED%8A%B8%EB%B2%94%EC%9C%84%EB%A5%BC-%EB%84%98%EB%8A%94-%EA%B3%84%EC%)
-
-
-
