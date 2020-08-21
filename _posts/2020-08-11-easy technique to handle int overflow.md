@@ -65,8 +65,6 @@ C 언어에서는 자료형을 섞어서 쓰면 컴파일러에서 `암시적 �
 
 ---
 
-출처
-
 [^1]:  [정수 리터럴 접미사 사용하기](https://dojang.io/mod/page/view.php?id=71)
 [^2]: [자료형의 확장과 축소 알아보기](https://dojang.io/mod/page/view.php?id=112)
 
