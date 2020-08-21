@@ -13,7 +13,7 @@ description: What is 1LL?
 ---
 
 
-![ViewCount](https://views.whatilearened.today/views/github/<user>/<repo>/2020-08-11-easy technique to handle int overflow.md.svg)
+![ViewCount](https://views.whatilearened.today/views/github/<user>/<repo>.svg)
 
 [1,2,3 더하기 3]( https://www.acmicpc.net/problem/15988) 문제 참조
 
