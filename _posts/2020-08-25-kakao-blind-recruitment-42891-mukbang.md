@@ -126,7 +126,7 @@ int solution(vector<int> food_times, long long k) {
 
 결과는 다음과 같았다.
 
-![42891_2](C:\Users\joon1\lucas-jang.github.io\assets\images\42891_2.jpg)
+![42891_2](..\assets\images\42891_2.jpg)
 
 ## 변수가 많을 때 헷갈리지 말자.
 
