@@ -122,7 +122,7 @@ int solution(vector<int> food_times, long long k) {
 }
 ```
 
-구현 단계에서 생각해주어야 할 부분이 있었다. return 해야할 i가 배열의 마지막을 가리키는 인덱스라면 `i=(i+1)%food_times.size()`식에 따라 0값을 가지게 된다. 이 부분만 처리해주면 올바른 값을 return할 수 있다.
+구현 단계에서 생각해주어야 할 부분이 있었다. return 해야할 i가 배열의 마지막을 가리키는 인덱스라면 `i=(i+1)%food_times.size()` 식에 따라 0값을 가지게 된다. 이 부분만 처리해주면 올바른 값을 return할 수 있다.
 
 결과는 다음과 같았다.
 
