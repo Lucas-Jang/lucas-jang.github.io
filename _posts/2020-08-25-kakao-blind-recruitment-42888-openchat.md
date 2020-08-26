@@ -32,7 +32,7 @@ description: PROGRAMERS 42888 해설
 >
 > map으로의 저장은 '입장'과 '변경'일 때만 일어나고, answer로의 저장은 '입장', '퇴장'일 때만 일어나는 것을 알 수 있다.
 >
-> Python으로 짜면 훨씬 [짧다](https://json1995.tistory.com/entry/Python%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%98%EB%A8%B8%EC%8A%A4Level-2-%EC%98%A4%ED%94%88%EC%B1%84%ED%8C%85%EB%B0%A9).
+> Python으로 짜면 훨씬 [짧다](https://json1995.tistory.com/entry/Python%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%98%EB%A8%B8%EC%8A%A4Level-2-%EC%98%A4%ED%94%88%EC%B1%84%ED%8C%85%EB%B0%A9){: target="_blank"}.
 
 ---
 
