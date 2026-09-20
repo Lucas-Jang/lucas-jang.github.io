@@ -2,6 +2,7 @@
 title: "주짓수 도장을 위한 출결 관리 시스템 만들기"
 layout: post
 date: 2026-09-20
+image: /assets/images/profile.jpg
 tag:
   - SideProject
   - JiuJitsu

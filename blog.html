@@ -10,14 +10,15 @@ pagination:
     <p class="eyebrow">ARCHIVE</p>
     <h1>글</h1>
     <p>업무와 공부, 수련과 생활에서 남기고 싶은 기록입니다.</p>
+    <label class="archive-search" id="search"> <span class="visually-hidden">글 검색</span><input type="search" placeholder="글 제목으로 검색" autocomplete="off"></label>
 </section>
-<section class="post-list archive-list">
+<section class="post-grid archive-grid">
 	{% if site.posts.size == 0 %}
 		<p class="text-center">Nothing published yet!</p>
 	{% elsif site.pagination.enabled %}
 		{% for post in paginator.posts %}
 			{% if post.category == 'blog' %}
-                {% if post.hidden != true %}<article class="post-list-item"><a href="{{ post.url | relative_url }}"><p class="post-list-meta">{{ post.date | date: '%Y.%m.%d' }}</p><h2>{{ post.title }}</h2>{% if post.description %}<p>{{ post.description }}</p>{% endif %}</a></article>{% endif %}
+                {% if post.hidden != true %}<article class="post-card" data-search="{{ post.title | strip_html }} {{ post.description | strip_html }} {{ post.tags | join: ' ' }}"><a class="post-card-link" href="{{ post.url | relative_url }}"><div class="post-card-image">{% if post.image %}<img src="{{ post.image | relative_url }}" alt="{{ post.title }} 대표 이미지">{% else %}<div class="post-card-art post-card-art--{{ post.tags | first | slugify }}" aria-hidden="true"><span>{{ post.tags | first | default: 'NOTE' }}</span></div>{% endif %}</div><div class="post-card-content"><p class="post-card-meta">{{ post.tags | first | default: 'NOTE' }} · {{ post.date | date: '%Y.%m.%d' }}</p><h2>{{ post.title }}</h2>{% if post.description %}<p>{{ post.description }}</p>{% endif %}<span class="read-more">읽어보기 <span aria-hidden="true">›</span></span></div></a></article>{% endif %}
 			{% endif %}
 		{% endfor %}
 
@@ -25,8 +26,21 @@ pagination:
 	{% else %}
 		{% for post in site.posts %}
 			{% if post.category == 'blog' %}
-                {% if post.hidden != true %}<article class="post-list-item"><a href="{{ post.url | relative_url }}"><p class="post-list-meta">{{ post.date | date: '%Y.%m.%d' }}</p><h2>{{ post.title }}</h2>{% if post.description %}<p>{{ post.description }}</p>{% endif %}</a></article>{% endif %}
+                {% if post.hidden != true %}<article class="post-card" data-search="{{ post.title | strip_html }} {{ post.description | strip_html }} {{ post.tags | join: ' ' }}"><a class="post-card-link" href="{{ post.url | relative_url }}"><div class="post-card-image">{% if post.image %}<img src="{{ post.image | relative_url }}" alt="{{ post.title }} 대표 이미지">{% else %}<div class="post-card-art post-card-art--{{ post.tags | first | slugify }}" aria-hidden="true"><span>{{ post.tags | first | default: 'NOTE' }}</span></div>{% endif %}</div><div class="post-card-content"><p class="post-card-meta">{{ post.tags | first | default: 'NOTE' }} · {{ post.date | date: '%Y.%m.%d' }}</p><h2>{{ post.title }}</h2>{% if post.description %}<p>{{ post.description }}</p>{% endif %}<span class="read-more">읽어보기 <span aria-hidden="true">›</span></span></div></a></article>{% endif %}
 			{% endif %}
 		{% endfor %}
 	{% endif %}
 </section>
+<script>
+  (function () {
+    var input = document.querySelector('.archive-search input');
+    if (!input) return;
+    if (location.hash === '#search') input.focus();
+    input.addEventListener('input', function () {
+      var query = input.value.toLowerCase().trim();
+      document.querySelectorAll('.archive-grid .post-card').forEach(function (card) {
+      card.hidden = Boolean(query && !card.dataset.search.toLowerCase().includes(query));
+      });
+    });
+  }());
+</script>

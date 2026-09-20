@@ -5,7 +5,7 @@ title: Home
 <section class="home-hero">
     <p class="eyebrow">PERSONAL ARCHIVE</p>
     <h1>Lucas Jang</h1>
-    <p class="home-intro">자동차 소프트웨어, 수련, 생활을 기록합니다.</p>
+    <p class="home-intro">기록하고, 만들고, 수련합니다.</p>
     <div class="home-actions">
         <a class="button button-primary" href="{{ '/blog/' | relative_url }}">최근 글 보기</a>
         <a class="button button-secondary" href="{{ '/about/' | relative_url }}">소개 보기</a>
@@ -17,14 +17,24 @@ title: Home
         <div><p class="eyebrow">RECENT NOTES</p><h2>최근 글</h2></div>
         <a href="{{ '/blog/' | relative_url }}">전체 보기</a>
     </div>
-    <div class="post-list">
+    <div class="post-grid">
         {% assign recent_posts = site.posts | where: 'category', 'blog' %}
-        {% for post in recent_posts limit: 3 %}
-        <article class="post-list-item">
-            <a href="{{ post.url | relative_url }}">
-                <p class="post-list-meta">{{ post.date | date: '%Y.%m.%d' }}</p>
+        {% for post in recent_posts limit: 4 %}
+        <article class="post-card">
+            <a class="post-card-link" href="{{ post.url | relative_url }}">
+                <div class="post-card-image">
+                    {% if post.image %}
+                    <img src="{{ post.image | relative_url }}" alt="{{ post.title }} 대표 이미지">
+                    {% else %}
+                    <div class="post-card-art post-card-art--{{ post.tags | first | slugify }}" aria-hidden="true"><span>{{ post.tags | first | default: 'NOTE' }}</span></div>
+                    {% endif %}
+                </div>
+                <div class="post-card-content">
+                    <p class="post-card-meta">{{ post.tags | first | default: 'NOTE' }} · {{ post.date | date: '%Y.%m.%d' }}</p>
                 <h3>{{ post.title }}</h3>
                 {% if post.description %}<p>{{ post.description }}</p>{% endif %}
+                <span class="read-more">읽어보기 <span aria-hidden="true">›</span></span>
+                </div>
             </a>
         </article>
         {% endfor %}

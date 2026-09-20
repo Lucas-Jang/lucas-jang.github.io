@@ -3,5 +3,6 @@
     <div class="site-nav-links">
         <a href="{{ '/blog/' | relative_url }}"{% if page.title == 'Blog' %} aria-current="page"{% endif %}>글</a>
         <a href="{{ '/about/' | relative_url }}"{% if page.title == 'About' %} aria-current="page"{% endif %}>소개</a>
+        <a class="nav-search" href="{{ '/blog/#search' | relative_url }}" aria-label="글 검색">⌕</a>
     </div>
 </nav>
