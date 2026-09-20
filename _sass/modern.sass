@@ -757,8 +757,44 @@ body
         font-size: 1rem
         margin: 0
 
-.category-post-grid
+.category-post-list
     margin-bottom: 92px
+    max-width: 840px
+
+.category-post-row
+    border-top: 1px solid $line
+
+    &:last-child
+        border-bottom: 1px solid $line
+
+    a
+        align-items: baseline
+        display: grid
+        gap: 28px
+        grid-template-columns: 104px minmax(0, 1fr)
+        padding: 25px 0 27px
+        text-decoration: none
+
+        &:focus-visible
+            outline: 3px solid $accent
+            outline-offset: -3px
+
+    time
+        color: $muted
+        font-size: .88rem
+        font-variant-numeric: tabular-nums
+
+    h2
+        font-size: 1.34rem
+        letter-spacing: -.04em
+        line-height: 1.42
+        margin: 0 0 7px
+
+    p
+        color: $muted
+        font-size: 1rem
+        line-height: 1.65
+        margin: 0
 
 @media only screen and (max-width: 640px)
     .home-hero
@@ -778,3 +814,24 @@ body
 
     .category-header
         padding: 48px 0 25px
+
+    .category-post-list
+        margin-bottom: 60px
+
+    .category-post-row a
+        display: block
+        padding: 22px 0 24px
+
+    .category-post-row time
+        display: block
+        margin-bottom: 8px
+
+    .category-post-row h2
+        font-size: 1.25rem
+
+    .category-post-row p
+        font-size: 1rem
+
+    .post-content
+        font-size: 1.08rem
+        line-height: 1.9

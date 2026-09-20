@@ -14,20 +14,13 @@ layout: default
   <p>게시물 {{ post_count }}개</p>
 </section>
 
-<section class="post-grid category-post-grid" aria-label="{{ current_category.name }} 게시물">
+<section class="category-post-list" aria-label="{{ current_category.name }} 게시물">
   {% for post in site.posts %}
     {% if post.hidden != true and post.topics contains current_category.id %}
-      <article class="post-card">
-        <a class="post-card-link" href="{{ post.url | relative_url }}">
-          <div class="post-card-image">
-            {% if post.image %}
-              <img src="{{ post.image | relative_url }}" alt="{{ post.title }} 대표 이미지">
-            {% else %}
-              <img src="{{ current_category.image | relative_url }}" alt="" style="object-position: {{ current_category.image_position }}">
-            {% endif %}
-          </div>
-          <div class="post-card-content">
-            <p class="post-card-meta">{{ post.date | date: '%Y.%m.%d' }}</p>
+      <article class="category-post-row">
+        <a href="{{ post.url | relative_url }}">
+          <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: '%Y.%m.%d' }}</time>
+          <div>
             <h2>{{ post.title }}</h2>
             {% if post.description %}<p>{{ post.description }}</p>{% endif %}
           </div>
