@@ -1,0 +1,42 @@
+- id: development
+  slug: development
+  name: 개발
+  image: /assets/images/categories/development.jpg
+  image_position: center
+  credit: Daniil Komov / Unsplash
+  source_url: https://unsplash.com/photos/laptop-with-code-headphones-phone-and-mouse-on-desk-41cG8-U74lc
+- id: english
+  slug: english
+  name: 영어
+  image: /assets/images/categories/english.jpg
+  image_position: center 52%
+  credit: Yen Vu / Unsplash
+  source_url: https://unsplash.com/photos/desk-with-open-book-laptop-and-study-materials-HNjWq8WPyoY
+- id: jiujitsu
+  slug: jiujitsu
+  name: 주짓수
+  image: /assets/images/categories/jiujitsu.jpg
+  image_position: center 42%
+  credit: Nathan Dumlao / Unsplash
+  source_url: https://unsplash.com/photos/hombre-en-karate-blanco-gi-sentado-en-el-suelo-Dqirtk0whlM
+- id: freediving
+  slug: freediving
+  name: 프리다이빙
+  image: /assets/images/categories/freediving.jpg
+  image_position: center 48%
+  credit: Ibrahim Shabil / Unsplash
+  source_url: https://unsplash.com/photos/a-freediver-ascends-in-the-deep-blue-ocean-DbYga9Ot9sU
+- id: distillation
+  slug: distillation
+  name: 증류
+  image: /assets/images/categories/distillation.jpg
+  image_position: center
+  credit: François Hoppet / Unsplash
+  source_url: https://unsplash.com/photos/two-copper-stills-in-a-distillery-KqOHcCwt7TQ
+- id: daily
+  slug: daily
+  name: 기타일상
+  image: /assets/images/categories/daily.jpg
+  image_position: center 55%
+  credit: Julen Rey Azcona / Unsplash
+  source_url: https://unsplash.com/photos/sunlight-streams-into-a-modern-cafe-interior-U_lZQfczRRw

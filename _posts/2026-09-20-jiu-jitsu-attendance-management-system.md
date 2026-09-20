@@ -8,6 +8,7 @@ tag:
   - JiuJitsu
   - PWA
 category: blog
+topics: [jiujitsu]
 author: lucas-jang
 description: QR과 PIN을 이용해 도장 회원의 출석과 기록을 관리하는 웹앱을 만들고 있다.
 ---

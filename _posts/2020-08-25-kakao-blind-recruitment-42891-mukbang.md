@@ -8,6 +8,7 @@ tag:
 - CodingTest
 - Algorithm
 category: blog
+topics: [development]
 author: lucas-jang
 description: PROGRAMERS 42891 해설
 ---

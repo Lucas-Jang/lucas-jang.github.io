@@ -8,6 +8,7 @@ tag:
 
 - Algorithm
 category: blog
+topics: [development]
 author: lucas-jang
 description: What is 1LL?
 ---

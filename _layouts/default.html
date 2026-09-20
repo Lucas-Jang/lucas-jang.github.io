@@ -14,7 +14,7 @@ layout: compress
 	<meta property="og:description" content="{% if page.description %}{{ page.description }}{% elsif page.excerpt %}{{ page.excerpt | strip_html | strip_newlines | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
 	<meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}website{% endif %}">
 	<meta property="og:url" content="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}"/>
-	<meta property="og:image" content="{{ site.url }}/assets/images/profile.jpg"/>
+	<meta property="og:image" content="{{ page.image | default: site.picture | relative_url | prepend: site.url }}"/>
     {% include favicon.html %}
 
     <link rel="canonical" href="{{ site.url }}{{ page.url | replace:'index.html','' }}">
@@ -25,8 +25,6 @@ layout: compress
     {{ scss_sheet | scssify }}
     </style>
 	
-	<script data-ad-client="ca-pub-2654953709469209" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-
 </head>
 <body>
 
