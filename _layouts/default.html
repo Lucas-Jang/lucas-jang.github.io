@@ -2,28 +2,19 @@
 layout: compress
 ---
 <!DOCTYPE html>
-<html lang="{{ page.lang | default: 'en' }}">
+<html lang="{{ page.lang | default: 'ko' }}">
 <head>
-
-    {% if site.analytics-google %}
-        {% include analytics-google.html %}
-    {% endif %}
 
     <meta charset="utf-8">
     <meta name=viewport content="width=device-width, initial-scale=1">
-    <meta name=author content="{{ site.name }}">
+    <meta name="author" content="Lucas Jang">
 
     {% seo %}
-    <meta property="og:title" content="{% if page.title %}{{ page.title | escape }}{% else %}{{ site.title | escape }}{% endif %}">
-	<meta property="og:description" content="{% if page.excerpt %}{{ page.excerpt | strip_html | strip_newlines | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
-	<meta property="og:type" content="website">
+	<meta property="og:title" content="{% if page.title and page.title != 'Home' %}{{ page.title | escape }} · {{ site.name }}{% else %}{{ site.name }}{% endif %}">
+	<meta property="og:description" content="{% if page.description %}{{ page.description }}{% elsif page.excerpt %}{{ page.excerpt | strip_html | strip_newlines | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
+	<meta property="og:type" content="{% if page.layout == 'post' %}article{% else %}website{% endif %}">
 	<meta property="og:url" content="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}"/>
 	<meta property="og:image" content="{{ site.url }}/assets/images/profile.jpg"/>
-	<meta property="og:image:width" content="420" />
-	<meta property="og:image:height" content="420" />
-	<meta property="og:image:type" content="profile.jpg">
-	<meta name="google-site-verification" content="hqUXEVlEAugeFnxtOdbCTfUkJXXUbLPNwssX8inwwgg" />
-	<meta name="naver-site-verification" content="d0ded78aaa70b99824003330449b53b7ae9093db" />
     {% include favicon.html %}
 
     <link rel="canonical" href="{{ site.url }}{{ page.url | replace:'index.html','' }}">
@@ -39,22 +30,13 @@ layout: compress
 </head>
 <body>
 
-    <div class="wrapper-{% if site.width == "normal" %}normal{% elsif site.width == "large" %}large{% endif %}">
-        {% if page.tag %}
-            <div class="post">
-        {% else %}
-            {% if showHeader != true %}
-                <div class="page {{ page.title | downcase }}">
-            {% else %}
-                <div class="{{ page.title | downcase }}">
-            {% endif %}
-        {% endif %}
-
+    <div class="site-shell">
+        {% include nav.html %}
+        <main class="site-main {{ page.title | slugify }}{% if page.layout == 'post' %} post{% endif %}">
             {{ content }}
-        </div>
+        </main>
+        {% include footer.html %}
     </div>
-
-    {% include icons.html %}
 
 </body>
 </html>

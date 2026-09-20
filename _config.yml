@@ -1,9 +1,10 @@
 # main text of home
-name: Lucas Jang's Blog
-bio: Computer Scinece, Algorithm, English Study and Daily Life
+title: Lucas Jang
+name: Lucas Jang
+bio: 자동차 소프트웨어, 수련, 생활을 기록합니다.
 
 # twitter summary info
-description: Computer Scinece, Algorithm, English Study and Daily Life
+description: Lucas Jang의 개인 아카이브. 자동차 소프트웨어, 주짓수, 프리다이빙, 생활의 기록.
 
 # if it's an external image, update below for true
 # better with square images
@@ -21,26 +22,7 @@ url: https://lucas-jang.github.io
 
 permalink: /:title/
 
-# To enable google analytics, supply your token below
-analytics-google: 'UA-174916059-1'
-
-# To enable piwik tracking, supply your url & site ID below
-# analytics-piwik-url: 'piwik.my-host.com'
-# analytics-piwik-id: 1
-
-# if you don't want comments in your posts, leave categories empty
-disqus:
-  shortname: https-lucas-jang-github-io # enter this from your disqus account
-  categories: [blog] # only show disqus for posts that have these categories
-
 # if you don't have any of social below, comment the line
-facebook: lucasjang0913
-# twitter: mytwitter
-# instagram: myinstagram
-# pinterest: mypinterest
-# linkedin: mylinkedin
-youtube: channel/UCqiAshKnms8KgFW80zUddtw
-# spotify: myspotify
 github: Lucas-Jang
 # gitlab: mygitlab
 # lastfm: mylastfm
@@ -54,7 +36,7 @@ email: joon11132dj@gmail.com
 
 author:
   name: Lucas Jang
-  bio: A rolling stone gathers no moss
+  bio: 자동차 소프트웨어, 수련, 생활의 기록
   external-image: false
   picture: assets/images/profile.jpg
 
@@ -72,7 +54,7 @@ pagination:
   permalink: "/:num/" # pagination link that will be appended
 
 # if you don't need projects, comment the *projects* configs below
-projects: true
+projects: false
 
 # if you don't need "about" or "blog", comment them out below
 about: true
@@ -85,16 +67,16 @@ read-time: true
 show-tags: true
 
 # related posts inside a post?
-related: true
+related: false
 
 # Display links for next and previous posts for the specified categories
 post-advance-links: [blog]
 
 # show author block at the end of a post ?
-show-author: true
+show-author: false
 
 # do you want some animations?
-animation: true
+animation: false
 
 # add default values to specific pages or layouts
 defaults:

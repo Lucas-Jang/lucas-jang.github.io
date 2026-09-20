@@ -6,15 +6,18 @@ title: Blog
 pagination:
   enabled: true
 ---
-<section class="list">
+<section class="archive-header">
+    <p class="eyebrow">ARCHIVE</p>
+    <h1>글</h1>
+    <p>업무와 공부, 수련과 생활에서 남기고 싶은 기록입니다.</p>
+</section>
+<section class="post-list archive-list">
 	{% if site.posts.size == 0 %}
 		<p class="text-center">Nothing published yet!</p>
 	{% elsif site.pagination.enabled %}
 		{% for post in paginator.posts %}
 			{% if post.category == 'blog' %}
-				{% if post.hidden != true %}
-					{% include blog-post.html %}
-				{% endif %}
+                {% if post.hidden != true %}<article class="post-list-item"><a href="{{ post.url | relative_url }}"><p class="post-list-meta">{{ post.date | date: '%Y.%m.%d' }}</p><h2>{{ post.title }}</h2>{% if post.description %}<p>{{ post.description }}</p>{% endif %}</a></article>{% endif %}
 			{% endif %}
 		{% endfor %}
 
@@ -22,9 +25,7 @@ pagination:
 	{% else %}
 		{% for post in site.posts %}
 			{% if post.category == 'blog' %}
-				{% if post.hidden != true %}
-					{% include blog-post.html %}
-				{% endif %}
+                {% if post.hidden != true %}<article class="post-list-item"><a href="{{ post.url | relative_url }}"><p class="post-list-meta">{{ post.date | date: '%Y.%m.%d' }}</p><h2>{{ post.title }}</h2>{% if post.description %}<p>{{ post.description }}</p>{% endif %}</a></article>{% endif %}
 			{% endif %}
 		{% endfor %}
 	{% endif %}

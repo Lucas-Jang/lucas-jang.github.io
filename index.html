@@ -2,3 +2,40 @@
 layout: page
 title: Home
 ---
+<section class="home-hero">
+    <p class="eyebrow">PERSONAL ARCHIVE</p>
+    <h1>Lucas Jang</h1>
+    <p class="home-intro">자동차 소프트웨어, 수련, 생활을 기록합니다.</p>
+    <div class="home-actions">
+        <a class="button button-primary" href="{{ '/blog/' | relative_url }}">최근 글 보기</a>
+        <a class="button button-secondary" href="{{ '/about/' | relative_url }}">소개 보기</a>
+    </div>
+</section>
+
+<section class="home-section">
+    <div class="section-heading">
+        <div><p class="eyebrow">RECENT NOTES</p><h2>최근 글</h2></div>
+        <a href="{{ '/blog/' | relative_url }}">전체 보기</a>
+    </div>
+    <div class="post-list">
+        {% assign recent_posts = site.posts | where: 'category', 'blog' %}
+        {% for post in recent_posts limit: 3 %}
+        <article class="post-list-item">
+            <a href="{{ post.url | relative_url }}">
+                <p class="post-list-meta">{{ post.date | date: '%Y.%m.%d' }}</p>
+                <h3>{{ post.title }}</h3>
+                {% if post.description %}<p>{{ post.description }}</p>{% endif %}
+            </a>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="home-section now-section">
+    <div class="section-heading"><div><p class="eyebrow">NOW</p><h2>지금 만드는 것</h2></div></div>
+    <a class="now-card" href="{{ '/jiu-jitsu-attendance-management-system/' | relative_url }}">
+        <span>진행 중</span>
+        <strong>주짓수 도장을 위한 출결 관리 시스템</strong>
+        <p>QR과 PIN 출석을 시작으로, 도장에서 실제로 쓰기 편한 흐름을 다듬고 있습니다.</p>
+    </a>
+</section>
