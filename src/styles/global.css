@@ -265,4 +265,3 @@ footer { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-5); pad
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
-
