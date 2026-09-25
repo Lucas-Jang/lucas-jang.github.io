@@ -194,6 +194,18 @@ footer a:hover { opacity: 0.58; }
   line-height: 1.5;
 }
 .post-head .tag-list { margin-top: var(--space-3); }
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0;
+  font-variant-numeric: tabular-nums;
+}
+.post-meta > span + span::before {
+  content: "·";
+  margin-inline: 0.45rem;
+  color: var(--line);
+}
 .blog-redesign-series .prose img {
   padding: 0.3rem;
   border: 1px solid var(--line);
@@ -409,7 +421,27 @@ footer a:hover { opacity: 0.58; }
 .search #results { display: grid; gap: var(--space-3); margin-top: var(--space-6); font-size: 1.08rem; }
 .search #results a { padding-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
 
-footer { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-5); padding: var(--space-5) 0 clamp(2rem, 5vw, 3.125rem); border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8rem; letter-spacing: -0.01em; }
+footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-5) 0 clamp(2rem, 5vw, 3.125rem);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: -0.01em;
+}
+.footer-primary { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
+.site-stats {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  margin: 0;
+  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .mdx-fullbleed { width: min(68.75rem, calc(100vw - (var(--gutter) * 2))); margin: 3rem auto; }
@@ -437,6 +469,8 @@ footer { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-5); pad
   .post-head h1, .archive h1, .about h1, .search h1 { font-size: clamp(2rem, 8.4vw, 2.8rem); line-height: 1.25; }
   .gallery-strip, .mdx-grid.columns-2, .mdx-grid.columns-3 { grid-template-columns: minmax(0, 1fr); }
   .about { grid-template-columns: minmax(0, 1fr); }
+  footer { align-items: flex-start; flex-direction: column; }
+  .site-stats { font-size: 0.76rem; }
   .archive section a { grid-template-columns: 4.25rem minmax(0, 1fr); gap: var(--space-2); }
   .archive em { display: none; }
   .prose table { display: block; border: 0; font-size: 0.94em; }

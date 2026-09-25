@@ -59,11 +59,20 @@ const categories = [
     </header>
     <main data-pagefind-body><slot /></main>
     <footer>
-      <span>© {new Date().getFullYear()} LucasJang</span>
-      <a href="/archive/">아카이브</a>
-      <a href="/search/">검색</a>
-      <a href="https://github.com/Lucas-Jang">GITHUB</a>
+      <div class="footer-primary">
+        <span>© {new Date().getFullYear()} LucasJang</span>
+        <a href="/archive/">아카이브</a>
+        <a href="/search/">검색</a>
+        <a href="https://github.com/Lucas-Jang">GITHUB</a>
+      </div>
+      <p class="site-stats" aria-label="방문 통계">
+        <span>방문 <span data-stat="visitors">—</span></span>
+        <span aria-hidden="true">·</span>
+        <span>오늘 <span data-stat="today">—</span></span>
+      </p>
     </footer>
+    <script data-goatcounter="https://lucasjang.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+    <script src="/scripts/site-stats.js" defer></script>
     <script is:inline>
       (() => {
         const currentCategory = new URLSearchParams(location.search).get('category');
