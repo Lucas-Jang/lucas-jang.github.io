@@ -1,4 +1,32 @@
 ---
 import Base from '../layouts/Base.astro';
 ---
-<Base title="검색 — WONJUN"><section class="search"><h1>검색</h1><label class="sr-only" for="search">글 검색</label><input id="search" type="search" placeholder="제목, 본문, 태그 검색" autofocus><div id="results" aria-live="polite"></div></section><script is:inline type="module">const input=document.querySelector('#search'),results=document.querySelector('#results');let search;const pagefindModule=await import('/pagefind/pagefind.js');search=await pagefindModule.default();input.addEventListener('input',async()=>{const query=input.value.trim();if(!query){results.innerHTML='';return}const r=await search.search(query);results.innerHTML=(await Promise.all(r.results.map(async x=>{const d=await x.data();return `<a href="${d.url}">${d.meta.title}</a>`}))).join('')||'<p>검색 결과가 없습니다.</p>'})</script></Base>
+
+<Base title="검색 — LucasJang">
+  <section class="search">
+    <h1>검색</h1>
+    <label class="sr-only" for="search">글 검색</label>
+    <input id="search" type="search" placeholder="제목, 본문, 태그 검색" autofocus />
+    <div id="results" aria-live="polite"></div>
+  </section>
+  <script is:inline type="module">
+    const input = document.querySelector('#search');
+    const results = document.querySelector('#results');
+    const pagefind = await import('/pagefind/pagefind.js');
+
+    input.addEventListener('input', async () => {
+      const query = input.value.trim();
+      if (!query) {
+        results.innerHTML = '';
+        return;
+      }
+
+      const response = await pagefind.search(query);
+      const items = await Promise.all(response.results.map(async (result) => {
+        const data = await result.data();
+        return `<a href="${data.url}">${data.meta.title}</a>`;
+      }));
+      results.innerHTML = items.join('') || '<p>검색 결과가 없습니다.</p>';
+    });
+  </script>
+</Base>
