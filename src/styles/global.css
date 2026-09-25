@@ -194,6 +194,12 @@ footer a:hover { opacity: 0.58; }
   line-height: 1.5;
 }
 .post-head .tag-list { margin-top: var(--space-3); }
+.blog-redesign-series .prose img {
+  padding: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 0.2rem;
+  background: rgba(255, 255, 255, 0.28);
+}
 
 .post { padding: clamp(3rem, 6vw, 4rem) 0 clamp(4.75rem, 9vw, 6.5rem); }
 .post-head { max-width: min(65rem, 100%); margin: 0 auto clamp(2.25rem, 5vw, 3rem); }
