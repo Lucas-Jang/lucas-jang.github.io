@@ -1,0 +1,27 @@
+---
+title: "Building an attendance system"
+description: "QR check-in, kiosk flow and training rewards for a jiu-jitsu gym."
+date: 2026-09-22
+category: DEV
+postType: journal
+cover: "/images/categories/development.jpg"
+coverAlt: "Laptop on a desk"
+featured: true
+tags: [nextjs, supabase, pwa]
+---
+
+## From a scan to a saved record
+
+The kiosk does not show success when it sees a QR code. It pauses, sends the token to the server, and only then confirms the check-in. That distinction matters when a network fails in the middle of a busy class.
+
+## Sessions, not only days
+
+A member can train more than once in one day. Attendance is therefore connected to an actual training session, while unscheduled exceptions still have a one-per-day guard. It keeps duplicate scans out without hiding a second class.
+
+<PullQuote cite="Implementation note">
+  A scan becomes attendance only after the server has accepted it.
+</PullQuote>
+
+## What changed next
+
+Rewards are stored as data definitions rather than UI conditions. This makes a new title, weekly goal, or return-after-a-break rule a content change instead of a screen rewrite.

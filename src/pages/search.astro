@@ -1,0 +1,4 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Search — WONJUN"><section class="search"><h1>SEARCH</h1><input id="search" type="search" placeholder="Search title, text, tags" autofocus><div id="results"></div></section><script is:inline type="module">const input=document.querySelector('#search'),results=document.querySelector('#results');let search;const pagefindModule=await import('/pagefind/pagefind.js');search=await pagefindModule.default();input.addEventListener('input',async()=>{const r=await search.search(input.value);results.innerHTML=(await Promise.all(r.results.map(async x=>{const d=await x.data();return `<a href="${d.url}">${d.meta.title}</a>`}))).join('')})</script></Base>

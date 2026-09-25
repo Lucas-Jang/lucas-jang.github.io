@@ -1,0 +1,5 @@
+---
+import Base from '../layouts/Base.astro'; import PostTile from '../components/PostTile.astro'; import { getPosts, categories } from '../lib/posts';
+const posts = await getPosts(); const feature = posts.find(p=>p.data.featured) ?? posts[0]; const rest = posts.filter(p=>p.id !== feature.id);
+---
+<Base title="WONJUN — Journal / Archive"><section class="intro"><h1>WONJUN</h1><p>JOURNAL / ARCHIVE</p><div class="filters">{categories.map(c=><button data-filter={c}>{c}</button>)}</div></section><section class="editorial"><PostTile post={feature} featured />{rest.map((post)=><PostTile post={post} />)}</section><script>const buttons=document.querySelectorAll<HTMLButtonElement>('[data-filter]'),tiles=document.querySelectorAll<HTMLElement>('.tile');const applyFilter=(category:string)=>{tiles.forEach(tile=>{tile.hidden=category!=='ALL'&&tile.dataset.category!==category});buttons.forEach(button=>button.toggleAttribute('aria-pressed',button.dataset.filter===category))};buttons.forEach(button=>button.addEventListener('click',()=>applyFilter(button.dataset.filter??'ALL')));applyFilter(new URLSearchParams(location.search).get('category')??'ALL');</script></Base>

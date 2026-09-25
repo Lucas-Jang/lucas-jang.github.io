@@ -1,0 +1,4 @@
+---
+import Base from '../layouts/Base.astro'; import {getPosts} from '../lib/posts'; const posts=await getPosts(); const years=Array.from(new Set(posts.map((post)=>post.data.date.getFullYear()))).sort((a,b)=>b-a);
+---
+<Base title="Archive — WONJUN"><section class="archive"><h1>ARCHIVE</h1>{years.map((year)=><section><h2>{year}</h2>{posts.filter((post)=>post.data.date.getFullYear()===year).map((post)=><a href={`/posts/${post.id}/`}><time>{post.data.date.toLocaleDateString('en',{month:'short',day:'2-digit'}).toUpperCase()}</time><span>{post.data.title}</span><em>{post.data.category}</em></a>)}</section>)}</section></Base>

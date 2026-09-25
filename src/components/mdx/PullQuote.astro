@@ -1,0 +1,5 @@
+---
+interface Props { cite?: string }
+const { cite } = Astro.props;
+---
+<figure class="mdx-quote"><blockquote><slot /></blockquote>{cite && <figcaption>— {cite}</figcaption>}</figure>

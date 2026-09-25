@@ -1,0 +1,5 @@
+---
+interface Props { columns?: 2 | 3 }
+const { columns = 2 } = Astro.props;
+---
+<div class:list={['mdx-grid', `columns-${columns}`]}><slot /></div>
