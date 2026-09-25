@@ -9,15 +9,13 @@ const {
   bodyDataCategory,
 } = Astro.props;
 
-const navigation = [
-  ['전체', '/'],
+const categories = [
   ['개발', '/?category=DEV'],
   ['영어', '/?category=ENGLISH'],
   ['주짓수', '/?category=BJJ'],
   ['프리다이빙', '/?category=DIVE'],
   ['증류', '/?category=DISTILL'],
   ['일상', '/?category=LIFE'],
-  ['소개', '/about/'],
 ];
 ---
 
@@ -38,19 +36,18 @@ const navigation = [
   </head>
   <body class={bodyClass} data-category={bodyDataCategory}>
     <header>
-      <a class="wordmark" href="/" aria-label="LucasJang 홈">
-        <img src="/images/lucasjang-logo.png" alt="LucasJang" width="2163" height="727" />
-      </a>
-      <nav class="site-nav" aria-label="주요 메뉴">
-        {navigation.map(([label, href]) => <a href={href}>{label}</a>)}
+      <nav class="site-nav" aria-label="카테고리">
+        {categories.map(([label, href]) => <a href={href}>{label}</a>)}
+        <a class="site-nav-about" href="/about/">소개</a>
       </nav>
       <details class="menu">
         <summary aria-label="메뉴 열기">메뉴</summary>
         <div class="menu-panel">
           <nav aria-label="카테고리 탐색">
             <p>카테고리</p>
-            {navigation.map(([label, href]) => <a href={href}>{label}</a>)}
+            {categories.map(([label, href]) => <a href={href}>{label}</a>)}
           </nav>
+          <a class="menu-about" href="/about/">소개<span>LucasJang에 대하여</span></a>
           <div class="menu-utilities" aria-label="글 탐색 도구">
             <p>글 탐색</p>
             <a href="/archive/"><span>글 목록</span><small>날짜별로 보기</small></a>
@@ -68,4 +65,3 @@ const navigation = [
     </footer>
   </body>
 </html>
-
