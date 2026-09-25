@@ -6,9 +6,10 @@ import { getPosts } from '../lib/posts';
 const posts = await getPosts();
 const feature = posts.find((post) => post.data.featured) ?? posts[0];
 const rest = posts.filter((post) => post.id !== feature.id);
+const selectedCategory = Astro.url.searchParams.get('category') ?? 'ALL';
 ---
 
-<Base title="LucasJang — 기록과 사진" bodyClass="home" bodyDataCategory="ALL">
+<Base title="LucasJang — 기록과 사진" bodyClass="home" bodyDataCategory={selectedCategory}>
   <section class="home-hero">
     <figure class="home-hero-visual">
       <img src="/images/home-lucasjang.jpg" alt="산 능선을 바라보는 Lucas Jang" />
