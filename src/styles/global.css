@@ -63,6 +63,7 @@ body > footer {
 }
 
 body > header {
+  position: relative;
   min-height: var(--header-height);
   display: flex;
   align-items: center;
@@ -73,6 +74,7 @@ body > header {
 
 .home-link {
   display: inline-flex;
+  min-width: 2.75rem;
   min-height: 2.75rem;
   align-items: center;
   color: var(--ink);
@@ -109,11 +111,13 @@ footer a { transition: opacity 160ms ease; }
 .site-nav a:hover,
 footer a:hover { opacity: 0.58; }
 
-.menu { display: none; position: relative; }
+.menu { display: none; }
 .menu summary {
   display: inline-flex;
+  min-width: 2.75rem;
   min-height: 2.75rem;
   align-items: center;
+  justify-content: flex-end;
   cursor: pointer;
   font-size: 0.875rem;
   list-style: none;
@@ -124,7 +128,7 @@ footer a:hover { opacity: 0.58; }
   z-index: 10;
   top: calc(100% + var(--space-2));
   right: 0;
-  width: min(18rem, calc(100vw - (var(--gutter) * 2)));
+  width: min(18rem, 100%);
   padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: 0.9rem;
