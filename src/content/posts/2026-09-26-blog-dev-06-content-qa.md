@@ -4,8 +4,6 @@ description: '제목, 표, 이미지, 링크를 실제 게시물에서 확인하
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
 tags: [블로그-개편기, QA, 타이포그래피, 이미지, 반응형, 접근성]
 ---
@@ -45,4 +43,7 @@ tags: [블로그-개편기, QA, 타이포그래피, 이미지, 반응형, 접근
 
 이 과정을 거치며 완료 기준이 “렌더링된다”에서 “실제 콘텐츠를 읽을 때 리듬이 유지된다”로 바뀌었다.
 
-[이전 글: 모바일 메뉴를 다시 설계한 이유](/posts/2026-09-26-blog-dev-05-mobile-navigation/) · [다음 글: 엄격한 QA와 배포를 완료 조건으로 삼기](/posts/2026-09-26-blog-dev-07-quality-and-deployment/)
+<nav class="series-nav" aria-label="블로그 개편기 글 이동">
+  <a class="previous" href="/posts/2026-09-26-blog-dev-05-mobile-navigation/"><span>이전 글</span><strong>5편 · 모바일 메뉴 재설계</strong></a>
+  <a class="next" href="/posts/2026-09-26-blog-dev-07-quality-and-deployment/"><span>다음 글</span><strong>7편 · QA와 배포</strong></a>
+</nav>

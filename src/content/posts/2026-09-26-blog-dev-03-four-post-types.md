@@ -4,8 +4,6 @@ description: 'Moment, Journal, Gallery, Feature로 작성 부담과 표현력을
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
 tags: [블로그-개편기, Astro, MDX, 콘텐츠모델, 블로그]
 ---
@@ -53,4 +51,7 @@ Feature에서는 `FullBleedImage`, `ImageGrid`, `PullQuote`, `Caption` 같은 �
 
 콘텐츠 모델을 먼저 정하니 홈 화면의 변주도 무작위 장식이 아니라 데이터에 근거할 수 있게 됐다. 다음 글에서는 이 모델을 받치기 위해 Astro, TypeScript, MDX, GitHub Pages를 선택한 이유를 다룬다.
 
-[이전 글: 에디토리얼 편집면을 선택한 이유](/posts/2026-09-26-blog-dev-02-editorial-home/) · [다음 글: Astro와 MDX로 만든 운영 구조](/posts/2026-09-26-blog-dev-04-astro-mdx-architecture/)
+<nav class="series-nav" aria-label="블로그 개편기 글 이동">
+  <a class="previous" href="/posts/2026-09-26-blog-dev-02-editorial-home/"><span>이전 글</span><strong>2편 · 에디토리얼 편집면</strong></a>
+  <a class="next" href="/posts/2026-09-26-blog-dev-04-astro-mdx-architecture/"><span>다음 글</span><strong>4편 · Astro와 MDX 운영 구조</strong></a>
+</nav>

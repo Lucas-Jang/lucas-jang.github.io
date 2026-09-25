@@ -4,8 +4,6 @@ description: '카테고리, 글 목록, 검색의 의미를 분리하고 모바�
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
 tags: [블로그-개편기, 모바일, 반응형, UX, 정보구조, 접근성]
 ---
@@ -46,4 +44,7 @@ Grid와 Flex도 눈으로만 확인하지 않았다. 긴 제목 때문에 열이
 
 모바일을 별도 UX로 대하자 문제를 “작은 화면에서 어떻게 우겨 넣을까”가 아니라 “이 환경에서 무엇이 먼저 보여야 할까”로 바꿀 수 있었다.
 
-[이전 글: Astro와 MDX로 만든 운영 구조](/posts/2026-09-26-blog-dev-04-astro-mdx-architecture/) · [다음 글: 실제 글로 발견한 레이아웃 문제](/posts/2026-09-26-blog-dev-06-content-qa/)
+<nav class="series-nav" aria-label="블로그 개편기 글 이동">
+  <a class="previous" href="/posts/2026-09-26-blog-dev-04-astro-mdx-architecture/"><span>이전 글</span><strong>4편 · Astro와 MDX 운영 구조</strong></a>
+  <a class="next" href="/posts/2026-09-26-blog-dev-06-content-qa/"><span>다음 글</span><strong>6편 · 실제 콘텐츠 QA</strong></a>
+</nav>

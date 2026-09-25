@@ -4,8 +4,6 @@ description: '개발 블로그에서 출발한 사이트를 여섯 가지 관심
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: true
 tags: [블로그-개편기, 블로그, 디자인, 정보구조, 에디토리얼]
 ---
@@ -48,4 +46,6 @@ UI는 그 흐름을 돕고 나서는 뒤로 물러나야 한다. 강한 그림�
 
 다음 글에서는 이 정체성을 화면으로 옮기기 위해 어떤 레퍼런스를 참고했고, 무엇은 의도적으로 버렸는지 기록한다.
 
-[다음 글: 카드 목록 대신 에디토리얼 편집면을 선택한 이유](/posts/2026-09-26-blog-dev-02-editorial-home/)
+<nav class="series-nav" aria-label="블로그 개편기 글 이동">
+  <a class="next" href="/posts/2026-09-26-blog-dev-02-editorial-home/"><span>다음 글</span><strong>2편 · 에디토리얼 편집면</strong></a>
+</nav>

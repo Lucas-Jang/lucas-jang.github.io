@@ -4,8 +4,6 @@ description: '정적 블로그의 단순함을 유지하면서 검색, 이미지
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
 tags: [블로그-개편기, Astro, TypeScript, MDX, Pagefind, GitHub-Pages]
 ---
@@ -50,4 +48,7 @@ Astro 정적 빌드 → Pagefind 색인 생성 → GitHub Pages 배포
 
 다음 글에서는 기술보다 더 많은 재작업을 만들었던 모바일 메뉴와 반응형 정보구조를 정리한다.
 
-[이전 글: 네 가지 게시물 타입](/posts/2026-09-26-blog-dev-03-four-post-types/) · [다음 글: 모바일 메뉴를 다시 설계한 이유](/posts/2026-09-26-blog-dev-05-mobile-navigation/)
+<nav class="series-nav" aria-label="블로그 개편기 글 이동">
+  <a class="previous" href="/posts/2026-09-26-blog-dev-03-four-post-types/"><span>이전 글</span><strong>3편 · 네 가지 게시물 타입</strong></a>
+  <a class="next" href="/posts/2026-09-26-blog-dev-05-mobile-navigation/"><span>다음 글</span><strong>5편 · 모바일 메뉴 재설계</strong></a>
+</nav>

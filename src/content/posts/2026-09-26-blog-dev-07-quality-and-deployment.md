@@ -4,8 +4,6 @@ description: '브라우저 검증, 접근성, 성능, CI/CD까지 블로그 품�
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
 tags: [블로그-개편기, QA, CI-CD, GitHub-Pages, 성능, 접근성]
 ---
@@ -58,4 +56,7 @@ Analyze → Implement → Render → Inspect → Refine → Verify
 
 블로그의 강점은 기능의 수가 아니라 적은 규칙으로 다양한 삶의 기록을 수용하는 구조에 있다.
 
-[처음부터 읽기: 블로그를 삶의 기록으로 다시 정의하기](/posts/2026-09-26-blog-dev-01-visual-journal/) · [이전 글: 실제 글로 발견한 레이아웃 문제](/posts/2026-09-26-blog-dev-06-content-qa/)
+<nav class="series-nav" aria-label="블로그 개편기 글 이동">
+  <a class="previous" href="/posts/2026-09-26-blog-dev-06-content-qa/"><span>이전 글</span><strong>6편 · 실제 콘텐츠 QA</strong></a>
+  <a class="next" href="/posts/2026-09-26-blog-dev-01-visual-journal/"><span>처음부터</span><strong>1편 · 삶의 기록으로 재정의</strong></a>
+</nav>

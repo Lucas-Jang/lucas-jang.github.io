@@ -4,8 +4,6 @@ description: 'Paul Stamatiou와 Egg Canvas에서 배운 점을 운영 가능한 
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
 tags: [블로그-개편기, 블로그, UI, 에디토리얼, 디자인시스템]
 ---
@@ -46,4 +44,7 @@ Egg Canvas 같은 화면은 사람이 매번 직접 배치할 때 가장 아름�
 
 레퍼런스는 결과를 복제하기 위한 답안이 아니라 판단 기준을 세우는 재료였다. 다음 글에서는 그 기준을 실제로 운영할 수 있게 만든 네 가지 게시물 타입을 정리한다.
 
-[이전 글: 블로그를 삶의 기록으로 다시 정의하기](/posts/2026-09-26-blog-dev-01-visual-journal/) · [다음 글: 네 가지 게시물 타입](/posts/2026-09-26-blog-dev-03-four-post-types/)
+<nav class="series-nav" aria-label="블로그 개편기 글 이동">
+  <a class="previous" href="/posts/2026-09-26-blog-dev-01-visual-journal/"><span>이전 글</span><strong>1편 · 삶의 기록으로 재정의</strong></a>
+  <a class="next" href="/posts/2026-09-26-blog-dev-03-four-post-types/"><span>다음 글</span><strong>3편 · 네 가지 게시물 타입</strong></a>
+</nav>
