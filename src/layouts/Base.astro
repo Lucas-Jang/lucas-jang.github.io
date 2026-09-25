@@ -46,11 +46,17 @@ const navigation = [
       </nav>
       <details class="menu">
         <summary aria-label="메뉴 열기">메뉴</summary>
-        <nav aria-label="모바일 메뉴">
-          {navigation.map(([label, href]) => <a href={href}>{label}</a>)}
-          <a href="/archive/">글 목록</a>
-          <a href="/search/">검색</a>
-        </nav>
+        <div class="menu-panel">
+          <nav aria-label="카테고리 탐색">
+            <p>카테고리</p>
+            {navigation.map(([label, href]) => <a href={href}>{label}</a>)}
+          </nav>
+          <div class="menu-utilities" aria-label="글 탐색 도구">
+            <p>글 탐색</p>
+            <a href="/archive/"><span>글 목록</span><small>날짜별로 보기</small></a>
+            <a href="/search/"><span>검색</span><small>제목과 본문에서 찾기</small></a>
+          </div>
+        </div>
       </details>
     </header>
     <main data-pagefind-body><slot /></main>

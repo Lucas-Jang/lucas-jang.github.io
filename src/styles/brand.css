@@ -17,11 +17,11 @@
   padding: clamp(2.25rem, 5dvh, 3.75rem) 0;
 }
 .home-hero h1 {
-  max-width: 11ch;
+  max-width: 15ch;
   margin: 0;
   color: var(--mist);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(3.25rem, 6.6vw, 7rem);
+  font-size: clamp(3rem, 4.2vw, 4.5rem);
   font-weight: 600;
   line-height: 1.04;
   letter-spacing: -0.075em;
@@ -46,10 +46,10 @@
 .home-feed { padding: clamp(3rem, 7vw, 4.5rem) 0 clamp(4.5rem, 8vw, 5.75rem); color: var(--deep); }
 .home-feed .editorial { padding-bottom: 0; }
 
-@media (max-width: 60rem) {
+@media (max-width: 70rem) {
   .home-hero { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .home-hero-copy { order: 1; padding: clamp(2.75rem, 9vw, 4.5rem) 0 clamp(2.25rem, 7vw, 3.5rem); }
-  .home-hero h1 { max-width: 12ch; font-size: clamp(3.25rem, 11vw, 5.75rem); }
+  .home-hero h1 { max-width: 13ch; font-size: clamp(3.1rem, 9vw, 5.5rem); }
   .home-hero-visual { order: 2; height: min(72vw, 36rem); aspect-ratio: auto; }
   .home-hero-visual img { min-height: 0; }
 }
@@ -57,7 +57,7 @@
 @media (max-width: 45rem) {
   .home-hero { min-height: auto; }
   .home-hero-copy { padding-top: clamp(2.25rem, 10vw, 3.5rem); }
-  .home-hero h1 { max-width: 10ch; font-size: clamp(3rem, 14vw, 4.6rem); line-height: 1.07; }
+  .home-hero h1 { max-width: 11.5ch; font-size: clamp(2.7rem, 12vw, 4.3rem); line-height: 1.08; }
   .home-hero p { margin-top: var(--space-4); }
   .home-hero-visual { height: min(82vw, 26rem); }
   .about h1 { font-size: clamp(2rem, 8.8vw, 3.2rem); }
