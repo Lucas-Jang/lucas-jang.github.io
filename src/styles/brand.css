@@ -63,3 +63,5 @@
   .about h1 { font-size: clamp(2rem, 8.8vw, 3.2rem); }
   .about-video { width: min(100%, 28rem); }
 }
+
+.home-hero .hero-emphasis { color: var(--deep); }
