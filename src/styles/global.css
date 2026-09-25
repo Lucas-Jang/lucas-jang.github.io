@@ -183,6 +183,17 @@ footer a:hover { opacity: 0.58; }
   text-wrap: pretty;
 }
 .tile-description { margin: 0; color: var(--muted); font-size: 1rem; line-height: 1.68; }
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+  margin: 0 0 var(--space-3);
+  color: var(--slate-deep);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.post-head .tag-list { margin-top: var(--space-3); }
 
 .post { padding: clamp(3rem, 6vw, 4rem) 0 clamp(4.75rem, 9vw, 6.5rem); }
 .post-head { max-width: min(65rem, 100%); margin: 0 auto clamp(2.25rem, 5vw, 3rem); }

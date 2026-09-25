@@ -1,13 +1,13 @@
 ---
-title: '카드 목록 대신 에디토리얼 편집면을 선택한 이유'
+title: '[블로그 개편기 - 2] 카드 목록 대신 에디토리얼 편집면을 선택한 이유'
 description: 'Paul Stamatiou와 Egg Canvas에서 배운 점을 운영 가능한 홈 화면의 규칙으로 바꾼 과정.'
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/posts/blog-development-series/02-development-category.png'
-coverAlt: 'LucasJang 블로그의 개발 카테고리 글 목록 화면'
+cover: '/images/categories/development.jpg'
+coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
-tags: [블로그, UI, 에디토리얼, 디자인시스템]
+tags: [블로그-개편기, 블로그, UI, 에디토리얼, 디자인시스템]
 ---
 
 블로그의 방향을 정한 뒤에는 “사진이 많은 사이트”가 아니라 “사진과 글의 비중을 편집할 수 있는 사이트”를 찾았다.
@@ -15,6 +15,10 @@ tags: [블로그, UI, 에디토리얼, 디자인시스템]
 초기에 참고한 Paul Stamatiou의 개인 사이트는 사진, 영상, 짧은 기록과 긴 글이 자연스럽게 섞여 있었다. 개인 사이트인데도 정해진 블로그 템플릿처럼 보이지 않았고, 메뉴도 콘텐츠를 방해하지 않았다.
 
 이후 Egg Canvas에서 더 분명한 힌트를 얻었다. 모든 게시물이 같은 크기의 카드가 아니었고, 여백과 사진, 타이포그래피가 콘텐츠의 중요도를 만들었다. 잡지의 한 면처럼 각 항목의 무게가 달랐다.
+
+![사진과 큰 제목이 비대칭으로 구성된 블로그의 Canvas 디자인 실험 화면](/images/posts/blog-development-series/02-development-category.png)
+
+*블로그 안에서 만든 Canvas 디자인 실험. 같은 크기의 카드 대신 사진·제목·여백의 비대칭으로 콘텐츠의 비중을 만든다.*
 
 ## 같은 크기의 카드는 공평하지만 평평하다
 

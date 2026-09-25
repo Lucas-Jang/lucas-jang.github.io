@@ -1,18 +1,22 @@
 ---
-title: '컴포넌트가 아니라 실제 글로 발견한 레이아웃 문제'
+title: '[블로그 개편기 - 6] 컴포넌트가 아니라 실제 글로 발견한 레이아웃 문제'
 description: '제목, 표, 이미지, 링크를 실제 게시물에서 확인하며 콘텐츠 QA 기준을 세운 과정.'
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/posts/blog-development-series/07-post-mobile.png'
-coverAlt: '모바일 화면에서 제목과 이미지가 이어지는 LucasJang 게시물'
+cover: '/images/categories/development.jpg'
+coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
-tags: [QA, 타이포그래피, 이미지, 반응형, 접근성]
+tags: [블로그-개편기, QA, 타이포그래피, 이미지, 반응형, 접근성]
 ---
 
 컴포넌트 미리보기에서 괜찮아 보이는 디자인도 실제 글을 열면 쉽게 무너진다. 긴 제목, 비율이 제각각인 사진, 표와 링크가 들어오는 순간 가짜 콘텐츠로는 보이지 않던 문제가 드러난다.
 
 그래서 QA의 단위를 컴포넌트가 아니라 게시물로 바꿨다.
+
+![긴 제목과 해시태그, 표지 이미지의 모바일 배치를 확인하는 실제 게시물](/images/posts/blog-development-series/07-post-mobile.png)
+
+*실제 긴 제목으로 검증한 모바일 게시물. 줄바꿈, 좌우 여백, 태그와 이미지가 차지하는 높이를 함께 확인한다.*
 
 ## 하나의 컨테이너로 모든 것을 해결할 수 없다
 

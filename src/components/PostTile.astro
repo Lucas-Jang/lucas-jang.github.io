@@ -10,6 +10,7 @@ const { post, featured = false } = Astro.props;
   <div>
     <p>{categoryLabel(post.data.category)} · {formatDate(post.data.date)}</p>
     <h2><a href={`/posts/${post.id}/`}>{post.data.title}</a></h2>
+    {post.data.tags.length > 0 && <p class="tag-list" aria-label="해시태그">{post.data.tags.slice(0, 3).map((tag: string) => <span>#{tag}</span>)}</p>}
     <p class="tile-description">{post.data.description}</p>
   </div>
 </article>

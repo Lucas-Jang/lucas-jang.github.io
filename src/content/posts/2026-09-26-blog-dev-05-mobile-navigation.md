@@ -1,13 +1,13 @@
 ---
-title: '모바일 메뉴를 줄이는 대신 다시 설계한 이유'
+title: '[블로그 개편기 - 5] 모바일 메뉴를 줄이는 대신 다시 설계한 이유'
 description: '카테고리, 글 목록, 검색의 의미를 분리하고 모바일을 독립적인 UX로 다듬은 과정.'
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/posts/blog-development-series/05-mobile-home.png'
-coverAlt: '모바일 화면에서 보이는 LucasJang 블로그 홈과 메뉴 버튼'
+cover: '/images/categories/development.jpg'
+coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
-tags: [모바일, 반응형, UX, 정보구조, 접근성]
+tags: [블로그-개편기, 모바일, 반응형, UX, 정보구조, 접근성]
 ---
 
 모바일 메뉴를 처음 만들었을 때 개발, 영어, 주짓수 같은 카테고리와 글 목록, 검색을 한 줄의 같은 항목처럼 배치했다. 기능은 모두 동작했지만 화면은 중구난방으로 느껴졌다.
@@ -19,6 +19,10 @@ tags: [모바일, 반응형, UX, 정보구조, 접근성]
 카테고리는 **무엇을 읽을 것인가**를 고르는 Primary Navigation이다. 글 목록은 전체 콘텐츠를 훑는 Browse 기능이고, 검색은 목적이 분명한 Utility다.
 
 이 셋을 같은 모양과 위계로 나열하면 사용자는 동일한 종류의 선택지로 받아들인다. 따라서 모바일 메뉴는 개념적으로 다음 세 그룹을 가져야 했다.
+
+![카테고리와 글 탐색이 시각적으로 분리된 모바일 메뉴](/images/posts/blog-development-series/05-mobile-home.png)
+
+*현재 모바일 메뉴. 콘텐츠 카테고리와 글 목록·검색을 간격과 구분선으로 분리했다.*
 
 - Primary: 개발, 영어, 주짓수, 프리다이빙, 증류, 일상
 - Browse: 글 목록

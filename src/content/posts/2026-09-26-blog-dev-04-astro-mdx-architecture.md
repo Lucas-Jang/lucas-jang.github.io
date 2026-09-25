@@ -1,13 +1,13 @@
 ---
-title: 'Astro와 MDX로 만든 작고 확장 가능한 운영 구조'
+title: '[블로그 개편기 - 4] Astro와 MDX로 만든 작고 확장 가능한 운영 구조'
 description: '정적 블로그의 단순함을 유지하면서 검색, 이미지, 고급 레이아웃의 확장성을 확보한 기술 선택.'
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/posts/blog-development-series/04-search.png'
-coverAlt: 'Pagefind 기반 검색 입력창이 있는 LucasJang 검색 화면'
+cover: '/images/categories/development.jpg'
+coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
-tags: [Astro, TypeScript, MDX, Pagefind, GitHub-Pages]
+tags: [블로그-개편기, Astro, TypeScript, MDX, Pagefind, GitHub-Pages]
 ---
 
 콘텐츠 모델을 정한 뒤 기술 스택은 Astro, TypeScript, MDX, GitHub Pages로 수렴했다. 목표는 기능을 많이 넣는 것이 아니라 정적 사이트의 단순함을 유지하면서 필요한 곳에만 표현력을 여는 것이었다.
@@ -29,6 +29,10 @@ MDX는 운영 방식의 핵심이다. 일반 글은 Markdown처럼 쓰되 Featur
 ## 검색 서버 없이 검색하기
 
 검색은 Pagefind를 사용한다. 빌드가 끝난 정적 HTML을 읽어 색인을 만들기 때문에 별도 검색 서버가 없다.
+
+![제목, 본문, 태그를 찾는 Pagefind 기반 검색 화면](/images/posts/blog-development-series/04-search.png)
+
+*정적 빌드 결과를 색인해 별도 검색 서버 없이 동작하는 검색 화면.*
 
 빌드 흐름은 다음과 같다.
 

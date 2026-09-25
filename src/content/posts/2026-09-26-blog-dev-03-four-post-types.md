@@ -1,13 +1,13 @@
 ---
-title: '가볍게 쓰고 깊게 확장하는 네 가지 게시물 타입'
+title: '[블로그 개편기 - 3] 가볍게 쓰고 깊게 확장하는 네 가지 게시물 타입'
 description: 'Moment, Journal, Gallery, Feature로 작성 부담과 표현력을 함께 해결한 콘텐츠 모델.'
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/posts/blog-development-series/06-post-desktop.png'
-coverAlt: '제목과 큰 표지 이미지, 본문이 이어지는 LucasJang 게시물 화면'
+cover: '/images/categories/development.jpg'
+coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
-tags: [Astro, MDX, 콘텐츠모델, 블로그]
+tags: [블로그-개편기, Astro, MDX, 콘텐츠모델, 블로그]
 ---
 
 사진 중심의 에디토리얼 블로그를 오래 운영하려면 두 가지 상반된 요구를 함께 풀어야 했다. 짧은 기록은 가볍게 올릴 수 있어야 하고, 마음먹고 만든 글은 평범한 템플릿의 한계를 넘어야 한다.
@@ -21,6 +21,10 @@ tags: [Astro, MDX, 콘텐츠모델, 블로그]
 ## Journal
 
 일반적인 블로그 글의 기본값이다. 제목, 표지 이미지, 본문이 자연스럽게 이어진다. 개발 기록이나 공부 노트처럼 설명의 흐름이 중요한 콘텐츠가 여기에 해당한다.
+
+![제목, 해시태그, 표지 이미지, 본문으로 이어지는 Journal 게시물 화면](/images/posts/blog-development-series/06-post-desktop.png)
+
+*이 연재에도 사용하는 Journal 타입. 공통 구조를 유지하면서 Markdown 본문을 자연스럽게 읽게 한다.*
 
 ## Gallery
 

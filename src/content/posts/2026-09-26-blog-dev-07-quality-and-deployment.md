@@ -1,13 +1,13 @@
 ---
-title: '기능 추가보다 엄격한 QA와 배포를 완료 조건으로 삼기'
+title: '[블로그 개편기 - 7] 기능 추가보다 엄격한 QA와 배포를 완료 조건으로 삼기'
 description: '브라우저 검증, 접근성, 성능, CI/CD까지 블로그 품질의 일부로 본 마지막 단계.'
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/posts/blog-development-series/03-archive.png'
-coverAlt: '연도별 게시물을 보여 주는 LucasJang 아카이브 화면'
+cover: '/images/categories/development.jpg'
+coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: false
-tags: [QA, CI-CD, GitHub-Pages, 성능, 접근성]
+tags: [블로그-개편기, QA, CI-CD, GitHub-Pages, 성능, 접근성]
 ---
 
 개발 초기의 개선 기준은 “전보다 예뻐졌는가”였다. 후반부에는 4px의 어색한 간격, breakpoint 직전의 메뉴 위치, 화면을 지나치게 차지하는 이미지, 실제로 열리지 않는 링크도 수정 대상이 됐다.
@@ -27,6 +27,10 @@ Analyze → Implement → Render → Inspect → Refine → Verify
 ## 품질을 여러 방향에서 보기
 
 마지막 QA는 사실상 Design Audit, Frontend QA, Content QA를 합친 작업이었다.
+
+![시리즈명과 순서가 반영된 게시물을 연도별로 확인하는 아카이브](/images/posts/blog-development-series/03-archive.png)
+
+*배포 뒤 회귀를 확인하는 아카이브. 날짜, 제목, 카테고리가 실제 공개 콘텐츠 기준으로 정렬된다.*
 
 - Visual: 타이포그래피, 여백, 크기, 정렬, 이미지 리듬
 - UX: 내비게이션, 검색, 글 탐색, 터치 상호작용

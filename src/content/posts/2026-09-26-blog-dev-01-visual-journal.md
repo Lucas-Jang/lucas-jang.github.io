@@ -1,13 +1,13 @@
 ---
-title: '블로그를 포트폴리오가 아닌 삶의 기록으로 다시 정의하기'
+title: '[블로그 개편기 - 1] 포트폴리오가 아닌 삶의 기록으로 다시 정의하기'
 description: '개발 블로그에서 출발한 사이트를 여섯 가지 관심사를 담는 개인 에디토리얼 저널로 바꾼 이유.'
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/posts/blog-development-series/01-home-editorial.png'
-coverAlt: '사진과 문장이 나란히 놓인 LucasJang 블로그 홈 화면'
+cover: '/images/categories/development.jpg'
+coverAlt: '노트북과 개발 도구가 놓인 작업 공간'
 featured: true
-tags: [블로그, 디자인, 정보구조, 에디토리얼]
+tags: [블로그-개편기, 블로그, 디자인, 정보구조, 에디토리얼]
 ---
 
 처음에는 기존 GitHub 블로그의 디자인을 조금 더 보기 좋게 고치는 일이었다. 그런데 무엇을 보여 줄지 생각할수록 문제는 색이나 여백이 아니라 블로그의 정체성에 있다는 걸 알게 됐다.
@@ -17,6 +17,10 @@ tags: [블로그, 디자인, 정보구조, 에디토리얼]
 그래서 목표를 이렇게 다시 정의했다.
 
 > 서로 다른 삶의 영역을 한곳에 담되, 평소에는 부담 없이 쓰고 필요할 때는 사진집이나 디지털 매거진처럼 확장할 수 있는 시각적 저널을 만든다.
+
+![사진과 문장이 같은 비중으로 첫인상을 만드는 현재 홈 화면](/images/posts/blog-development-series/01-home-editorial.png)
+
+*현재 홈의 Hero. 직업이나 기술 스택 대신 사진과 한 문장으로 저널의 정체성을 먼저 보여 준다.*
 
 ## 여섯 카테고리는 여섯 개의 브랜드가 아니다
 
