@@ -319,6 +319,31 @@ footer a:hover { opacity: 0.58; }
 .prose pre code { font-size: inherit; }
 .prose a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
 .prose img { width: 100%; height: auto; margin: 2em 0; border-radius: 0.2rem; }
+.prose .product-shot {
+  margin: clamp(2rem, 5vw, 3.25rem) 0;
+}
+.prose .product-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  background: var(--surface);
+}
+.prose .product-shot-phone {
+  width: min(30rem, 100%);
+  margin-right: auto;
+  margin-left: auto;
+}
+.prose .product-shot figcaption {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.65;
+  text-align: left;
+}
 .prose hr { margin: 3em 0; border: 0; border-top: 1px solid var(--line); }
 .prose table {
   width: 100%;
