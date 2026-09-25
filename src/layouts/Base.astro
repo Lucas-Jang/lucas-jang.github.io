@@ -17,6 +17,11 @@ const categories = [
   ['DISTILL', '증류', '/?category=DISTILL'],
   ['LIFE', '일상', '/?category=LIFE'],
 ];
+
+const gaMeasurementId = import.meta.env.PROD
+  && /^G-[A-Z0-9]+$/.test(import.meta.env.PUBLIC_GA_MEASUREMENT_ID ?? '')
+  ? import.meta.env.PUBLIC_GA_MEASUREMENT_ID
+  : undefined;
 ---
 
 <!doctype html>
@@ -33,6 +38,17 @@ const categories = [
     <meta property="og:type" content="website" />
     <meta property="og:image" content={new URL('/images/lucasjang-logo.png', Astro.site)} />
     <title>{title}</title>
+    {gaMeasurementId && (
+      <>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}></script>
+        <script is:inline define:vars={{ gaMeasurementId }}>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', gaMeasurementId);
+        </script>
+      </>
+    )}
   </head>
   <body class={bodyClass} data-category={bodyDataCategory}>
     <header>
