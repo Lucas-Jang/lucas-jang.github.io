@@ -1,6 +1,6 @@
 (() => {
   const counterOrigin = 'https://lucasjang.goatcounter.com';
-  const visitorPath = '/__visitor__';
+  const visitorPath = '/visitors';
   const formatter = new Intl.NumberFormat('ko-KR');
 
   const parseCount = (value) => {
