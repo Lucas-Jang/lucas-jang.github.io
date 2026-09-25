@@ -4,13 +4,16 @@ description: 'iOS·Android·PC 설치 흐름과 모바일 내비게이션, 웰�
 date: 2026-09-26
 category: DEV
 postType: journal
-cover: '/images/categories/development.jpg'
-coverAlt: '휴대폰 홈 화면에 설치된 TEAM PASSION 앱'
 featured: false
 tags: [출결-앱-개발-로그, PWA, 모바일UX, 앱설치]
 ---
 
 회원이 매번 브라우저를 열고 주소를 입력하게 만들고 싶지 않았다. TEAM PASSION 출결 앱은 웹으로 배포하되 휴대폰 홈 화면에서 일반 앱처럼 열 수 있는 PWA로 구성했다.
+
+<figure>
+  <img src="/images/posts/attendance-app-series/home-desktop.png" alt="앱 설치 버튼이 포함된 TEAM PASSION 공개 홈 데스크톱 화면" />
+  <figcaption>운영 사이트의 데스크톱 홈. 오른쪽 위의 앱 설치는 보조 기능으로 두고, 내 출석 QR 열기를 주요 행동으로 강조했다.</figcaption>
+</figure>
 
 설치 버튼 하나를 만드는 일처럼 보였지만 iPhone, Android, PC의 설치 방식은 서로 달랐다.
 
@@ -62,4 +65,3 @@ iOS Safari에는 같은 설치 프롬프트가 없다. 버튼을 누르면 다�
 ## 현재 결론
 
 PWA는 웹사이트에 아이콘을 추가하는 작업이 아니었다. 설치, 재실행, 화면 이동, 업데이트, 캐시가 하나의 앱처럼 느껴져야 했다. 특히 설치한 뒤 어디서 시작하는지가 출석 앱의 핵심 행동과 맞아야 했다.
-
