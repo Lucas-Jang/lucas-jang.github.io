@@ -69,6 +69,18 @@ header {
   border-bottom: 1px solid var(--line);
 }
 
+.home-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.home-link:hover { opacity: 0.58; }
+.home-link[aria-current="page"] { opacity: 0.68; }
+
 .site-nav {
   display: flex;
   min-width: 0;
@@ -84,6 +96,14 @@ header {
 .site-nav a,
 footer a { transition: opacity 160ms ease; }
 .site-nav-about { margin-left: var(--space-2); padding-left: var(--space-4); border-left: 1px solid var(--line); }
+.site-nav a[aria-current="page"] { font-weight: 700; }
+.site-nav a[data-nav-category][aria-current="page"]::after {
+  content: "";
+  display: block;
+  height: 1px;
+  margin-top: 0.3rem;
+  background: currentColor;
+}
 .site-nav a:hover,
 footer a:hover { opacity: 0.58; }
 
@@ -112,6 +132,8 @@ footer a:hover { opacity: 0.58; }
 .menu-panel nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1); }
 .menu-panel p { grid-column: 1 / -1; margin: var(--space-1) var(--space-2) var(--space-2); color: var(--muted); font-size: 0.75rem; font-weight: 650; letter-spacing: 0.04em; }
 .menu-panel nav a { min-height: 2.75rem; padding: 0.7rem 0.75rem; border-radius: 0.5rem; font-size: 0.94rem; }
+.menu-panel nav a[aria-current="page"],
+.menu-about[aria-current="page"] { background: var(--surface); }
 .menu-panel a:hover { background: var(--surface); opacity: 1; }
 .menu-about { display: flex; min-height: 3.25rem; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line); border-radius: 0.55rem; font-size: 0.95rem; font-weight: 650; }
 .menu-about span { color: var(--muted); font-size: 0.75rem; font-weight: 400; }
