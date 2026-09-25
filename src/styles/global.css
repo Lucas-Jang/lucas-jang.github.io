@@ -163,10 +163,10 @@ footer a:hover { opacity: 0.58; }
 .tile { min-width: 0; }
 .tile[hidden] { display: none; }
 .tile.featured { grid-column: span 2; }
-.tile > a { display: block; overflow: hidden; border-radius: 0.2rem; }
+.tile > a { display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 0.2rem; }
 .tile img {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 100%;
   object-fit: cover;
   transition: transform 220ms ease;
 }
