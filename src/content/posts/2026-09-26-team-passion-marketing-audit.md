@@ -6,7 +6,7 @@ date: 2026-09-26
 category: LIFE
 postType: journal
 protected: true
-protectedFile: '/protected/team-passion-marketing-audit.json'
+protectedFile: '/protected/team-passion-marketing-audit.json?v=3'
 cover: 'https://lirp.cdn-website.com/d3026fd2/dms3rep/multi/opt/pexels-photo-8062366-1920w.jpeg'
 coverAlt: '노트북과 그래프가 놓인 책상 위의 보고서 작업 공간'
 ---
