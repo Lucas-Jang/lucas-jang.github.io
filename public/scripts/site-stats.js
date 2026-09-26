@@ -85,6 +85,27 @@
     });
   };
 
+  const embedPageCount = (path) => {
+    const url = new URL(`${counterOrigin}/counter/${encodeURIComponent(path)}.html`);
+    url.searchParams.set('no_branding', '1');
+    url.searchParams.set('style', [
+      'body{background:transparent;color:inherit}',
+      'div{border:0;width:auto;height:auto;line-height:1;text-align:left;color:inherit;font:inherit}',
+      '#gcvc-for,#gcvc-by{display:none}',
+      '#gcvc-views{font:inherit}',
+    ].join(''));
+
+    document.querySelectorAll('[data-stat="pageviews"]').forEach((element) => {
+      const frame = document.createElement('iframe');
+      frame.src = url;
+      frame.title = '게시물 조회수';
+      frame.loading = 'eager';
+      frame.scrolling = 'no';
+      frame.style.cssText = 'display:inline-block;width:4ch;height:1em;border:0;vertical-align:-0.14em;color:inherit';
+      element.replaceChildren(frame);
+    });
+  };
+
   const kstDate = () => {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Seoul',
@@ -111,7 +132,10 @@
 
     if (pageviewElement?.dataset.path) {
       tasks.push(
-        readCount(pageviewElement.dataset.path).then((count) => setStat('pageviews', count)),
+        readCount(pageviewElement.dataset.path).then((count) => {
+          if (count === null) embedPageCount(pageviewElement.dataset.path);
+          else setStat('pageviews', count);
+        }),
       );
     }
 

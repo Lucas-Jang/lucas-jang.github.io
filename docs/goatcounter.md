@@ -21,7 +21,8 @@ Likely automated browsers, framed pages, and browsers that have opted out with
 
 Public counts are read from `/counter/{encoded-path}.json`. GoatCounter may
 cache these responses for up to four hours. A missing path returns HTTP 404;
-that state is displayed as an em dash rather than the misleading value `0`.
+the post view counter then falls back to GoatCounter's official, unbranded HTML
+counter instead of displaying the misleading value `0`.
 
 Collection and display are intentionally independent. A blocked or unavailable
 analytics request never blocks the page, navigation, or search.
