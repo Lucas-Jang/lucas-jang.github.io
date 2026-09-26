@@ -2,16 +2,13 @@
 
 ## Collection
 
-`public/scripts/site-stats.js` sends two first-party page requests to the
-GoatCounter `/count` endpoint:
-
-- The current `pathname + search` for per-page visit counts.
-- `/visitors` for a site-wide visitor count.
+`public/scripts/site-stats.js` sends the current `pathname + search` to the
+GoatCounter `/count` endpoint for per-page visit counts.
 
 GoatCounter's session handling deduplicates repeat visits to the same path for
-eight hours. The `/visitors` path therefore acts as an approximate unique
-visitor count for that session window, while each post path tracks visits to
-that post.
+eight hours. Site-wide and daily figures are read from GoatCounter's special
+public `TOTAL` counter, avoiding a second synthetic pageview for every real
+pageview.
 
 The collector is hosted with the blog instead of loading `gc.zgo.at/count.js`.
 This removes a commonly blocked third-party script dependency. The actual count

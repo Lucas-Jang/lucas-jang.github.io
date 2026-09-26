@@ -1,6 +1,6 @@
 (() => {
   const counterOrigin = 'https://lucasjang.goatcounter.com';
-  const visitorPath = '/visitors';
+  const totalPath = 'TOTAL';
   const formatter = new Intl.NumberFormat('ko-KR');
 
   const isLikelyBot = () => (
@@ -102,13 +102,11 @@
       title: document.title,
       referrer: document.referrer,
     });
-    sendCount({ path: visitorPath, title: 'Site visitor', referrer: '' });
-
     const today = kstDate();
     const pageviewElement = document.querySelector('[data-stat="pageviews"][data-path]');
     const tasks = [
-      readCount(visitorPath).then((count) => setStat('visitors', count)),
-      readCount(visitorPath, { start: today, end: today }).then((count) => setStat('today', count)),
+      readCount(totalPath).then((count) => setStat('visitors', count)),
+      readCount(totalPath, { start: today, end: today }).then((count) => setStat('today', count)),
     ];
 
     if (pageviewElement?.dataset.path) {
