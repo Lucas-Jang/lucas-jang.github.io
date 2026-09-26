@@ -95,7 +95,16 @@
       frame.title = '게시물 조회수';
       frame.loading = 'eager';
       frame.scrolling = 'no';
-      frame.style.cssText = 'position:absolute;left:calc(50% - 100px);top:-31px;width:200px;height:60px;border:0';
+      frame.style.cssText = [
+        'position:absolute',
+        'left:calc(50% - 100px)',
+        'top:-31px',
+        'width:200px',
+        'height:60px',
+        'border:0',
+        'filter:grayscale(1) contrast(1.4)',
+        'mix-blend-mode:multiply',
+      ].join(';');
       element.style.cssText = 'display:inline-block;position:relative;width:4ch;height:1em;overflow:hidden;vertical-align:-0.14em';
       element.replaceChildren(frame);
     });
