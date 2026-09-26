@@ -3,4 +3,14 @@ import { getCollection, render } from 'astro:content'; import Post from '../../l
 export async function getStaticPaths(){return (await getCollection('posts',({data})=>!data.draft)).map(post=>({params:{slug:post.id},props:{post}}));}
 const { post }=Astro.props; const { Content }=await render(post);
 ---
-<Post {post}><Content components={{ FullBleedImage, PullQuote, ImageGrid, Caption, Divider }} /></Post>
+<Post {post}>
+  {post.data.protected && post.data.protectedFile ? <section class="protected-post" data-protected-file={post.data.protectedFile}>
+    <div class="protected-panel"><p class="protected-kicker">PRIVATE NOTE</p><h2>비밀번호가 필요한 글입니다</h2><p>작성자가 지정한 비밀번호를 입력하면 본문을 읽을 수 있습니다.</p><form class="protected-form"><label for="post-password">비밀번호</label><div class="protected-input-row"><input id="post-password" type="password" autocomplete="off" inputmode="numeric" required /><button type="submit">열기</button></div><p class="protected-error" role="alert" hidden>비밀번호가 올바르지 않습니다.</p></form></div>
+    <div class="protected-content prose" hidden></div>
+  </section> : <Content components={{ FullBleedImage, PullQuote, ImageGrid, Caption, Divider }} />}
+</Post>
+{post.data.protected && post.data.protectedFile && <script is:inline>
+  const root = document.querySelector('.protected-post'); const form = root?.querySelector('.protected-form'); const error = root?.querySelector('.protected-error'); const content = root?.querySelector('.protected-content'); const enc = new TextEncoder();
+  async function openProtected(event) { event.preventDefault(); const password = root.querySelector('input').value; const payload = await fetch(root.dataset.protectedFile).then((response) => response.json()); const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']); const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: Uint8Array.from(atob(payload.salt), (c) => c.charCodeAt(0)), iterations: 120000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['decrypt']); try { const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: Uint8Array.from(atob(payload.iv), (c) => c.charCodeAt(0)) }, key, Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))); content.textContent = new TextDecoder().decode(plain); content.hidden = false; form.hidden = true; } catch { error.hidden = false; } }
+  form?.addEventListener('submit', openProtected);
+</script>}

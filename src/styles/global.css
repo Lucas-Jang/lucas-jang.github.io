@@ -512,3 +512,16 @@ footer {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
+
+.protected-post { max-width: 52rem; margin: 0 auto; }
+.protected-panel { border: 1px solid var(--line); padding: clamp(1.5rem, 4vw, 3rem); background: var(--paper); }
+.protected-kicker { margin: 0 0 .75rem; color: var(--muted); font-size: .78rem; letter-spacing: .14em; }
+.protected-panel h2 { margin: 0 0 .75rem; }
+.protected-panel p { color: var(--muted); }
+.protected-form { margin-top: 1.5rem; }
+.protected-form label { display: block; margin-bottom: .45rem; font-weight: 650; }
+.protected-input-row { display: flex; gap: .6rem; }
+.protected-input-row input { min-width: 0; flex: 1; padding: .8rem .9rem; border: 1px solid var(--line); background: transparent; font: inherit; }
+.protected-input-row button { padding: .8rem 1.1rem; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font: inherit; cursor: pointer; }
+.protected-error { color: #a53d32 !important; }
+.protected-content { white-space: pre-wrap; overflow-wrap: anywhere; }
