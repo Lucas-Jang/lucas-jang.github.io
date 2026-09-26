@@ -6,6 +6,8 @@ on:
       - master
       - main
   workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: read
@@ -26,6 +28,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run stats:update
       - run: npm run check
       - run: npm run build
         env:

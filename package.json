@@ -10,7 +10,8 @@
     "dev": "astro dev",
     "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "stats:update": "node scripts/fetch-goatcounter-stats.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.2",

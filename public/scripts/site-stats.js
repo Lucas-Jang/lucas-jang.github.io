@@ -85,29 +85,16 @@
     });
   };
 
-  const embedPageCount = (path) => {
-    const url = new URL(`${counterOrigin}/counter/${encodeURIComponent(path)}.html`);
-    url.searchParams.set('no_branding', '1');
-
-    document.querySelectorAll('[data-stat="pageviews"]').forEach((element) => {
-      const frame = document.createElement('iframe');
-      frame.src = url;
-      frame.title = '게시물 조회수';
-      frame.loading = 'eager';
-      frame.scrolling = 'no';
-      frame.style.cssText = [
-        'position:absolute',
-        'left:calc(50% - 100px)',
-        'top:-31px',
-        'width:200px',
-        'height:60px',
-        'border:0',
-        'filter:grayscale(1) contrast(1.4)',
-        'mix-blend-mode:multiply',
-      ].join(';');
-      element.style.cssText = 'display:inline-block;position:relative;width:4ch;height:1em;overflow:hidden;vertical-align:-0.14em';
-      element.replaceChildren(frame);
+  const readProcessedPageCount = async (path) => {
+    const response = await fetch(`/data/goatcounter.json?v=${Date.now()}`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
     });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const normalizedPath = path.length > 1 ? path.replace(/\/$/, '') : path;
+    return parseCount(data.pageviews?.[normalizedPath]);
   };
 
   const kstDate = () => {
@@ -136,10 +123,8 @@
 
     if (pageviewElement?.dataset.path) {
       tasks.push(
-        readCount(pageviewElement.dataset.path).then((count) => {
-          if (count === null) embedPageCount(pageviewElement.dataset.path);
-          else setStat('pageviews', count);
-        }),
+        readProcessedPageCount(pageviewElement.dataset.path)
+          .then((count) => setStat('pageviews', count)),
       );
     }
 

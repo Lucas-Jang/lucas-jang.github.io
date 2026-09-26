@@ -19,10 +19,13 @@ Likely automated browsers, framed pages, and browsers that have opted out with
 
 ## Displayed counts
 
-Public counts are read from `/counter/{encoded-path}.json`. GoatCounter may
-cache these responses for up to four hours. A missing path returns HTTP 404;
-the post view counter then falls back to GoatCounter's official, unbranded HTML
-counter instead of displaying the misleading value `0`.
+Site-wide counts are read from GoatCounter's public JSON endpoint. Post counts
+are fetched and parsed during the GitHub Actions build, written to
+`public/data/goatcounter.json`, and rendered as normal blog text. This avoids
+embedding GoatCounter's fixed-size counter UI and lets the number inherit the
+blog typography and colour. The scheduled deployment refreshes the processed
+counts every 15 minutes; GoatCounter itself may cache public counter responses
+for up to four hours.
 
 Collection and display are intentionally independent. A blocked or unavailable
 analytics request never blocks the page, navigation, or search.
