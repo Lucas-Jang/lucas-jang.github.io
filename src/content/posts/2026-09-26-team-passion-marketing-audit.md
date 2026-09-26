@@ -1,7 +1,7 @@
 ---
 title: '우리 도장 관찰 보고서'
 privateTitle: 'TEAM PASSION BJJ 외부 마케팅 감사 보고서'
-description: 'TEAM PASSION BJJ의 외부 채널과 신규 회원 유입 구조를 점검한 비공개 감사 보고서.'
+description: ''
 date: 2026-09-26
 category: LIFE
 postType: journal

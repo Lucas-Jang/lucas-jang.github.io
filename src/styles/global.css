@@ -525,3 +525,16 @@ footer {
 .protected-input-row button { padding: .8rem 1.1rem; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font: inherit; cursor: pointer; }
 .protected-error { color: #a53d32 !important; }
 .protected-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+.protected-content .report-lead { margin: 0 0 2.5rem; padding: 1.25rem 1.4rem; border-left: 3px solid var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.protected-content .report-lead p { margin: .45rem 0; }
+.protected-content h2 { margin-top: 2.6rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.protected-content h3 { margin-top: 1.8rem; }
+.protected-content table { width: 100%; border-collapse: collapse; margin: 1.2rem 0 1.8rem; font-size: .94rem; }
+.protected-content th, .protected-content td { padding: .7rem .65rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.protected-content th { border-top: 2px solid var(--ink); font-weight: 700; }
+.protected-content blockquote { margin: 1.3rem 0; padding: .8rem 1rem; border-left: 3px solid var(--muted); color: var(--muted); }
+.protected-content ul, .protected-content ol { padding-left: 1.4rem; }
+.protected-content li { margin: .35rem 0; }
+.protected-content pre { padding: 1rem; overflow-x: auto; background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.protected-content a { text-decoration: underline; text-underline-offset: .15em; }
+@media (max-width: 700px) { .protected-content table { display: block; overflow-x: auto; white-space: nowrap; } .protected-content th, .protected-content td { min-width: 7rem; } }
