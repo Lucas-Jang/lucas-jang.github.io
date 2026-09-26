@@ -88,12 +88,6 @@
   const embedPageCount = (path) => {
     const url = new URL(`${counterOrigin}/counter/${encodeURIComponent(path)}.html`);
     url.searchParams.set('no_branding', '1');
-    url.searchParams.set('style', [
-      'body{background:transparent;color:inherit}',
-      'div{border:0;width:auto;height:auto;line-height:1;text-align:left;color:inherit;font:inherit}',
-      '#gcvc-for,#gcvc-by{display:none}',
-      '#gcvc-views{font:inherit}',
-    ].join(''));
 
     document.querySelectorAll('[data-stat="pageviews"]').forEach((element) => {
       const frame = document.createElement('iframe');
@@ -101,7 +95,8 @@
       frame.title = '게시물 조회수';
       frame.loading = 'eager';
       frame.scrolling = 'no';
-      frame.style.cssText = 'display:inline-block;width:4ch;height:1em;border:0;vertical-align:-0.14em;color:inherit';
+      frame.style.cssText = 'position:absolute;left:calc(50% - 100px);top:-31px;width:200px;height:60px;border:0';
+      element.style.cssText = 'display:inline-block;position:relative;width:4ch;height:1em;overflow:hidden;vertical-align:-0.14em';
       element.replaceChildren(frame);
     });
   };
