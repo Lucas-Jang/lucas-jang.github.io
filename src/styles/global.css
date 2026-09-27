@@ -21,8 +21,8 @@
   --space-8: 4rem;
   --space-9: 6rem;
   --gutter: clamp(1rem, 3vw, 3rem);
-  --container: 77.5rem;
-  --reading: 42rem;
+  --container: 82rem;
+  --reading: 45rem;
   --header-height: 5.25rem;
   font-family: var(--sans);
   color: var(--ink);
@@ -479,13 +479,14 @@ footer {
 .mdx-divider { margin: 3rem 0; border: 0; border-top: 1px solid var(--line); }
 
 @media (max-width: 70rem) {
+  :root { --gutter: clamp(1.25rem, 3vw, 2rem); }
   :root { --header-height: 4.5rem; }
   .site-nav { display: none; }
   .menu { display: block; }
 }
 
 @media (max-width: 45rem) {
-  :root { --gutter: 1rem; }
+  :root { --gutter: 0.875rem; }
   .editorial { grid-template-columns: minmax(0, 1fr); gap: var(--space-7); }
   .tile.featured { grid-column: auto; }
   .tile.featured img { aspect-ratio: 4 / 5; }
