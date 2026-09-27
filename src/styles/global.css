@@ -22,7 +22,7 @@
   --space-9: 6rem;
   --gutter: clamp(1rem, 3vw, 3rem);
   --container: 82rem;
-  --reading: 45rem;
+  --reading: 48rem;
   --header-height: 5.25rem;
   font-family: var(--sans);
   color: var(--ink);
