@@ -51,15 +51,16 @@ const gaMeasurementId = import.meta.env.PROD
     )}
   </head>
   <body class={bodyClass} data-category={bodyDataCategory}>
+    <a class="skip-link" href="#main-content">본문으로 바로가기</a>
     <header>
-      <a class="home-link" href="/">홈</a>
+      <a class="home-link" href="/" aria-label="홈으로 이동">홈</a>
       <nav class="site-nav" aria-label="카테고리">
         {categories.map(([id, label, href]) => <a data-nav-category={id} href={href}>{label}</a>)}
         <a class="site-nav-about" data-nav-about href="/about/">소개</a>
       </nav>
       <details class="menu">
-        <summary aria-label="메뉴 열기">메뉴</summary>
-        <div class="menu-panel">
+        <summary aria-label="메뉴 열기" aria-controls="mobile-menu">메뉴</summary>
+        <div class="menu-panel" id="mobile-menu">
           <nav aria-label="카테고리 탐색">
             <p>카테고리</p>
             {categories.map(([id, label, href]) => <a data-nav-category={id} href={href}>{label}</a>)}
@@ -73,7 +74,7 @@ const gaMeasurementId = import.meta.env.PROD
         </div>
       </details>
     </header>
-    <main data-pagefind-body><slot /></main>
+    <main id="main-content" tabindex="-1" data-pagefind-body><slot /></main>
     <footer>
       <div class="footer-primary">
         <span>© {new Date().getFullYear()} LucasJang</span>
@@ -108,6 +109,13 @@ const gaMeasurementId = import.meta.env.PROD
         });
         const homeLink = document.querySelector('.home-link');
         if (homeLink) setCurrent(homeLink, location.pathname === '/' && !currentCategory);
+        const menu = document.querySelector('.menu');
+        const summary = menu?.querySelector('summary');
+        menu?.addEventListener('toggle', () => {
+          const isOpen = menu.hasAttribute('open');
+          summary?.setAttribute('aria-expanded', String(isOpen));
+          summary?.setAttribute('aria-label', isOpen ? '메뉴 닫기' : '메뉴 열기');
+        });
       })();
     </script>
   </body>
