@@ -22,7 +22,7 @@
   --space-9: 6rem;
   --gutter: clamp(1rem, 3vw, 3rem);
   --container: 77.5rem;
-  --reading: 45rem;
+  --reading: 42rem;
   --header-height: 5.25rem;
   font-family: var(--sans);
   color: var(--ink);
@@ -291,19 +291,21 @@ footer a:hover { opacity: 0.58; }
   max-width: var(--reading);
   margin-inline: auto;
   font-size: clamp(1.04rem, 1.2vw, 1.125rem);
-  line-height: 1.88;
-  letter-spacing: -0.012em;
+  line-height: 1.9;
+  letter-spacing: -0.006em;
   overflow-wrap: break-word;
   word-break: keep-all;
+  text-wrap: pretty;
 }
 .prose h2 {
-  margin: 3em 0 1em;
+  margin: 2.8em 0 0.9em;
   font-family: var(--sans);
   font-size: clamp(1.45rem, 2.3vw, 1.7rem);
   font-weight: 750;
   line-height: 1.45;
   letter-spacing: -0.045em;
   word-break: keep-all;
+  text-wrap: balance;
 }
 .prose h3,
 .prose h4 {
@@ -316,7 +318,11 @@ footer a:hover { opacity: 0.58; }
 }
 .prose h3 { font-size: clamp(1.2rem, 1.8vw, 1.38rem); }
 .prose h4 { font-size: 1.08rem; }
-.prose p { margin: 0 0 1.35em; }
+.prose p {
+  margin: 0 0 1.05em;
+  text-wrap: pretty;
+}
+.prose p + p { margin-top: 0.25em; }
 .prose ul,
 .prose ol { margin: 0 0 1.45em; padding-left: 1.35em; }
 .prose li + li { margin-top: 0.35em; }
