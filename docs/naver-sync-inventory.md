@@ -59,6 +59,7 @@
 - 블로그명을 `LucasJang — 기록과 사진`으로 변경.
 - 소개글을 GitHub About의 업무·관심사 정보를 바탕으로 변경.
 - 글·댓글 스타일의 제목색·내용색을 GitHub의 딥 네이비 `#142d3d`, 강조색을 로즈 `#bd929b`로 적용.
+- GitHub 홈의 원본 풍경 사진을 변형 없이 966×160으로 크롭해 네이버 타이틀 이미지로 적용. 원본 크롭 파일은 `public/images/naver-title-home-exact-crop.jpg`.
 
 ### 정리 전 항목
 
