@@ -1,0 +1,57 @@
+---
+import type { TrainingEntry } from '../../lib/training';
+import { issueLabel, roundsFor } from '../../lib/training';
+import BodyMap from './BodyMap.astro';
+import Sequence from './Sequence.astro';
+import '../../styles/training.css';
+interface Props { entry: TrainingEntry; date: Date; id?: string }
+const { entry, date, id = `training-${date.toISOString().slice(0, 10)}` } = Astro.props as Props;
+const rounds = roundsFor(entry);
+const issues = entry.condition?.issues ?? [];
+const sparring = (entry.sparring ?? []).filter(record => Object.values(record).some(value => Array.isArray(value) ? value.length > 0 : value !== undefined));
+const strength = entry.strength;
+const metrics = [
+  entry.bjj?.duration !== undefined && { label: '주짓수', value: entry.bjj.duration, unit: '분' },
+  rounds !== undefined && { label: '스파링', value: rounds, unit: '라운드' },
+  ...(entry.cardio ?? []).filter(item => item.duration !== undefined).map(item => ({ label: item.name, value: item.duration!, unit: '분' })),
+  entry.condition?.score !== undefined && { label: '컨디션', value: entry.condition.score, unit: '/ 10' }
+].filter((item): item is {label: string; value: number; unit: string} => Boolean(item));
+const hasStrength = Boolean(strength?.focus || strength?.exercises?.length);
+const hasCardio = Boolean(entry.cardio?.some(item => item.distance !== undefined || item.averageHR !== undefined || item.note || item.duration === undefined));
+const hasOverview = metrics.length > 0 || issues.length > 0 || hasStrength || hasCardio;
+---
+<div class="training-journal">
+  {hasOverview && <section class="tj-overview" aria-label="훈련 수치와 몸 상태">
+    <header class="tj-intro"><h2>훈련 요약</h2>{entry.gym && <p>{entry.gym}</p>}</header>
+    {metrics.length > 0 && <dl class="tj-metrics">{metrics.map(metric => <div><dt>{metric.label}</dt><dd>{metric.value}<span>{metric.unit}</span></dd></div>)}</dl>}
+    {(hasStrength || hasCardio) && <div class="tj-activity-grid">
+      {hasStrength && <section class="tj-activity" aria-labelledby={`${id}-strength`}>
+        <h3 id={`${id}-strength`}>웨이트{strength?.focus && <span>{strength.focus}</span>}</h3>
+        {strength?.exercises?.length && <ul class="tj-exercises">{strength.exercises.map(exercise => <li><div>{exercise.name}{exercise.note && <p>{exercise.note}</p>}</div>{(exercise.weight !== undefined || exercise.reps !== undefined || exercise.sets !== undefined) && <span class="tj-numbers">{[exercise.weight !== undefined ? `${exercise.weight}${exercise.unit ?? 'kg'}` : undefined, exercise.reps !== undefined ? `${exercise.reps}회` : undefined, exercise.sets !== undefined ? `${exercise.sets}세트` : undefined].filter(Boolean).join(' × ')}</span>}</li>)}</ul>}
+      </section>}
+      {hasCardio && <section class="tj-activity" aria-labelledby={`${id}-cardio`}><h3 id={`${id}-cardio`}>유산소</h3>{entry.cardio?.map(item => <div class="tj-cardio-row"><strong>{item.name}</strong>{(item.distance !== undefined || item.averageHR !== undefined) && <p class="tj-numbers">{[item.distance !== undefined ? `${item.distance} km` : undefined, item.averageHR !== undefined ? `평균 심박 ${item.averageHR}` : undefined].filter(Boolean).join(' · ')}</p>}{item.note && <p>{item.note}</p>}</div>)}</section>}
+    </div>}
+    {issues.length > 0 && <section class="tj-body-section" aria-labelledby={`${id}-condition`}>
+      <h3 id={`${id}-condition`}>몸 상태</h3>
+      <div class="tj-condition"><div><BodyMap {issues}/><p class="tj-map-caption">좌우는 본인 기준</p></div><ol class="tj-issues">{issues.map((issue, index) => <li><span class="tj-issue-index">{index + 1}</span><div><h4>{issueLabel(issue)}{issue.severity !== undefined && <span>{issue.severity}<small> / 10</small></span>}</h4>{issue.note && <p>{issue.note}</p>}</div></li>)}</ol></div>
+    </section>}
+  </section>}
+  {entry.classNotes && <section class="tj-section" aria-labelledby={`${id}-class`}><h2 id={`${id}-class`}>수업 기록</h2><p class="tj-prose">{entry.classNotes}</p></section>}
+  {Boolean(entry.techniques?.length) && <section class="tj-section" aria-labelledby={`${id}-techniques`}>
+    <h2 id={`${id}-techniques`}>오늘 배운 기술</h2>
+    {entry.techniques?.map(technique => <div class="tj-record"><h3>{technique.name}</h3><Sequence steps={technique.sequence}/>{technique.description && <p class="tj-prose">{technique.description}</p>}{technique.takeaway && <p class="tj-detail">{technique.takeaway}</p>}</div>)}
+  </section>}
+  {sparring.length > 0 && <section class="tj-section" aria-labelledby={`${id}-sparring`}>
+    <h2 id={`${id}-sparring`}>스파링 기록</h2>
+    {sparring.map((record, index) => <div class="tj-record tj-sparring">
+      <div class="tj-record-head"><h3>{record.partner ?? `스파링 ${index + 1}`}</h3>{record.rounds !== undefined && <span>{record.rounds}라운드</span>}</div>
+      {record.start && <p class="tj-inline-note"><span>시작 포지션</span>{record.start}</p>}
+      <Sequence steps={record.sequence}/>
+      {record.submission && <p class="tj-inline-note"><span>서브미션</span>{record.submission}</p>}
+      {record.result && <p class="tj-inline-note"><span>결과</span>{record.result}</p>}
+      {record.memo && <p class="tj-prose">{record.memo}</p>}
+    </div>)}
+  </section>}
+  {entry.reflection && <section class="tj-section" aria-labelledby={`${id}-reflection`}><h2 id={`${id}-reflection`}>수련 소감</h2><p class="tj-prose">{entry.reflection}</p></section>}
+  {entry.takeaway && <section class="tj-section tj-takeaway" aria-labelledby={`${id}-takeaway`}><h2 id={`${id}-takeaway`}>오늘의 회고</h2><p>{entry.takeaway}</p></section>}
+</div>

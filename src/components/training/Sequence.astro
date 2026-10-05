@@ -1,0 +1,4 @@
+---
+const { steps } = Astro.props as { steps?: string[] };
+---
+{steps?.length && <ol class="tj-sequence" aria-label="기술 흐름">{steps.map(step => <li>{step}</li>)}</ol>}

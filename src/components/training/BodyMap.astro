@@ -1,0 +1,50 @@
+---
+import { issueLabel, type BodyIssue, type BodyArea } from '../../lib/training';
+const { issues } = Astro.props as { issues: BodyIssue[] };
+// Anatomical right appears on the reader's left in the front view.
+const centerX = 90;
+const points: Record<BodyArea, [number, number]> = {
+  head: [6, 26], neck: [5, 54], shoulder: [33, 76], upperBack: [16, 100], lowerBack: [14, 149],
+  chest: [19, 99], abdomen: [14, 137], elbow: [48, 142], wrist: [61, 190], hand: [65, 208],
+  hip: [20, 177], thigh: [23, 220], knee: [24, 265], calf: [25, 300], shin: [25, 304],
+  ankle: [25, 354], foot: [28, 373]
+};
+const backAreas: BodyArea[] = ['upperBack', 'lowerBack', 'calf'];
+const arm = 'M60 68 C48 69 43 79 41 93 L36 122 Q33 137 37 148 L29 182 Q27 191 24 198 L22 211 Q21 217 24 216 L28 206 L27 221 Q28 225 31 221 L33 208 L33 224 Q35 227 37 221 L38 208 L40 221 Q42 223 43 218 L43 202 L48 195 Q50 191 47 189 L44 190 L49 158 Q54 145 52 132 L60 101 Z';
+const leg = 'M68 163 C60 176 61 196 63 215 L64 253 Q62 265 63 276 C59 294 61 315 65 335 L65 354 L61 368 Q57 375 61 380 Q67 384 77 379 L83 373 Q85 371 81 369 L78 353 L79 330 L81 288 Q84 270 80 258 L85 216 L90 186 L90 164 Z';
+const views = ['front', 'back'] as const;
+---
+<div class="tj-body-views">
+  {views.map(view => <figure>
+    <svg viewBox="0 0 180 394" role="img" aria-label={`${view === 'front' ? '앞면' : '뒷면'} 인체 지도. 좌우는 본인 기준. ${issues.filter(issue => backAreas.includes(issue.area) === (view === 'back')).map(issueLabel).join(', ')}`}>
+      <g fill="var(--tj-body)" stroke="var(--tj-outline)" stroke-width=".85" stroke-linejoin="round">
+        <path d={arm}/><path d={arm} transform="translate(180 0) scale(-1 1)"/>
+        <path d={leg}/><path d={leg} transform="translate(180 0) scale(-1 1)"/>
+        <path d="M82 44 L81 57 C77 61 69 63 60 68 Q55 71 56 82 L62 112 Q64 123 67 134 L65 152 Q62 166 66 178 Q78 182 90 190 Q102 182 114 178 Q118 166 115 152 L113 134 Q116 123 118 112 L124 82 Q125 71 120 68 C111 63 103 61 99 57 L98 44 Z"/>
+        <path d="M77 19 Q78 7 90 7 Q102 7 103 19 L104 28 Q109 29 105 36 L102 36 Q101 45 94 48 L86 48 Q79 45 78 36 L75 36 Q71 29 76 28 Z"/>
+      </g>
+      <g fill="none" stroke="var(--tj-anatomy)" stroke-width="1" stroke-linecap="round">
+        {view === 'front' ? <>
+          <path d="M81 59 L73 74 M99 59 L107 74 M65 84 Q76 79 87 86 M115 84 Q104 79 93 86 M65 107 Q77 115 87 107 M115 107 Q103 115 93 107 M90 88 V141 M73 126 Q74 147 80 154 M107 126 Q106 147 100 154 M70 158 L82 174 M110 158 L98 174"/>
+          <path d="M69 192 Q79 215 73 247 M111 192 Q101 215 107 247 M67 265 Q73 271 79 265 M101 265 Q107 271 113 265 M68 284 L73 337 M112 284 L107 337 M44 103 L41 126 M136 103 L139 126"/>
+        </> : <>
+          <path d="M83 57 L74 78 M97 57 L106 78 M90 62 V156 M69 82 Q69 104 84 113 M111 82 Q111 104 96 113 M65 115 Q76 127 80 143 M115 115 Q104 127 100 143 M69 164 Q79 158 87 169 M111 164 Q101 158 93 169 M69 180 Q78 191 88 181 M111 180 Q102 191 92 181"/>
+          <path d="M70 202 L75 249 M110 202 L105 249 M67 267 Q73 263 79 267 M101 267 Q107 263 113 267 M68 284 Q63 305 73 323 Q79 305 77 288 M112 284 Q117 305 107 323 Q101 305 103 288 M73 328 V350 M107 328 V350"/>
+        </>}
+      </g>
+      {issues.map((issue, index) => {
+        if (backAreas.includes(issue.area) !== (view === 'back')) return null;
+        const [offset, y] = points[issue.area];
+        const direction = issue.side === 'right' ? -1 : issue.side === 'left' ? 1 : 0;
+        const x = centerX + offset * direction * (view === 'back' ? -1 : 1);
+        const severity = issue.severity ?? 0;
+        return <g class="tj-marker" transform={`translate(${x} ${y})`}>
+          <circle r={14 + severity * .6} fill="currentColor" opacity={.07 + severity * .01}/>
+          <circle r="10" fill="var(--paper)" stroke="currentColor" stroke-width={1 + severity / 10}/>
+          <text text-anchor="middle" dominant-baseline="central" font-size="11" fill="currentColor" font-weight="650">{index + 1}</text>
+        </g>;
+      })}
+    </svg>
+    <figcaption>{view === 'front' ? '앞면' : '뒷면'}</figcaption>
+  </figure>)}
+</div>

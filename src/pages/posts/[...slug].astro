@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from 'astro:content'; import Post from '../../layouts/Post.astro'; import FullBleedImage from '../../components/mdx/FullBleedImage.astro'; import PullQuote from '../../components/mdx/PullQuote.astro'; import ImageGrid from '../../components/mdx/ImageGrid.astro'; import Caption from '../../components/mdx/Caption.astro'; import Divider from '../../components/mdx/Divider.astro';
+import TrainingJournal from '../../components/training/TrainingJournal.astro';
 export async function getStaticPaths(){return (await getCollection('posts',({data})=>!data.draft)).map(post=>({params:{slug:post.id},props:{post}}));}
 const { post }=Astro.props; const { Content }=await render(post);
 ---
@@ -7,7 +8,7 @@ const { post }=Astro.props; const { Content }=await render(post);
   {post.data.protected && post.data.protectedFile ? <section class="protected-post" data-protected-file={post.data.protectedFile}>
     <div class="protected-panel"><p class="protected-kicker">PRIVATE NOTE</p><h2>비밀번호가 필요한 글입니다</h2><p>작성자가 지정한 비밀번호를 입력하면 본문을 읽을 수 있습니다.</p><form class="protected-form"><label for="post-password">비밀번호</label><div class="protected-input-row"><input id="post-password" type="password" autocomplete="off" inputmode="numeric" required /><button type="submit">열기</button></div><p class="protected-error" role="alert" hidden>비밀번호가 올바르지 않습니다.</p></form></div>
     <div class="protected-content prose" hidden></div>
-  </section> : <Content components={{ FullBleedImage, PullQuote, ImageGrid, Caption, Divider }} />}
+  </section> : <>{post.data.training && <TrainingJournal entry={post.data.training} date={post.data.date} />}<Content components={{ FullBleedImage, PullQuote, ImageGrid, Caption, Divider }} /></>}
 </Post>
 {post.data.protected && post.data.protectedFile && <script is:inline>
   const root = document.querySelector('.protected-post'); const form = root?.querySelector('.protected-form'); const error = root?.querySelector('.protected-error'); const content = root?.querySelector('.protected-content'); const enc = new TextEncoder();
