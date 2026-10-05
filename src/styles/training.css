@@ -1,0 +1,61 @@
+/* Journal typography and spacing are scoped; the surrounding blog retains its tokens. */
+.training-post .post-head { max-width: var(--reading); margin-bottom: var(--space-6); }
+.training-post .post-head h1 { font-size: clamp(2rem, 4.5vw, 2.8rem); line-height: 1.25; letter-spacing: -.045em; }
+.training-title-label { white-space: nowrap; }
+.training-post .post-meta { font-size: .8rem; }
+.training-post .tag-list { font-size: .8rem; }
+.training-journal { --tj-body: #cfdae0; --tj-outline: #8199a6; --tj-anatomy: #a6b9c3; --tj-accent: #365d74; --tj-heading: 1.5rem; --tj-body-size: 1.0625rem; --tj-section-gap: clamp(2.75rem, 6vw, 3.5rem); color: var(--ink); font-size: var(--tj-body-size); line-height: 1.85; overflow-wrap: anywhere; word-break: normal; }
+.training-journal :is(h2,h3,h4,p,ul,ol,dl,dd,figure) { margin: 0; }
+.training-journal :is(ul,ol) { padding: 0; list-style: none; }
+.training-journal h2 { font-size: var(--tj-heading); font-weight: 750; line-height: 1.4; letter-spacing: -.035em; }
+.training-journal h3 { font-size: 1.2rem; font-weight: 650; line-height: 1.5; letter-spacing: -.025em; }
+.tj-overview { border-top: 2px solid var(--tj-accent); border-bottom: 1px solid var(--line); padding: var(--space-5) 0 var(--space-6); }
+.tj-intro { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; }
+.training-journal .tj-intro h2 { font-size: 1rem; font-weight: 700; }
+.tj-intro p { font-size: .7rem; letter-spacing: .055em; color: var(--muted); }
+.tj-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-5) var(--space-4); padding-block: var(--space-5); }
+.tj-metrics dt { color: var(--muted); font-size: .8rem; }
+.tj-metrics dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; font-size: 1.75rem; line-height: 1.4; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.tj-metrics dd span { font-size: .8rem; font-weight: 450; letter-spacing: 0; color: var(--muted); }
+.tj-activity-grid { display: grid; gap: var(--space-5); padding-block: var(--space-5); border-top: 1px solid var(--line); }
+.tj-activity-grid:has(> :only-child) { grid-template-columns: minmax(0,1fr); }
+.training-journal .tj-activity h3 { font-size: .9rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .75rem; margin-bottom: var(--space-3); }
+.tj-activity h3 span { font-size: .8rem; font-weight: 450; color: var(--muted); }
+.training-journal .tj-exercises li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .15rem 1rem; margin: 0; padding-block: .3rem; font-size: .85rem; }
+.tj-exercises p { color: var(--muted); }
+.tj-numbers { font-variant-numeric: tabular-nums; font-size: .8rem; color: var(--muted); }
+.tj-cardio-row { font-size: .85rem; }
+.tj-cardio-row + .tj-cardio-row { margin-top: var(--space-3); }
+.tj-cardio-row strong { font-weight: 500; }
+.tj-body-section { padding-top: var(--space-5); border-top: 1px solid var(--line); }
+.training-journal .tj-body-section > h3 { font-size: .9rem; margin-bottom: var(--space-4); }
+.tj-condition { display: grid; gap: var(--space-5); }
+.tj-body-views { display: flex; justify-content: center; gap: var(--space-5); }
+.tj-body-views figure { width: min(42%, 8rem); }
+.tj-body-views svg { width: 100%; height: auto; }
+.tj-body-views figcaption { text-align: center; font-size: .7rem; color: var(--muted); margin-top: .3rem; }
+.tj-marker { color: var(--tj-accent); }
+.training-journal .tj-map-caption { margin-top: .25rem; font-size: .7rem; text-align: center; color: var(--muted); }
+.training-journal .tj-issues { display: grid; gap: var(--space-4); align-content: center; }
+.training-journal .tj-issues li { display: flex; gap: var(--space-3); margin: 0; }
+.tj-issue-index { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; flex-shrink: 0; border: 1px solid var(--tj-accent); border-radius: 50%; font-size: .7rem; color: var(--tj-accent); margin-top: .15rem; }
+.training-journal .tj-issues h4 { font-size: .9rem; line-height: 1.5; font-weight: 650; display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
+.tj-issues h4 span { font-variant-numeric: tabular-nums; font-weight: 500; }
+.tj-issues h4 small { font-size: .75rem; color: var(--muted); font-weight: 450; }
+.tj-issues p { font-size: .85rem; color: var(--muted); margin-top: .2rem; }
+.tj-section { margin-top: var(--tj-section-gap); }
+.training-journal .tj-section > h2 { margin-bottom: var(--space-5); }
+.training-journal .tj-record + .tj-record { margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--line); }
+.training-journal .tj-sequence { display: flex; flex-wrap: wrap; gap: .35rem 0; margin: var(--space-3) 0 var(--space-4); font-size: .9rem; color: var(--tj-accent); line-height: 1.75; }
+.training-journal .tj-sequence li { display: flex; align-items: baseline; max-width: 100%; margin: 0; }
+.tj-sequence li:not(:last-child)::after { content: '→'; flex-shrink: 0; margin-inline: .6rem; color: var(--muted); }
+.tj-prose { white-space: pre-line; }
+.training-journal .tj-detail { margin-top: var(--space-4); padding-left: var(--space-4); border-left: 2px solid var(--tj-outline); }
+.tj-record-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
+.tj-record-head > span { font-size: .8rem; color: var(--muted); }
+.training-journal .tj-inline-note { font-size: .9rem; margin-block: var(--space-2); }
+.tj-inline-note span { color: var(--muted); margin-right: var(--space-3); }
+.tj-takeaway { padding-top: var(--space-6); border-top: 1px solid var(--line); }
+.training-journal .tj-takeaway > p { font-size: 1.15rem; font-weight: 550; line-height: 1.75; }
+@media (min-width:40rem) { .tj-metrics { grid-template-columns: repeat(auto-fit,minmax(7rem,1fr)); } .tj-activity-grid { grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: var(--space-6); } .tj-condition { grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items: center; } }
+@media (max-width:25rem) { .training-journal { --tj-body-size: 1rem; --tj-heading: 1.375rem; } .tj-exercises li { flex-direction: column; } }

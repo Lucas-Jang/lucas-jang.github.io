@@ -1,5 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { trainingSchema } from './lib/training';
 
 const posts = defineCollection({
   loader: glob({ base: './src/content/posts', pattern: '**/*.{md,mdx}' }),
@@ -11,7 +12,7 @@ const posts = defineCollection({
     draft: z.boolean().default(false), tags: z.array(z.string()).default([]), location: z.string().optional(),
     subtitle: z.string().optional(), privateTitle: z.string().optional(), protected: z.boolean().default(false), protectedFile: z.string().optional(),
     gallery: z.array(z.object({ src: z.string(), alt: z.string(), caption: z.string().optional() })).default([]),
-    video: z.string().url().optional()
+    video: z.string().url().optional(), training: trainingSchema.optional()
   })
 });
 export const collections = { posts };

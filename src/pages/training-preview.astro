@@ -1,0 +1,13 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import TrainingJournal from '../components/training/TrainingJournal.astro';
+export const prerender = true;
+if (!import.meta.env.DEV) return new Response(null, { status: 404 });
+const posts = await getCollection('posts', ({data}) => Boolean(data.training));
+const minimal = posts.find(post => post.id.includes('minimal'))!;
+const full = posts.find(post => !post.id.includes('minimal'))!;
+const stress = { ...full.data.training!, techniques: [{name: '매우 긴 이름의 기술 — 상대의 프레임을 제어하며 하프 가드에서 연결하는 니 컷 패스', sequence: ['상대의 긴 프레임과 무릎 방어를 제어하는 시작 포지션', '언더훅 확보', 'Side Control'], description: '훈련 직후 남기는 긴 한국어 메모입니다. '.repeat(15)}], sparring: Array.from({length: 10}, (_, index) => ({partner: `파트너 ${index + 1}`, sequence: ['Closed Guard', 'Arm Drag', 'Back Take'], memo: '상대의 무게 중심을 먼저 확인하고 움직인다. '.repeat(10)})), sparringRounds: 10 };
+---
+<Base title="Training Journal 검수" description="최소 기록과 긴 콘텐츠 검수용 페이지"><div class="training-preview"><h1>Training Journal 검수</h1><p>샘플 · 최소 기록 · 긴 메모와 10개 스파링</p><nav><a href="#full">전체 기록</a> · <a href="#minimal">최소 기록</a> · <a href="#stress">긴 기록</a></nav><section id="full"><TrainingJournal entry={full.data.training!} date={full.data.date}/></section><section id="minimal"><TrainingJournal entry={minimal.data.training!} date={minimal.data.date}/></section><section id="stress"><TrainingJournal id="training-stress" entry={stress} date={full.data.date}/></section></div></Base>
+<style>.training-preview {max-width: var(--reading); margin: 3rem auto;} .training-preview > section {margin-top: 5rem;} nav a {text-decoration: underline;} </style>
