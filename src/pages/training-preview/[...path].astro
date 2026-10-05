@@ -1,9 +1,11 @@
 ---
 import { getCollection } from 'astro:content';
-import Base from '../layouts/Base.astro';
-import TrainingJournal from '../components/training/TrainingJournal.astro';
+import Base from '../../layouts/Base.astro';
+import TrainingJournal from '../../components/training/TrainingJournal.astro';
 export const prerender = true;
-if (!import.meta.env.DEV) return new Response(null, { status: 404 });
+export function getStaticPaths() {
+  return import.meta.env.DEV ? [{ params: { path: undefined } }] : [];
+}
 const posts = await getCollection('posts', ({data}) => Boolean(data.training));
 const minimal = posts.find(post => post.id.includes('minimal'))!;
 const full = posts.find(post => !post.id.includes('minimal'))!;
