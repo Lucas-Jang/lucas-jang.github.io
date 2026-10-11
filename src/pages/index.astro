@@ -20,7 +20,7 @@ const selectedCategory = Astro.url.searchParams.get('category') ?? 'ALL';
   <section class="home-feed">
     <div class="home-feed-inner">
       <section class="editorial">
-        {posts.map((post, index) => <PostTile post={post} featured={index === 0} />)}
+        {posts.map((post) => <PostTile post={post} />)}
       </section>
     </div>
   </section>

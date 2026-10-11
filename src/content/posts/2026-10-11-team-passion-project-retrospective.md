@@ -8,7 +8,7 @@ postType: journal
 cover: /images/posts/attendance-october/team-passion-butterfly-seminar.png
 coverAlt: '2026년 10월 2일 버터플라이 세미나에서 함께 수련한 TEAM PASSION 관원들의 단체 사진'
 coverLayout: contained
-featured: true
+featured: false
 tags: [주짓수, 도장생활, TEAM-PASSION, 프로젝트회고, 출결앱]
 ---
 
