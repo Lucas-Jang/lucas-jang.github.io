@@ -287,6 +287,12 @@ footer a:hover { opacity: 0.58; }
   border-radius: 0.2rem;
   object-fit: cover;
 }
+.post-cover-contained {
+  width: min(32rem, 100%);
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+}
 .prose {
   max-width: var(--reading);
   margin-inline: auto;

@@ -47,9 +47,9 @@ QR 입장 시 전용 영상이 재생되는 기능은 별도의 재미로 남겼
 
 운영하면서 발견되는 문제와 현장 검증은 계속 남아 있다. 다만 이번에는 ‘새 기능을 더 붙일 수 있다’는 이유로 마무리를 미루지 않기로 했다. 로그인해서 출석하고, 수업을 확인하고, 한 줄을 남기는 흐름을 전달할 수 있게 된 시점에 한 번 닫아 두는 것이다.
 
-[일상 탭에 남긴 전체 프로젝트 회고](/posts/2026-10-11-team-passion-project-retrospective/)에서는 같은 관원으로서 이 작업을 시작하고 마무리한 마음을 따로 기록했다.
+[주짓수 탭에 남긴 전체 프로젝트 회고](/posts/2026-10-11-team-passion-project-retrospective/)에서는 같은 관원으로서 이 작업을 시작하고 마무리한 마음을 따로 기록했다.
 
 <nav class="series-nav" aria-label="출결 앱 개발 로그 글 이동">
   <a class="previous" href="/posts/2026-10-11-attendance-log-11/"><span>이전 글</span><strong>11편 · 참석 계획</strong></a>
-  <a class="next" href="/posts/2026-10-11-team-passion-project-retrospective/"><span>전체 회고</span><strong>일상 · 같은 매트 위에서</strong></a>
+  <a class="next" href="/posts/2026-10-11-team-passion-project-retrospective/"><span>전체 회고</span><strong>주짓수 · 같은 매트 위에서</strong></a>
 </nav>

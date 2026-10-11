@@ -3,12 +3,13 @@ title: '같은 매트 위에서 만든 앱, 5분 3초의 영상으로 마무리�
 description: '같은 도장 관원으로 시작한 출결 앱이 수련 기록과 함께 복습하는 공간이 되기까지. 안내 영상을 마지막 작업으로 삼아 돌아본 전체 프로젝트 회고.'
 date: 2026-10-11
 createdOrder: 6
-category: LIFE
+category: BJJ
 postType: journal
-cover: /images/posts/bjj-attendance/kiosk-at-dojo.jpg
-coverAlt: '실제 주짓수 도장 입구에 놓인 출석용 태블릿'
+cover: /images/posts/attendance-october/team-passion-butterfly-seminar.png
+coverAlt: '2026년 10월 2일 버터플라이 세미나에서 함께 수련한 TEAM PASSION 관원들의 단체 사진'
+coverLayout: contained
 featured: true
-tags: [일상, 주짓수, TEAM-PASSION, 프로젝트회고, 출결앱]
+tags: [주짓수, 도장생활, TEAM-PASSION, 프로젝트회고, 출결앱]
 ---
 
 마지막으로 만든 것은 새 메뉴가 아니라 5분 3초짜리 회원 안내 영상이었다. 로그인하고, 출석하고, 수업을 확인하고, 한 줄을 남기는 순서를 화면과 목소리로 정리했다. 설명서와 영상을 만들고 나니, 그동안 이어 온 출결 앱 프로젝트를 한 번 마무리할 지점이 생겼다.
