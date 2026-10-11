@@ -2,6 +2,7 @@
 title: '[출결 앱 개발 로그 10] 수련 회고를 한 줄로 가볍게 만들기'
 description: '주간 달력과 함께 복습 게시판을 만들고, 한 줄 공개 기록과 개인 상세 기록의 경계를 다듬었다.'
 date: 2026-10-11
+createdOrder: 2
 category: DEV
 postType: journal
 tags: [출결-앱-개발-로그, HCI, 회고, 공개범위, 모바일UX]
