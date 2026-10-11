@@ -2,6 +2,7 @@
 title: '[출결 앱 개발 로그 09] 자동 QA 다음에 남은 태블릿의 하루'
 description: '현장 QR 장애를 계기로 판독 영역, 연속 처리와 자동 복구를 다시 설계하며 자동 검증의 한계까지 기록했다.'
 date: 2026-10-11
+createdOrder: 1
 category: DEV
 postType: journal
 tags: [출결-앱-개발-로그, QR, 키오스크, 운영QA]

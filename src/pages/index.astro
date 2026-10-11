@@ -4,8 +4,6 @@ import PostTile from '../components/PostTile.astro';
 import { getPosts } from '../lib/posts';
 
 const posts = await getPosts();
-const feature = posts.find((post) => post.data.featured) ?? posts[0];
-const rest = posts.filter((post) => post.id !== feature.id);
 const selectedCategory = Astro.url.searchParams.get('category') ?? 'ALL';
 ---
 
@@ -22,8 +20,7 @@ const selectedCategory = Astro.url.searchParams.get('category') ?? 'ALL';
   <section class="home-feed">
     <div class="home-feed-inner">
       <section class="editorial">
-        {feature && <PostTile post={feature} featured />}
-        {rest.map((post) => <PostTile post={post} />)}
+        {posts.map((post, index) => <PostTile post={post} featured={index === 0} />)}
       </section>
     </div>
   </section>

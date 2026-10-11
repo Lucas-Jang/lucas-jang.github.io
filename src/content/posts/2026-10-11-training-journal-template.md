@@ -2,6 +2,7 @@
 title: '수련 기록을 오래 쓸 수 있는 블로그 템플릿 만들기'
 description: '주짓수 수련의 숫자와 메모, 몸 상태를 재사용 가능한 기록 형식으로 묶은 블로그 작업.'
 date: 2026-10-11
+createdOrder: 5
 category: DEV
 postType: journal
 tags: [블로그, 주짓수, Training-Journal, 기록템플릿]

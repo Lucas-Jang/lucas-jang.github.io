@@ -2,6 +2,7 @@
 title: '같은 매트 위에서 만든 앱, 5분 3초의 영상으로 마무리하다'
 description: '같은 도장 관원으로 시작한 출결 앱이 수련 기록과 함께 복습하는 공간이 되기까지. 안내 영상을 마지막 작업으로 삼아 돌아본 전체 프로젝트 회고.'
 date: 2026-10-11
+createdOrder: 6
 category: LIFE
 postType: journal
 cover: /images/posts/bjj-attendance/kiosk-at-dojo.jpg

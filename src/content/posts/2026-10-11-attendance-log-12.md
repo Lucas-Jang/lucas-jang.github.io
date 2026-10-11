@@ -2,6 +2,7 @@
 title: '[출결 앱 개발 로그 12] 안내 영상을 만들며 프로젝트를 마무리하다'
 description: '실제 사용 흐름을 16페이지 설명서와 5분 3초 안내 영상으로 정리하며, 기능 개발에서 회원에게 전달하는 단계까지 마쳤다.'
 date: 2026-10-11
+createdOrder: 4
 category: DEV
 postType: journal
 tags: [출결-앱-개발-로그, 프로젝트회고, 사용설명서, 안내영상, Typecast]

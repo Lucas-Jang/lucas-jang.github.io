@@ -2,6 +2,7 @@
 title: '[출결 앱 개발 로그 11] 참석 계획과 실제 출석을 구분하기'
 description: '이번 주·다음 주 참석 계획과 사범님 참석 전망을 연결하면서, 계획·미정·실제 출석의 의미를 나눴다.'
 date: 2026-10-11
+createdOrder: 3
 category: DEV
 postType: journal
 tags: [출결-앱-개발-로그, 참석계획, 운영도구, 정보구조]
