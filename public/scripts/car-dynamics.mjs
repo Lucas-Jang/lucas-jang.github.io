@@ -1,6 +1,6 @@
 import { clamp, mod, contain as legacyContain } from './car-motion.mjs';
-import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-11';
-import { balanceJets } from './car-ride.mjs?v=20261017-11';
+import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-12';
+import { balanceJets } from './car-ride.mjs?v=20261017-12';
 export { geometry, trackPose, roadPath };
 export { clamp, mod } from './car-motion.mjs';
 export function contain(g,pose) {
@@ -10,6 +10,7 @@ export function contain(g,pose) {
 export { spring } from './car-physics.mjs';
 
 export const GRAVITY = 9.81;
+export const VEHICLE_MASS = 2; // Relative to the previous vehicle; gravity stays 9.81 m/s².
 export const ENVIRONMENTS = Object.freeze({
   normal: { label: '노말', speed: 100, acceleration: 115, height: 'ride', stiffness: 380, damping: 28, bump: 0, color: '#a4bac4', track: 2, dash: '', mud: 0 },
   sport: { label: '스포츠', speed: 155, acceleration: 180, height: 'low', stiffness: 720, damping: 39, bump: .12, color: '#67cee8', track: 3, dash: '64 12', mud: 0 },
@@ -23,18 +24,19 @@ export function tangent(pose, speed) {
 }
 
 export function stuntVelocity(g, pose, speed, kind = 'ramp') {
-  const direction = tangent(pose, 1), angle = pose.angle * Math.PI / 180;
-  const nx = Math.sin(angle), ny = -Math.cos(angle), bounds = flightBounds(g, pose);
-  const rayRoom = (x, y) => Math.max(0, Math.min(
-    x < -.001 ? (pose.x - bounds.left) / -x : x > .001 ? (bounds.right - pose.x) / x : Infinity,
-    y < -.001 ? (pose.y - bounds.top) / -y : y > .001 ? (bounds.bottom - pose.y) / y : Infinity));
-  const room = rayRoom(direction.x, direction.y);
-  const gravity = GRAVITY * g.size / 4.84;
-  const forward = Math.min(speed * (kind === 'ramp' ? .7 : .25), kind === 'kickflip' ? g.size * .65 : Infinity,
-    Math.sqrt(2 * gravity * Math.max(g.size * .08, room - g.size * .25)));
-  const inwardRoom = rayRoom(nx, ny);
-  const hop = Math.sqrt(2 * gravity * Math.max(g.size * .08, Math.min(g.size * (kind === 'kickflip' ? .24 : .72), inwardRoom * .32)));
-  return { x: direction.x * forward + nx * hop, y: direction.y * forward + ny * hop };
+  const a=pose.angle*Math.PI/180,n={x:Math.sin(a),y:-Math.cos(a)},forward=tangent(pose,1),b=flightBounds(g,pose);
+  const room=(x,y)=>Math.max(0,Math.min(x<-.001?(pose.x-b.left)/-x:x>.001?(b.right-pose.x)/x:Infinity,
+    y<-.001?(pose.y-b.top)/-y:y>.001?(b.bottom-pose.y)/y:Infinity));
+  const gravity=GRAVITY*g.size/4.84;
+  // A sizeable inward impulse, with an upward component on vertical walls.
+  // Available stopping room limits the impulse, never a prescribed height curve.
+  const lift={x:n.x*.8,y:n.y*.8-.65*(1-Math.abs(n.y))},length=Math.hypot(lift.x,lift.y);
+  lift.x/=length;lift.y/=length;
+  const hop=Math.sqrt(2*gravity*Math.max(0,Math.min(g.size*(kind==='kickflip'?.85:.9),room(lift.x,lift.y)*.46)));
+  const travel=Math.min(speed*(kind==='ramp'?.7:.7),g.size*2,Math.sqrt(2*gravity*Math.max(0,room(forward.x,forward.y)-g.size*.25)));
+  let x=forward.x*travel+lift.x*hop,y=forward.y*travel+lift.y*hop;
+  if(y<0)y=Math.max(y,-Math.sqrt(2*gravity*Math.max(0,Math.min(g.size*1.15,room(0,-1)*.65))));
+  return{x,y};
 }
 
 // Lower peak (70 km/h world scale), also bounded by the visible circuit size.
@@ -90,9 +92,14 @@ export function createFlight(g, pose, kind = 'drop', velocity = {}, attachment =
   const landingAngle = kind === 'ramp' && rampAngle > 60 ? 360 : 0;
   const turnDuration = .85 + Math.abs(landingAngle - initialAngle) / 250;
   const a = start.angle * Math.PI / 180;
-  return { ...start, kind, scale, gravity, vx, vy, originX: start.x, thrust: 0, frontThrust: 0, rearThrust: 0,
+  const normal={x:Math.sin(a),y:-Math.cos(a)},inward=Math.max(0,vx*normal.x+vy*normal.y);
+  const incoming=attachment?.incoming || {x:vx-normal.x*inward,y:vy-normal.y*inward};
+  const burn=kind==='drop'?0:.14;
+  const launchVX=burn?vx-incoming.x:0,launchVY=burn?vy-incoming.y:0;
+  return { ...start, kind, scale, gravity, mass: VEHICLE_MASS, burn, launchVX, launchVY,
+    vx: vx-launchVX, vy: vy-launchVY, originX: start.x, thrust: 0, frontThrust: 0, rearThrust: 0,
     launchNormal: { x: Math.sin(a), y: -Math.cos(a) }, landingAngle, turnDuration,
-    localFlip: kind === 'kickflip' && !!attachment, attachDistance: attachment?.distance, attachSpeed: Math.min(160, attachment?.speed || 0),
+    localFlip: false, attachDistance: attachment?.distance, attachSpeed: Math.min(160, attachment?.speed || 0),
     jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, constraintError: 0,
     angle: initialAngle, initialAngle, angularVelocity: 0, elapsed: 0, roll: 0,
     targetX: clamp(start.x + vx * fallTime, g.left + g.radius, g.right - g.radius),
@@ -103,7 +110,8 @@ export function createFlight(g, pose, kind = 'drop', velocity = {}, attachment =
 // Eight pixels are a hard visual clearance; the controller adds a soft buffer.
 export function flightBounds(g, pose) {
   const angle = pose.angle * Math.PI / 180, roll = (pose.roll || 0) * Math.PI / 180;
-  const height = Math.max(g.carHeight, Math.abs(Math.cos(roll)) * g.carHeight + Math.abs(Math.sin(roll)) * g.size * .35);
+  const hangingHeight=g.carHeight+Math.abs(pose.wheelOffset||0)*2;
+  const height = Math.max(hangingHeight, Math.abs(Math.cos(roll)) * hangingHeight + Math.abs(Math.sin(roll)) * g.size * .35);
   const halfX = (Math.abs(Math.cos(angle)) * g.size + Math.abs(Math.sin(angle)) * height) / 2 + 8;
   const halfY = (Math.abs(Math.sin(angle)) * g.size + Math.abs(Math.cos(angle)) * height) / 2 + 8;
   const edge=g.edgeInset||12;
@@ -136,144 +144,75 @@ function avoidAxis(position, velocity, low, high, lowRate, highRate, base, gravi
   return clamp(acceleration, minimum, maximum);
 }
 
-// Fixed 240 Hz integration: ballistic motion until stopping distance demands
-// wall-avoidance or landing thrust; no post-contact elastic rebound.
-export function stepFlight(g, state, seconds) {
-  if (state.landed) return state;
-  if (state.localFlip) return stepLocalFlip(g, state, seconds);
-  const f = { ...state }, duration = clamp(seconds, 0, .1);
-  const steps = Math.ceil(duration * 240), dt = steps ? duration / steps : 0;
-  for (let i = 0; i < steps && !f.landed; i++) {
-    f.elapsed += dt;
-    const previousBounds = flightBounds(g, f);
-    const progress = clamp((f.elapsed - .12) / .8, 0, 1), eased = progress * progress * (3 - 2 * progress);
-    const loft = Math.sin(Math.PI * clamp(f.elapsed / .95, 0, 1)) * 8;
-    const u = clamp((f.elapsed - .08) / f.turnDuration, 0, 1), delta = f.landingAngle - f.initialAngle;
-    const blend = u ** 3 * (10 - 15 * u + 6 * u * u);
-    const rate = delta * 30 * u * u * (1 - u) ** 2 / f.turnDuration;
-    const feed = delta * 60 * u * (1 - u) * (1 - 2 * u) / f.turnDuration ** 2;
-    const targetAngle = f.kind === 'ramp' ? f.initialAngle + delta * blend
-      : f.kind === 'drop' ? 0 : (f.initialAngle ?? 0) * (1 - eased) + loft;
-    const torque = clamp((targetAngle - f.angle) * 42 + ((f.kind === 'ramp' ? rate : 0) - f.angularVelocity) * 12 + (f.kind === 'ramp' ? feed : 0), -1700, 1700);
-    f.angularVelocity += torque * dt; f.angle += f.angularVelocity * dt;
-    const t = clamp(f.elapsed / .96, 0, 1);
-    f.roll = f.kind === 'kickflip' ? 360 * (t * t * (3 - 2 * t)) : 0;
-    const bounds = flightBounds(g, f);
-    const remaining = Math.max(0, Math.min(g.bottom, bounds.bottom) - f.y);
-    const stopping = Math.max(0, f.vy) ** 2 / (2 * f.gravity * 3.5);
-    if (f.vy >= 0 && remaining <= stopping + g.size * .22) f.lit = true;
-    const ready = f.elapsed > (f.kind === 'kickflip' ? 1.05 : .55)
-      && Math.abs(f.targetX - f.x) < .6 && Math.abs(f.vx) < 8 && Math.abs(f.angle - f.landingAngle) < 3 && Math.abs(f.angularVelocity) < 12;
-    const desiredVy = ready ? Math.min(f.scale * .42 + remaining * 3, Math.sqrt(2 * f.gravity * 1.7 * remaining)) : 0;
-    f.thrust = f.lit ? clamp(f.gravity + 11 * (f.vy - desiredVy), 0, f.gravity * 5) : 0;
-    const steer = f.lit ? clamp((f.targetX - f.x) * 32 - f.vx * 11.3, -f.gravity * 3, f.gravity * 3) : 0;
-    const vertical = f.gravity - f.thrust;
-    const ax = avoidAxis(f.x, f.vx, bounds.left, bounds.right,
-      (bounds.left - previousBounds.left) / dt, (bounds.right - previousBounds.right) / dt, steer, f.gravity, dt);
-    const ay = avoidAxis(f.y, f.vy, bounds.top, bounds.bottom,
-      (bounds.top - previousBounds.top) / dt, (bounds.bottom - previousBounds.bottom) / dt, vertical, f.gravity, dt, ready ? 0 : undefined);
-    f.avoiding = Math.abs(ax - steer) > .1 || Math.abs(ay - vertical) > .1;
-    f.thrust = Math.max(0, f.gravity - ay);
-    f.x += f.vx * dt + ax * dt * dt / 2;
-    f.y += f.vy * dt + ay * dt * dt / 2;
-    f.vx += ax * dt; f.vy += ay * dt;
-
-    // Exhaust points toward the approached wall; its reaction moves away.
-    const impulse = f.kind !== 'drop' && f.elapsed < .16 ? 1 - f.elapsed / .16 : 0;
-    const total = Math.max(f.thrust / f.gravity, impulse * 2.6);
-    Object.assign(f, balanceJets(g, f, torque, total, dt));
-    const n=f.launchNormal;
-    f.jets = { left: Math.max(Math.max(0, ax) / f.gravity, Math.max(0,n?.x||0)*impulse*2.6),
-      right: Math.max(Math.max(0, -ax) / f.gravity, Math.max(0,-(n?.x||0))*impulse*2.6),
-      up: Math.max(Math.max(0, ay - f.gravity) / f.gravity,Math.max(0,n?.y||0)*impulse*2.6),
-      down: Math.max(f.thrust/f.gravity,Math.max(0,-(n?.y||0))*impulse*2.6) };
-    const x = clamp(f.x, bounds.left, bounds.right), y = clamp(f.y, bounds.top, bounds.bottom);
-    f.constraintError = Math.max(f.constraintError || 0, Math.abs(x - f.x), Math.abs(y - f.y));
-    f.x = x; f.y = y; // Floating-point roundoff only; no restitution/bounce.
-    f.phase = f.lit ? 'braking' : f.vy < 0 ? 'ascent' : 'fall';
-    if (ready && g.bottom - f.y < .06 && Math.abs(f.vy) < Math.min(24, f.scale * .65)) {
-      f.impactSpeed = Math.abs(f.vy) / f.scale;
-      f.touchdownAngle = mod(f.angle + 180,360)-180; f.touchdownAngularVelocity = f.angularVelocity;
-      Object.assign(f, { y: g.bottom, angle: 0, angularVelocity: 0, roll: 0,
-        thrust: 0, frontThrust: 0, rearThrust: 0, jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, phase: 'attached', landed: true });
-    }
-  }
-  return f;
-}
-
-function stepLocalFlip(g,state,seconds) {
+// Fixed 240 Hz force integration. Gravity is added on EVERY airborne substep,
+// including takeoff, rotation, braking and the final unpowered touchdown.
+export function stepFlight(g,state,seconds) {
+  if(state.landed)return state;
   const f={...state},duration=clamp(seconds,0,.1),steps=Math.ceil(duration*240),dt=steps?duration/steps:0;
-  const target=t=>{
-    const travel=flipTravel(t);
-    const d=f.attachDistance+f.attachSpeed*travel,p=trackPose(g,d),u=clamp(t/1.4,0,1);
-    const lift=g.size*.25*Math.sin(Math.PI*u)**2;
-    return {...p,x:p.x+p.nx*lift,y:p.y+p.ny*lift,distance:mod(d,g.perimeter)};
-  };
   for(let i=0;i<steps&&!f.landed;i++){
-    f.elapsed+=dt;const previousBounds=flightBounds(g,f),p=target(f.elapsed),q=target(f.elapsed+dt),r=target(f.elapsed+2*dt);
-    f.anchorDistance=p.distance;
-    const vx=(q.x-p.x)/dt,vy=(q.y-p.y)/dt,assist=clamp((f.elapsed-.06)/.16,0,1);
-    const difference=mod(p.angle-f.angle+180,360)-180;
-    const rate=(mod(q.angle-p.angle+180,360)-180)/dt;
-    const nextRate=(mod(r.angle-q.angle+180,360)-180)/dt;
-    const torque=clamp(difference*65+(rate-f.angularVelocity)*16+clamp((nextRate-rate)/dt,-700,700),-1400,1400);
+    const elapsed=f.elapsed;f.elapsed+=dt;const previousBounds=flightBounds(g,f);
+    const u=clamp((f.elapsed-.08)/f.turnDuration,0,1),delta=f.landingAngle-f.initialAngle;
+    const blend=u**3*(10-15*u+6*u*u),rate=delta*30*u*u*(1-u)**2/f.turnDuration;
+    const feed=delta*60*u*(1-u)*(1-2*u)/f.turnDuration**2;
+    const target=f.kind==='ramp'?f.initialAngle+delta*blend:0;
+    const torque=clamp((target-f.angle)*34+((f.kind==='ramp'?rate:0)-f.angularVelocity)*11+(f.kind==='ramp'?feed:0),-1200,1200);
     f.angularVelocity+=torque*dt;f.angle+=f.angularVelocity*dt;
-    const t=clamp(f.elapsed/.96,0,1);f.roll=360*t*t*(3-2*t);
-    const bounds=flightBounds(g,f);
-    const rawX=assist*(clamp((r.x-2*q.x+p.x)/dt**2,-f.gravity*3,f.gravity*3)+(p.x-f.x)*85+(vx-f.vx)*18);
-    const rawY=f.gravity+assist*(-f.gravity+clamp((r.y-2*q.y+p.y)/dt**2,-f.gravity*3,f.gravity*3)+(p.y-f.y)*85+(vy-f.vy)*18);
-    const contactBuffer=f.elapsed>1.1?0:undefined;
-    const ax=avoidAxis(f.x,f.vx,bounds.left,bounds.right,(bounds.left-previousBounds.left)/dt,(bounds.right-previousBounds.right)/dt,rawX,f.gravity,dt,contactBuffer,contactBuffer);
-    const ay=avoidAxis(f.y,f.vy,bounds.top,bounds.bottom,(bounds.top-previousBounds.top)/dt,(bounds.bottom-previousBounds.bottom)/dt,rawY,f.gravity,dt,contactBuffer,contactBuffer);
-    f.x+=f.vx*dt+ax*dt*dt/2;f.y+=f.vy*dt+ay*dt*dt/2;f.vx+=ax*dt;f.vy+=ay*dt;
-    const x=clamp(f.x,bounds.left,bounds.right),y=clamp(f.y,bounds.top,bounds.bottom);
-    f.constraintError=Math.max(f.constraintError||0,Math.abs(x-f.x),Math.abs(y-f.y));f.x=x;f.y=y;
-    f.thrust=Math.max(0,f.gravity-ay);f.lit=assist>0;
-    f.jets={left:Math.max(0,ax)/f.gravity,right:Math.max(0,-ax)/f.gravity,up:Math.max(0,ay-f.gravity)/f.gravity,down:f.thrust/f.gravity};
-    // The takeoff impulse already supplies the initial inward velocity. Render
-    // its finite valve pulse from the very first ascent frame, away from the
-    // departure surface, as well as the continuous controller's balancing jets.
-    const pulse=2.6*Math.max(0,1-f.elapsed/.28)**2,n=f.launchNormal;
-    if(n){f.jets.left=Math.max(f.jets.left,Math.max(0,n.x)*pulse);f.jets.right=Math.max(f.jets.right,Math.max(0,-n.x)*pulse);
-      f.jets.up=Math.max(f.jets.up,Math.max(0,n.y)*pulse);f.jets.down=Math.max(f.jets.down,Math.max(0,-n.y)*pulse);}
-    Object.assign(f,balanceJets(g,f,torque,Math.max(pulse,f.thrust/f.gravity,Math.hypot(ax,ay-f.gravity)/f.gravity*.55),dt));
-    f.phase=f.elapsed<.7?'ascent':'braking';f.avoiding=Math.abs(ax-rawX)>.1||Math.abs(ay-rawY)>.1;
-    const base=trackPose(g,p.distance),error=Math.hypot(f.x-base.x,f.y-base.y),relative=Math.hypot(f.vx-vx,f.vy-vy);
-    if(f.elapsed>=1.4&&error<.55&&relative<8&&Math.abs(difference)<2){
-      f.impactSpeed=relative/f.scale;f.touchdownAngle=difference;f.attachDistance=p.distance;f.landingSpeed=0;
-      Object.assign(f,{x:base.x,y:base.y,angle:base.angle,roll:0,landed:true,phase:'attached',thrust:0,frontThrust:0,rearThrust:0,
-        jets:{left:0,right:0,up:0,down:0}});
+    const flipDuration=1.18,t=clamp(f.elapsed/flipDuration,0,1);
+    f.roll=f.kind==='kickflip'?360*t**3*(10-15*t+6*t*t):0;
+    const rollAcceleration=f.kind==='kickflip'?360*60*t*(1-t)*(1-2*t)/flipDuration**2:0;
+    const b=flightBounds(g,f),floor=g.bottom-(f.wheelOffset||0),remaining=Math.max(0,floor-f.y);
+    b.bottom=Math.min(b.bottom,floor);
+    const burning=elapsed<(f.burn||0),burnPart=burning?Math.min(dt,f.burn-elapsed)/dt:0;
+    const launchX=burnPart*f.launchVX/f.burn||0,launchY=burnPart*f.launchVY/f.burn||0;
+    const stopping=Math.max(0,f.vy)**2/(2*f.gravity*3.2);
+    if(!burning&&f.vy>=0&&remaining<=stopping+g.size*.46)f.lit=true;
+    const ready=f.elapsed>(f.kind==='kickflip'?flipDuration+.05:.55)&&Math.abs(f.targetX-f.x)<1.2
+      &&Math.abs(f.vx)<8&&Math.abs(f.angle-f.landingAngle)<.8&&Math.abs(f.angularVelocity)<3;
+    if(ready&&remaining<g.size*.012)f.finalDrop=true;
+    // Settle the attitude in air, then close the valves for a short gravity drop.
+    // This leaves a real, bounded contact impulse for the air suspension.
+    const desiredVy=ready?Math.min(f.scale*.6+remaining*1.8,Math.sqrt(2*f.gravity*Math.max(0,remaining-g.size*.012)+(f.scale*.6)**2)):0;
+    const braking=f.lit&&!f.finalDrop?clamp(f.gravity+10*(f.vy-desiredVy),0,f.gravity*5):0;
+    const steer=f.lit?clamp((f.targetX-f.x)*26-f.vx*10.2,-f.gravity*3,f.gravity*3):0;
+    const rawX=launchX+steer,rawY=f.gravity+launchY-braking;
+    const ax=avoidAxis(f.x,f.vx,b.left,b.right,(b.left-previousBounds.left)/dt,(b.right-previousBounds.right)/dt,rawX,f.gravity,dt);
+    const ay=avoidAxis(f.y,f.vy,b.top,f.finalDrop?Infinity:b.bottom,(b.top-previousBounds.top)/dt,0,rawY,f.gravity,dt,ready?0:undefined);
+    f.avoiding=Math.abs(ax-rawX)>.1||Math.abs(ay-rawY)>.1;
+    f.accelerationX=ax;f.accelerationY=ay;f.forceX=f.mass*ax;f.forceY=f.mass*(ay-f.gravity);
+    f.thrust=Math.max(0,f.gravity-ay);f.torqueAcceleration=torque;
+    const inertia=(g.size*g.size+g.carHeight*g.carHeight)/12;
+    f.torqueThrust=f.mass*Math.abs(torque)*Math.PI/180*inertia/(g.size*.31*f.gravity);
+    f.rollThrust=f.mass*Math.abs(rollAcceleration)*Math.PI/180*(g.carHeight**2+(g.size*.35)**2)/12/(g.size*.35*f.gravity);
+    f.rollAcceleration=rollAcceleration;
+    const total=f.mass*Math.hypot(ax,ay-f.gravity)/f.gravity+2*(f.torqueThrust+f.rollThrust);
+    Object.assign(f,balanceJets(g,f,torque,total,dt));
+    f.jets={left:Math.max(0,f.forceX)/f.gravity,right:Math.max(0,-f.forceX)/f.gravity,
+      up:Math.max(0,f.forceY)/f.gravity,down:Math.max(0,-f.forceY)/f.gravity};
+    const nextY=f.y+f.vy*dt+ay*dt*dt/2;
+    if(f.finalDrop&&nextY>=floor){
+      const gap=Math.max(0,floor-f.y),contact=ay?(-f.vy+Math.sqrt(Math.max(0,f.vy*f.vy+2*ay*gap)))/ay:gap/Math.max(.001,f.vy);
+      const hit=clamp(contact,0,dt);f.x+=f.vx*hit+ax*hit*hit/2;f.vx+=ax*hit;
+      f.impactSpeed=Math.abs(f.vy+ay*hit)/f.scale;f.touchdownAngle=mod(f.angle+180,360)-180;f.touchdownAngularVelocity=f.angularVelocity;
+      Object.assign(f,{y:floor,vy:0,angle:0,angularVelocity:0,roll:0,thrust:0,frontThrust:0,rearThrust:0,
+        torqueThrust:0,rollThrust:0,jets:{left:0,right:0,up:0,down:0},phase:'attached',landed:true});
+      continue;
     }
+    f.x+=f.vx*dt+ax*dt*dt/2;f.y=nextY;f.vx+=ax*dt;f.vy+=ay*dt;
+    const x=clamp(f.x,b.left,b.right),y=clamp(f.y,b.top,b.bottom);
+    f.constraintError=Math.max(f.constraintError||0,Math.abs(x-f.x),Math.abs(y-f.y));f.x=x;f.y=y;
+    f.phase=f.finalDrop?'touchdown':f.lit?'braking':f.vy<0?'ascent':'fall';
   }
   return f;
-}
-
-function flipTravel(t) { const coast=clamp((t-.8)/.6,0,1);return t<.8?t:.8+.6*(coast-coast**3+.5*coast**4); }
-
-function mapTrackDistance(previous,g,distance) {
-  let d=mod(distance,previous.perimeter),segment=0,start=0;
-  while(segment<7&&d>previous.lengths[segment]){d-=previous.lengths[segment];start+=g.lengths[segment++];}
-  return mod(start+(previous.lengths[segment]?d/previous.lengths[segment]:0)*g.lengths[segment],g.perimeter);
 }
 
 export function bottomDistance(g, x) { return clamp(g.right - g.radius - x, 0, g.lengths[0]); }
 
 export function resizeFlight(g, previous, flight) {
   const ratio = g.size / previous.size;
-  if(flight.localFlip){
-    const anchorDistance=flight.anchorDistance??flight.attachDistance+flight.attachSpeed*flipTravel(flight.elapsed);
-    const old=trackPose(previous,anchorDistance),distance=mapTrackDistance(previous,g,anchorDistance),next=trackPose(g,distance);
-    const dx=flight.x-old.x,dy=flight.y-old.y,normal=(dx*old.nx+dy*old.ny)*ratio,along=(-dx*old.ny+dy*old.nx)*ratio;
-    const angleDelta=mod(next.angle-old.angle+180,360)-180,a=angleDelta*Math.PI/180;
-    const f={...flight,x:next.x+next.nx*normal-next.ny*along,y:next.y+next.ny*normal+next.nx*along,
-      angle:flight.angle+angleDelta,vx:(flight.vx*Math.cos(a)-flight.vy*Math.sin(a))*ratio,
-      vy:(flight.vx*Math.sin(a)+flight.vy*Math.cos(a))*ratio,scale:g.size/4.84,gravity:GRAVITY*g.size/4.84,
-      attachSpeed:flight.attachSpeed*ratio,attachDistance:mod(distance-flight.attachSpeed*ratio*flipTravel(flight.elapsed),g.perimeter),anchorDistance:distance};
-    const b=flightBounds(g,f);f.x=clamp(f.x,b.left,b.right);f.y=clamp(f.y,b.top,b.bottom);return f;
-  }
   const x = g.left + (flight.x - previous.left) * (g.right - g.left) / Math.max(1, previous.right - previous.left);
   const y = g.top + (flight.y - previous.top) * (g.bottom - g.top) / Math.max(1, previous.bottom - previous.top);
   return { ...flight, ...contain(g, { ...flight, x, y }), scale: g.size / 4.84, gravity: GRAVITY * g.size / 4.84,
+    launchVX: flight.launchVX * ratio, launchVY: flight.launchVY * ratio,
     vx: flight.vx * ratio, vy: flight.vy * ratio, thrust: flight.thrust * ratio,
     targetX: clamp(g.left + (flight.targetX - previous.left) * (g.right - g.left) / Math.max(1, previous.right - previous.left), g.left + g.radius, g.right - g.radius) };
 }

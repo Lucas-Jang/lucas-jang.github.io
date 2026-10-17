@@ -7,7 +7,7 @@ export function projectPoint(g, pose, suspension, point, body = true) {
   const roll = (pose.roll || 0) * Math.PI / 180, yaw = Math.sin(roll) * VIEW_YAW * Math.PI / 180;
   const x = point.x, y = point.y - g.carHeight * .08;
   const px = Math.cos(pitch) * x - Math.sin(pitch) * y;
-  const py = Math.sin(pitch) * x + Math.cos(pitch) * y + (body ? suspension.heave || 0 : 0);
+  const py = Math.sin(pitch) * x + Math.cos(pitch) * y + (body ? suspension.heave || 0 : 0) + (suspension.comShift || 0);
   const rx = Math.cos(yaw) * px + Math.sin(yaw) * point.z;
   const rz = -Math.sin(yaw) * px + Math.cos(yaw) * point.z;
   const ry = Math.cos(roll) * py - Math.sin(roll) * rz;

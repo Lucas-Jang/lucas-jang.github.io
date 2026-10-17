@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heavy landing · runtime frame QA</title>
+<style>body{margin:20px;background:#dfe9ed;color:#142d3d;font:14px system-ui}button{min-height:44px}#frames{display:grid;grid-template-columns:repeat(3,420px);gap:12px}figure{margin:0;padding:8px;background:#f6f7f0;border-radius:10px}canvas{width:404px;height:247px;display:block}figcaption{font-size:12px;min-height:48px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>실제 위젯 · 도약 → 중력 체공 → 공중 보정 → 접지 → 잔진동</h1><p>제품의 실제 렌더 캔버스에서 캡처한 차량 주변 확대. 입자·도약·착지·에어서스 모두 실제 프레임.</p>
+<button id="run" disabled>Record landing sequence</button><pre id="results">Loading</pre><div id="frames"></div>
+<script type="module">
+localStorage.setItem('lj-veracruz-v1',JSON.stringify({height:'ride',environment:'normal'}));
+const{initialize}=await import('/scripts/roaming-car.js?v=20261017-12');initialize();
+const host=document.querySelector('#lucas-roaming-car'),root=host.shadowRoot,car=root.querySelector('.car');
+const frameGrid=document.getElementById('frames');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const check=(ok,label)=>{if(!ok)throw Error(label);results.textContent+='\nPASS '+label};
+const capture=label=>{
+ const d=host.dataset,figure=document.createElement('figure'),canvas=document.createElement('canvas'),caption=document.createElement('figcaption');
+ canvas.width=808;canvas.height=494;const ctx=canvas.getContext('2d');ctx.fillStyle='#66879b';ctx.fillRect(0,0,808,494);
+ ctx.translate(404-Number(d.x),247-Number(d.y));
+ const terrain=root.querySelector('.terrain path');ctx.strokeStyle='#b2c8d0';ctx.lineWidth=2;ctx.stroke(new Path2D(terrain.getAttribute('d')));
+ const mesh=root.querySelector('.mesh'),effects=root.querySelector('.effects'),w=parseFloat(mesh.style.width),h=parseFloat(mesh.style.height);
+ ctx.save();ctx.translate(+d.x,+d.y);ctx.rotate(+d.edgeAngle*Math.PI/180);ctx.drawImage(mesh,-Number(d.carSize)/2-40,-Number(d.carSize)*.43/2-40,w,h);ctx.restore();
+ ctx.drawImage(effects,parseFloat(effects.style.left),parseFloat(effects.style.top),parseFloat(effects.style.width),parseFloat(effects.style.height));
+ caption.textContent=label+' · heave '+Number(d.heave).toFixed(1)+'px · F '+Number(d.frontThrust).toFixed(1)+' / R '+Number(d.rearThrust).toFixed(1)+' · '+d.particles+' puffs';
+ figure.append(canvas,caption);frameGrid.append(figure);
+};
+run.onclick=async()=>{run.disabled=true;results.textContent='Running';try{
+ for(let i=0;i<700&&host.dataset.edgeAngle!=='0';i++)await sleep(50);
+ check(host.dataset.edgeAngle==='0','start on physical floor');
+ car.dispatchEvent(new KeyboardEvent('keydown',{key:'k',bubbles:true}));
+ const selected=new Set(),samples=[],start=performance.now();let landed=false,maxCloud=0,maxExtension=0;
+ for(let i=0;i<650;i++){
+  const d=host.dataset,t=+d.flightElapsed,l=+d.landingElapsed;
+  samples.push({time:(performance.now()-start)/1000,state:d.state,flight:t,landing:l,y:+d.y,vy:+d.verticalVelocity,heave:+d.heave,front:+d.frontTravel,rear:+d.rearTravel,force:+d.correctionForce,puffs:+d.particles});
+  maxCloud=Math.max(maxCloud,+d.particles);if(d.trick)maxExtension=Math.min(maxExtension,+d.heave);
+  const frame=(key,condition,label)=>{if(condition&&!selected.has(key)){selected.add(key);capture(label)}};
+  frame('launch',t>=.08&&t<.2,'① 추진 도약');frame('rise',t>=.40&&t<.65,'② 중력으로 감속하는 상승');
+  frame('apex',t>=.8&&t<1.05,'③ 최대 리바운드 · 늘어진 바퀴');frame('rotate',t>=1.20&&t<1.5,'④ 회전 종료 · 중력 낙하');
+  frame('brake',d.state==='braking'&&t>1.5,'⑤ 고압 공중 밸런싱');frame('drop',d.finalDrop==='true','⑥ 밸브 닫힘 · 짧은 중력 접지');
+  if(d.landingPhase==='absorbing')landed=true;
+  frame('contact',landed&&l>.03&&l<.13,'⑦ 접지 · 압축 시작');frame('compress',landed&&l>=.18&&l<.3,'⑧ 첫 압축');
+  frame('rebound',landed&&l>=.48&&l<.65,'⑨ 반동 · 꿀렁');frame('damp',landed&&l>=.78&&l<1,'⑩ 두 번째 꿀렁 · 감쇠');
+  frame('settle',landed&&l>=1.7,'⑪ 잔진동 수렴');
+  if(landed&&d.landingPhase==='')break;
+  await sleep(16);
+ }
+ check(landed&&host.dataset.state==='cruising','gravity contact returns to driving');check(maxCloud>120,'dense corrective exhaust remains visible');
+ check(maxExtension<-Number(host.dataset.carSize)*.07,'air extension clearly exceeds mud height');
+ check(selected.has('brake')&&selected.has('drop')&&selected.has('rebound')&&selected.has('damp'),'all landing stages recorded');
+ const fx=root.querySelector('.effects').getBoundingClientRect();check(fx.left< -100&&fx.right>innerWidth+100,'overscan canvas extends beyond both viewport edges');
+ const details=document.createElement('details'),summary=document.createElement('summary'),data=document.createElement('pre');summary.textContent='Recorded frame telemetry';data.id='timeline';data.textContent=JSON.stringify(samples,null,2);details.append(summary,data);document.body.append(details);
+ results.textContent+='\nALL PASSED';host.style.display='none';
+}catch(e){results.textContent+='\nFAIL '+e.message}run.disabled=false};
+results.textContent='Ready';run.disabled=false;
+</script>

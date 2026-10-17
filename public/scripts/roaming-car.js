@@ -1,9 +1,10 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-11';
-import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-11';
-import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-11';
-import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-11';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-12';
+import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-12';
+import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-12';
+import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-12';
+import { EXHAUST_PADDING, plumeProfile, exhaustSurface } from './car-exhaust.mjs?v=20261017-12';
 
-import { HEIGHTS, blendRide, landingResponse } from './car-ride.mjs?v=20261017-11';
+import { HEIGHTS, AIR_EXTENSION, suspensionStep, blendRide, landingResponse } from './car-ride.mjs?v=20261017-12';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
@@ -75,7 +76,7 @@ export function initialize() {
       .thruster.fore, .thruster.aft { width: 2.2%; height: 7%; border-radius: 45%; }
       .thruster.roof { width: 4%; height: 3%; border-radius: 3px; }
       .effects, .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
-      .effects { z-index: 1; } .terrain { z-index: 0; overflow: visible; }
+      .effects { z-index: 3; max-width: none; } .terrain { z-index: 0; overflow: visible; }
       .mode-banner { position: fixed; right: max(var(--dock-right,12px),env(safe-area-inset-right)); bottom: max(calc(var(--dock-bottom,10px) + 76px),calc(env(safe-area-inset-bottom) + 76px)); max-width: calc(100% - 24px); padding: 10px 14px; border: 1px solid var(--mode-color,#a4bac4); border-radius: 16px; background: #f8f8f1; color: #203a48; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .2s,transform .25s; box-shadow: 0 4px 18px #19354322; }
       .mode-banner[data-visible="true"] { opacity: 1; transform: translateY(0); }
       .mode-changing .mesh { filter: drop-shadow(0 0 calc(var(--mode-pulse,0) * 7px) var(--mode-color,#a4bac4)); }
@@ -159,6 +160,11 @@ export function initialize() {
   const modeBanner = root.querySelector('.mode-banner');
   const boostLabel = root.querySelector('.boost-label'), boostHint = root.querySelector('.boost-hint');
   const canvas = root.querySelector('.effects'), context = canvas.getContext('2d');
+  const puff=document.createElement('canvas');puff.width=puff.height=96;
+  const puffContext=puff.getContext('2d'),mist=puffContext.createRadialGradient(48,48,0,48,48,48);
+  mist.addColorStop(0,'rgba(255,255,255,.95)');mist.addColorStop(.35,'rgba(253,255,255,.8)');
+  mist.addColorStop(.72,'rgba(248,253,255,.27)');mist.addColorStop(1,'rgba(238,248,255,0)');
+  puffContext.fillStyle=mist;puffContext.fillRect(0,0,96,96);
   const terrain = root.querySelector('.terrain'), terrainPath = terrain.querySelector('path');
   const panel = root.querySelector('.garage'), live = root.querySelector('[role="status"]');
   const media = matchMedia('(prefers-reduced-motion: reduce)');
@@ -249,11 +255,13 @@ export function initialize() {
     schedule();
   }
   function driveAllowed() { return !media.matches && !flight && !press?.dragged; }
+  function boostForce() { return Math.max(0,acceleration)/(9.81*g.size/4.84)+boostOutput*.3; }
   function targets() {
-    const base = heights[heightMode] * g.size;
+    const airborne=flight ? clamp((flight.elapsed-.1)/.25,0,1) : 0;
+    const base = (heights[heightMode]+(AIR_EXTENSION-heights[heightMode])*airborne) * g.size;
     const rough = driveAllowed() ? settings().bump * g.size / 176 : 0;
     const nose = clamp(acceleration / (9.81 * g.size / 4.84), -.6, 2.8) * g.size * .018;
-    const balance = flight ? clamp((flight.frontThrust - flight.rearThrust) * g.size * .007, -4, 4) : 0;
+    const balance = flight ? clamp((flight.frontThrust - flight.rearThrust) * g.size * .002, -g.size*.004, g.size*.004) : 0;
     return { front: base - nose - balance + (Math.sin(distance / 17) + .35 * Math.sin(distance / 7.3)) * rough,
       rear: base + nose * .65 + balance + (Math.sin(distance / 17 - 2) + .35 * Math.sin(distance / 7.3 - 1)) * rough };
   }
@@ -264,7 +272,8 @@ export function initialize() {
     if (!active() && frame) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; }
   }
   function suspensionPose() {
-    return { heave: (front.value + rear.value) / 2,
+    const heave=(front.value+rear.value)/2;
+    return { heave, comShift: flight ? -(heave-(flight.takeoffHeave||0))*.88 : 0,
       pitch: Math.atan2(rear.value - front.value, g.size * .567) * 180 / Math.PI };
   }
   function paint() {
@@ -277,8 +286,8 @@ export function initialize() {
     car.style.setProperty('--depth', `${g.size * .35}px`);
     car.style.transform = `translate3d(${p.x - g.size / 2}px,${p.y - g.carHeight / 2}px,0) rotate(${p.angle}deg)`;
     car.classList.toggle('rolling', !!flight && flight.kind === 'kickflip' && roll > 1 && roll < 359);
-    vehicle.style.transform = `rotateX(${roll}deg) rotateY(${Math.sin(roll * Math.PI / 180) * 4}deg)`;
     const suspension = suspensionPose(), { pitch } = suspension;
+    vehicle.style.transform = `rotateX(${roll}deg) rotateY(${Math.sin(roll * Math.PI / 180) * 4}deg) translateY(${suspension.comShift}px)`;
     shell.style.transform = `translateY(${suspension.heave}px) rotate(${pitch}deg)`;
     wheels.forEach(w => { w.style.transform = `translate(-50%,-50%) translateZ(${(w.dataset.side === 'near' ? 1 : -1) * (g.size * .175 + 1)}px) rotate(${wheelAngle}deg)`; });
     struts.forEach(s => {
@@ -297,8 +306,9 @@ export function initialize() {
       car.classList.toggle('mesh-ready', drawCarMesh(meshContext, bodyImage, g, { ...pose, environment, mudMix: settings().mud }, suspension, wheelAngle));
     }
     const boosting = boostStarted !== null && driveAllowed();
-    const commands = thrusterCommands(g, { ...pose, ...p }, suspension, flight, boosting ? boostOutput : 0);
-    const levels = new Map(commands.map(c => [c.key, Math.min(1, c.power)]));
+    const commands = thrusterCommands(g, { ...pose, ...p }, suspension, flight, boosting ? boostForce() : 0);
+    const levels = new Map();
+    for(const command of commands){const key=`${command.port}:${command.side}`;levels.set(key,Math.min(1,(levels.get(key)||0)+command.power));}
     ports.forEach(port => port.style.setProperty('--lit', String(levels.get(`${port.dataset.port}:${port.dataset.side === 'near' ? 1 : -1}`) || 0)));
     vehicle.style.setProperty('--adhesion', !flight && !press?.dragged && p.angle > 10 ? '.4' : '0');
     boostButton.disabled = !!flight || boostStarted !== null || !!press?.dragged;
@@ -309,7 +319,7 @@ export function initialize() {
     const skill = flight?.kind === 'kickflip' ? 'kickflip' : flight?.kind === 'ramp' || boosting && boostProfile?.full ? 'ramp' : boosting ? 'boost' : '';
     boostButton.dataset.skill = skill; host.dataset.skill = skill;
     const label = flight ? flight.kind === 'kickflip' ? '킥플립' : flight.kind === 'ramp' ? '램프 점프' : '착지 보정' : boosting ? boostProfile?.full ? '램프 추진' : '부스트 중' : charge === 1 ? '풀차지' : charge > 0 ? `${Math.floor(charge * 100)}%` : '부스트';
-    const hint = flight ? flight.lit ? '균형 잡으며 착지 중' : '도약 · 자세 보정 중' : boosting ? boostProfile?.full ? '다음 코너에서 도약' : boostOutput < boostProfile.power * .5 ? '관성 유지 · 감속 중' : '급가속 · 추진 중' : pendingBoost ? '한 번 더 · 킥플립' : charge === 1 ? '놓으면 램프 점프' : charge > 0 ? '계속 누르면 램프' : landing ? '착지 · 에어서스 안정화' : '2탭 킥플립 · 꾹 램프 · ↑ 환경';
+    const hint = flight ? flight.finalDrop ? '중력 접지 · 에어서스 준비' : flight.lit ? '균형 잡으며 착지 중' : '도약 · 자세 보정 중' : boosting ? boostProfile?.full ? '다음 코너에서 도약' : boostOutput < boostProfile.power * .5 ? '관성 유지 · 감속 중' : '급가속 · 추진 중' : pendingBoost ? '한 번 더 · 킥플립' : charge === 1 ? '놓으면 램프 점프' : charge > 0 ? '계속 누르면 램프' : landing ? '착지 · 에어서스 안정화' : '2탭 킥플립 · 꾹 램프 · ↑ 환경';
     if (boostLabel.textContent !== label) boostLabel.textContent = label;
     if (boostHint.textContent !== hint) boostHint.textContent = hint;
     host.dataset.state = flight ? flight.phase : press?.dragged ? 'dragging' : media.matches ? 'reduced-motion' : 'cruising';
@@ -321,7 +331,7 @@ export function initialize() {
       boostCharge: String(charge), boostKind: boosting ? boostProfile?.full ? 'ramp' : 'normal' : '',
       boostPower: String(boosting ? boostOutput : 0), cornerRadius: String(g.radius),
       modeTransition: String(modeElapsed < 1), rideStiffness: String(ride.stiffness), heave: String(suspension.heave), frontTravel: String(front.value), rearTravel: String(rear.value), landingPhase: landing ? 'absorbing' : '', landingImpact: String(landing?.impactSpeed || 0), boostTravel: String(boostTravel), lapLength: String(g.perimeter),
-      renderMode: car.classList.contains('mesh-ready') ? 'mesh' : 'fallback', roll: String(roll), carSize: String(g.size),
+      mass: String(flight?.mass||2), correctionForce: String(Math.hypot(flight?.forceX||0,flight?.forceY||0)), accelerationY: String(flight?.accelerationY||0), finalDrop: String(flight?.finalDrop||false), flightElapsed: String(flight?.elapsed||0), landingElapsed: String(landing?.elapsed||0), airborneComShift: String(suspension.comShift), airExtension: String(flight ? AIR_EXTENSION*g.size : 0), renderMode: car.classList.contains('mesh-ready') ? 'mesh' : 'fallback', roll: String(roll), carSize: String(g.size),
       avoiding: String(flight?.avoiding || false),
       jetLeft: String(flight?.jets?.left || 0), jetRight: String(flight?.jets?.right || 0), jetUp: String(flight?.jets?.up || 0), jetDown: String(flight?.jets?.down || 0) });
   }
@@ -332,48 +342,58 @@ export function initialize() {
     terrainPath.setAttribute('stroke-dasharray', ENVIRONMENTS[environment].dash);
     terrainPath.setAttribute('opacity', environment === 'normal' ? '.14' : environment === 'sport' ? '.75' : '.55');
   }
+  function clearExhaust() { context?.clearRect(-EXHAUST_PADDING,-EXHAUST_PADDING,innerWidth+EXHAUST_PADDING*2,innerHeight+EXHAUST_PADDING*2); }
   function smoke(dt) {
-    if (!context) return;
-    const boosting = boostStarted !== null && driveAllowed();
-    const commands = thrusterCommands(g, { ...pose, ...contain(g, pose) }, suspensionPose(), flight, boosting ? boostOutput : 0);
-    if (!particles.length && !commands.length) {
-      if (smokeDirty) context.clearRect(0, 0, innerWidth, innerHeight);
-      smokeDirty = false; return;
-    }
-    smokeDirty = true;
-    const activePorts = new Set(commands.map(c => c.key));
-    for (const key of smokeCredit.keys()) if (!activePorts.has(key)) smokeCredit.delete(key);
-    for (const command of commands) {
-      let credit = Math.min((smokeCredit.get(command.key) || 0) + dt * command.power * 30, 4);
-      while (credit >= 1 && particles.length < 96) {
+    if(!context)return;
+    const boosting=boostStarted!==null&&driveAllowed();
+    const commands=thrusterCommands(g,{...pose,...contain(g,pose)},suspensionPose(),flight,boosting?boostForce():0);
+    if(!particles.length&&!commands.length){if(smokeDirty)clearExhaust();smokeDirty=false;return;}
+    smokeDirty=true;
+    const activePorts=new Set(commands.map(c=>c.key));
+    for(const key of smokeCredit.keys())if(!activePorts.has(key))smokeCredit.delete(key);
+    particles=particles.filter(p=>p.age<p.life);
+    const limit=innerWidth<=600?300:480;
+    for(const command of commands){
+      const style=plumeProfile(command.power,g.size);
+      let credit=Math.min((smokeCredit.get(command.key)||0)+dt*style.rate,18);
+      while(credit>=1){
         credit--;
-        const exhaust = 90 + command.power * 45;
-        particles.push({ x: command.x, y: command.y,
-          vx: command.dx * exhaust + (flight?.vx || 0) * .15 + (Math.random() - .5) * 25,
-          vy: command.dy * exhaust + (flight?.vy || 0) * .15 + (Math.random() - .5) * 25,
-          age: 0, life: .5 + Math.random() * .4, radius: 2 + Math.random() * 3 });
+        // Saturation replaces old mist instead of starving newly active valves.
+        if(particles.length>=limit)particles.shift();
+        const spread=(Math.random()-.5)*style.speed*.45;
+        particles.push({x:command.x,y:command.y,vx:command.dx*style.speed-command.dy*spread+(flight?.vx||0)*.2,
+          vy:command.dy*style.speed+command.dx*spread+(flight?.vy||0)*.2,age:0,
+          life:style.life*(.85+Math.random()*.3),radius:style.radius*(.7+Math.random()*.6),growth:style.growth,opacity:style.opacity});
       }
-      smokeCredit.set(command.key, Math.min(credit, 2));
+      smokeCredit.set(command.key,credit);
     }
-    context.clearRect(0, 0, innerWidth, innerHeight);
-    particles = particles.filter(p => p.age < p.life);
-    for (const p of particles) {
-      p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt;
-      p.vx *= Math.exp(-dt * 1.7); p.vy -= 20 * dt;
-      const alpha = Math.max(0, (1 - p.age / p.life) * .8), radius = p.radius + p.age * 20;
-      const gradient = context.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-      gradient.addColorStop(0, `rgba(255,255,255,${alpha})`);
-      gradient.addColorStop(.5, `rgba(248,253,255,${alpha * .7})`);
-      gradient.addColorStop(1, 'rgba(238,248,255,0)');
-      context.fillStyle = gradient; context.beginPath(); context.arc(p.x, p.y, radius, 0, Math.PI * 2); context.fill();
+    clearExhaust();
+    const floor=g.bottom+g.carHeight*.43,wallLeft=g.left-g.carHeight/2-g.edgeInset,wallRight=g.right+g.carHeight/2+g.edgeInset,ceiling=g.top-g.carHeight/2-g.edgeInset;
+    for(const p of particles){
+      p.age+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+      if(p.y>floor&&p.vy>0){p.y=floor;p.vx+=(p.vx>=0?1:-1)*p.vy*.65;p.vy=-p.vy*.38;}
+      if(p.x<wallLeft&&p.vx<0){p.x=wallLeft;p.vy+=Math.abs(p.vx)*.3;p.vx=-p.vx*.1;}
+      if(p.x>wallRight&&p.vx>0){p.x=wallRight;p.vy+=Math.abs(p.vx)*.3;p.vx=-p.vx*.1;}
+      if(p.y<ceiling&&p.vy<0){p.y=ceiling;p.vx+=(p.vx>=0?1:-1)*Math.abs(p.vy)*.5;p.vy=-p.vy*.1;}
+      const drag=Math.exp(-dt*1.8);p.vx*=drag;p.vy=p.vy*drag-9*dt;
+      const age=p.age/p.life,radius=p.radius+p.age*p.growth;
+      context.globalAlpha=Math.max(0,(1-age)**1.25*p.opacity)*Math.exp(-(landing?.elapsed||0)*.9);
+      context.drawImage(puff,p.x-radius,p.y-radius,radius*2,radius*2);
     }
-    for (const command of commands) {
-      const length = g.size * .13 * Math.sqrt(command.power);
-      const x = command.x + command.dx * length, y = command.y + command.dy * length;
-      const core = context.createLinearGradient(command.x, command.y, x, y);
-      core.addColorStop(0, 'rgba(247,255,255,.95)'); core.addColorStop(1, 'rgba(235,252,255,0)');
-      context.strokeStyle = core; context.lineWidth = Math.max(1, g.size * .016 * Math.sqrt(command.power));
-      context.lineCap = 'round'; context.beginPath(); context.moveTo(command.x, command.y); context.lineTo(x, y); context.stroke();
+    context.globalAlpha=1;
+    // Continuous wide cores are independent of the particle budget and remain
+    // visible while the controller is balancing, including the far-side valves.
+    for(const command of commands){
+      const power=Math.sqrt(command.power),width=g.size*(.018+.018*power);
+      const room=Math.min(command.dx<-.001?(command.x-wallLeft)/-command.dx:command.dx>.001?(wallRight-command.x)/command.dx:Infinity,
+        command.dy<-.001?(command.y-ceiling)/-command.dy:command.dy>.001?(floor-command.y)/command.dy:Infinity);
+      const length=Math.max(.1,Math.min(g.size*(.13+.07*power),room));
+      const x=command.x+command.dx*length,y=command.y+command.dy*length;
+      const gradient=context.createLinearGradient(command.x,command.y,x,y);
+      gradient.addColorStop(0,'rgba(255,255,255,.96)');gradient.addColorStop(.35,'rgba(251,255,255,.72)');gradient.addColorStop(1,'rgba(242,252,255,0)');
+      context.fillStyle=gradient;context.beginPath();context.moveTo(command.x-command.dy*width*.25,command.y+command.dx*width*.25);
+      context.lineTo(x-command.dy*width,y+command.dx*width);context.lineTo(x+command.dy*width,y-command.dx*width);
+      context.lineTo(command.x+command.dy*width*.25,command.y-command.dx*width*.25);context.closePath();context.fill();
     }
   }
   function tick(now) {
@@ -388,9 +408,10 @@ export function initialize() {
         if (axle === 'front') front.velocity += landing.front; else rear.velocity += landing.rear;
         landing[axle + 'Applied'] = true;
       }
-      if (landing.elapsed > 1.25) landing = null;
+      if (landing.elapsed > 2.3) landing = null;
     }
     if (flight) {
+      flight.wheelOffset=suspensionPose().comShift;
       acceleration = 0; flight = stepFlight(g, flight, dt); pose = { ...flight };
       wheelAngle -= Math.hypot(flight.vx, flight.vy) * dt / (g.size * .075) * 180 / Math.PI;
       if (flight.phase !== lastPhase) {
@@ -398,8 +419,9 @@ export function initialize() {
         announce(flight.lit ? '전후륜 추진체로 균형을 잡으며 착지해요' : flight.phase === 'ascent' ? '도약 · 중력이 속도를 줄여요' : '중력 낙하');
       }
       if (flight.landed) {
-        distance = flight.localFlip ? flight.attachDistance : bottomDistance(g, flight.x);
-        speed = flight.localFlip ? flight.landingSpeed : Math.max(0, -flight.vx);
+        distance = bottomDistance(g, flight.x);
+        speed = Math.max(0, -flight.vx);
+        pose=trackPose(g,distance);
         landing = { ...landingResponse(g, flight, settings()), impactSpeed: flight.impactSpeed, elapsed: 0 }; flight = null;
         announce('착지 완료 · 에어서스펜션으로 충격을 흡수했어요');
       }
@@ -425,7 +447,8 @@ export function initialize() {
       }
     }
     const t = targets();
-    front = spring(front, t.front, dt, settings()); rear = spring(rear, t.rear, dt, settings());
+    front = suspensionStep(front, t.front, dt, settings(), landing?.elapsed ?? null,g.size);
+    rear = suspensionStep(rear, t.rear, dt, settings(), landing?.elapsed ?? null,g.size);
     smoke(dt); paint();
     if (active()) frame = requestAnimationFrame(tick); else lastTime = 0;
   }
@@ -433,16 +456,12 @@ export function initialize() {
     clearBoostCharge();
     cancelPendingBoost();
     if (media.matches) { announce('동작 줄이기 설정에 따라 회전과 점프를 생략해요'); return; }
-    const attachment = kind === 'kickflip' && !flight && !press?.dragged ? { distance, speed: Math.min(speed, settings().speed) } : null;
+    const attachment = kind !== 'drop' ? { distance, speed, incoming: flight ? {x:flight.vx,y:flight.vy} : tangent(pose,speed) } : null;
     if (!velocity) {
       velocity = flight ? { x: clamp(flight.vx, -g.size * 1.5, g.size * 1.5), y: clamp(flight.vy, -g.size * 1.5, g.size * 1.5) } : stuntVelocity(g, pose, speed, kind);
-      if (attachment) {
-        const forward = tangent(pose, attachment.speed), hop = velocity.x * pose.nx + velocity.y * pose.ny;
-        velocity = { x: forward.x + pose.nx * hop, y: forward.y + pose.ny * hop };
-      }
     }
     landing = null;
-    flight = createFlight(g, pose, kind, velocity, attachment); lastPhase = '';
+    flight = createFlight(g, pose, kind, velocity, attachment); flight.takeoffHeave=(front.value+rear.value)/2; lastPhase = '';
     boostStarted = null; boostProfile = null; acceleration = 0;
     announce(kind === 'kickflip' ? '킥플립 · 입체 회전 후 균형 착지' : kind === 'ramp' ? '램프 점프 · 관성 도약 후 추진 착지' : '중력 낙하 · 추진 착지');
     schedule();
@@ -492,9 +511,11 @@ export function initialize() {
       pose = { ...flight };
     } else pose = trackPose(g, distance);
     if (context) {
-      const dpr = Math.min(devicePixelRatio || 1, 2, Math.sqrt(4000000 / (innerWidth * innerHeight)));
-      canvas.width = Math.ceil(innerWidth * dpr); canvas.height = Math.ceil(innerHeight * dpr);
-      canvas.style.width = `${innerWidth}px`; canvas.style.height = `${innerHeight}px`; context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const surface=exhaustSurface(innerWidth,innerHeight,devicePixelRatio||1),{dpr,padding}=surface;
+      canvas.width=Math.ceil(surface.width*dpr);canvas.height=Math.ceil(surface.height*dpr);
+      canvas.style.cssText=`left:-${padding}px;top:-${padding}px;width:${surface.width}px;height:${surface.height}px;max-width:none`;
+      context.setTransform(dpr,0,0,dpr,padding*dpr,padding*dpr);
+      particles=[];smokeCredit.clear();
     }
     drawTerrain(); lastTime = 0; schedule();
   }
@@ -584,7 +605,7 @@ export function initialize() {
     clearTimeout(tapTimer); tapTimer = 0; clearBoostCharge(); cancelPendingBoost();
     if (press) finishGesture({ pointerId: press.id }, true);
     particles = []; smokeCredit.clear();
-    context?.clearRect(0, 0, innerWidth, innerHeight); lastTime = 0; schedule();
+    clearExhaust(); lastTime = 0; schedule();
   };
   const motionChanged = () => {
     if (media.matches) {
