@@ -123,7 +123,7 @@ try{
  boostPointer('pointerdown');await sleep(230);
  check(panel.hidden&&+host.dataset.boostCharge>.4&&+host.dataset.boostCharge<1&&host.dataset.state==='cruising','partial hold charges visibly without opening settings or stopping');
  boostPointer('pointerup');await sleep(450);
- check(+host.dataset.acceleration>500&&+host.dataset.pitch>3&&+host.dataset.particles>0,'boost acceleration, nose-up and rear smoke');
+ check(+host.dataset.acceleration/(9.81*+host.dataset.carSize/4.84)>1.5&&+host.dataset.pitch>3&&+host.dataset.particles>0,'boost acceleration in world units, nose-up and rear smoke');
  check(boost.disabled&&host.dataset.boostKind==='normal','partial charge selects ordinary boost and blocks duplicate input');
  await sleep(1800);
  check(host.dataset.boostKind===''&&host.dataset.trick===''&&!boost.disabled,'ordinary boost ends without any ramp and keeps coasting');

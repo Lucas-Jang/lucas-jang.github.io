@@ -86,10 +86,11 @@ export function createFlight(g, pose, kind = 'drop', velocity = {}) {
   const automatic = kind === 'drop' ? { x: 0, y: 0 } : stuntVelocity(g, start, 0, kind);
   const vx = clamp(velocity.x ?? automatic.x, -g.size * 8, g.size * 8);
   const vy = clamp(velocity.y ?? automatic.y, -g.size * 6, g.size * 8);
+  const fallTime = (-vy + Math.sqrt(vy * vy + 2 * gravity * Math.max(0, g.bottom - start.y))) / gravity;
   return { ...start, kind, scale, gravity, vx, vy, thrust: 0, frontThrust: 0, rearThrust: 0,
     jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, constraintError: 0,
     angle: mod(start.angle + 180, 360) - 180, initialAngle: mod(start.angle + 180, 360) - 180, angularVelocity: 0, elapsed: 0, roll: 0,
-    targetX: clamp(start.x + vx * .65, g.left + g.radius, g.right - g.radius),
+    targetX: clamp(start.x + vx * fallTime, g.left + g.radius, g.right - g.radius),
     phase: vy < 0 ? 'ascent' : 'fall', lit: false, landed: false };
 }
 
