@@ -1,6 +1,6 @@
 import { clamp, mod, contain as legacyContain } from './car-motion.mjs';
-import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-15';
-import { balanceJets } from './car-ride.mjs?v=20261017-15';
+import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-16';
+import { balanceJets } from './car-ride.mjs?v=20261017-16';
 export { geometry, trackPose, roadPath };
 export { clamp, mod } from './car-motion.mjs';
 export function contain(g,pose) {
@@ -81,10 +81,20 @@ export function cornerCrossing(g, distance, travel) {
 
 export function createFlight(g, pose, kind = 'drop', velocity = {}, attachment = null) {
   const scale = g.size / 4.84, gravity = GRAVITY * scale;
-  const start = contain(g, pose);
+  const entry=flightBounds(g,pose);
+  const start = {...pose,x:clamp(pose.x,entry.left,entry.right),y:clamp(pose.y,entry.top,entry.bottom)};
   const automatic = kind === 'drop' ? { x: 0, y: 0 } : stuntVelocity(g, start, 0, kind);
-  const vx = clamp(velocity.x ?? automatic.x, -g.size * 8, g.size * 8);
-  const vy = clamp(velocity.y ?? automatic.y, -g.size * 6, g.size * 8);
+  const released=boundedRelease(g,start,{x:velocity.x??automatic.x,y:velocity.y??automatic.y});
+  const vx = clamp(released.x, -g.size * 8, g.size * 8);
+  const vy = clamp(released.y, -g.size * 6, g.size * 8);
+  if(kind==='drop'&&Math.abs(mod(start.angle+180,360)-180)<.8&&start.y>=g.bottom-.5&&vy>=0){
+    return{...start,x:clamp(start.x,g.left+g.radius,g.right-g.radius),y:g.bottom,kind,scale,gravity,mass:VEHICLE_MASS,
+      vx:clamp(vx,-boostSpeed(g),boostSpeed(g)),vy:0,angle:0,roll:0,elapsed:0,thrust:0,frontThrust:0,rearThrust:0,
+      launchVX:0,launchVY:0,originX:start.x,targetX:clamp(start.x,g.left+g.radius,g.right-g.radius),initialAngle:0,landingAngle:0,
+      jets:{left:0,right:0,up:0,down:0},impactSpeed:0,touchdownAngle:0,touchdownAngularVelocity:0,angularVelocity:0,
+      torqueThrust:0,rollThrust:0,torqueAcceleration:0,rollAcceleration:0,rollPhase:'settled',burn:0,finalDrop:false,
+      constraintError:0,avoiding:false,forceX:0,forceY:0,accelerationX:0,accelerationY:0,phase:'attached',landed:true};
+  }
   const fallTime = (-vy + Math.sqrt(vy * vy + 2 * gravity * Math.max(0, g.bottom - start.y))) / gravity;
   const rampAngle = mod(start.angle, 360), initialAngle = kind === 'ramp' ? rampAngle : mod(start.angle + 180, 360) - 180;
   // Follow the increasing heading of the circuit through the next upright
@@ -100,7 +110,8 @@ export function createFlight(g, pose, kind = 'drop', velocity = {}, attachment =
     vx: vx-launchVX, vy: vy-launchVY, originX: start.x, thrust: 0, frontThrust: 0, rearThrust: 0,
     launchNormal: { x: Math.sin(a), y: -Math.cos(a) }, landingAngle, turnDuration,
     localFlip: false, attachDistance: attachment?.distance, attachSpeed: Math.min(160, attachment?.speed || 0),
-    jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, constraintError: 0,
+    jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, constraintError: 0, finalDrop:false,
+    torqueThrust:0,rollThrust:0,torqueAcceleration:0,rollAcceleration:0,forceX:0,forceY:0,accelerationX:0,accelerationY:gravity,
     angle: initialAngle, initialAngle, angularVelocity: 0, elapsed: 0, roll: 0,
     targetX: clamp(start.x + vx * fallTime, g.left + g.radius, g.right - g.radius),
     phase: vy < 0 ? 'ascent' : 'fall', lit: false, landed: false };
@@ -120,6 +131,24 @@ export function flightBounds(g, pose) {
   const top = g.top - g.carHeight / 2 - edge + halfY;
   const bottom = Math.min(g.bottom, g.bottom + g.carHeight / 2 + edge - halfY);
   return { left, right, top, bottom };
+}
+
+// Dragging approaches the physical tyre floor progressively. Keep the vehicle
+// upright and within the bottom straight before contact, so release cannot
+// snap it out of an impossible pose below the roadway.
+export function dragPose(g,origin,point) {
+  const start=Math.max(origin.y,g.bottom-g.size*1.2);
+  const u=point.y>=g.bottom-.5?1:clamp((point.y-start)/Math.max(1,g.bottom-start),0,1),ease=u*u*(3-2*u);
+  const angle=(mod(origin.angle+180,360)-180)*(1-ease)||0,pose={...origin,...point,angle,roll:0,wheelOffset:0};
+  const b=flightBounds(g,pose),left=b.left+(g.left+g.radius-b.left)*ease,right=b.right+(g.right-g.radius-b.right)*ease;
+  return{...pose,x:clamp(point.x,left,right),y:clamp(point.y,b.top,b.bottom)};
+}
+
+export function boundedRelease(g,pose,velocity) {
+  const b=flightBounds(g,pose),v={...velocity};
+  if(pose.x<=b.left+.5&&v.x<0||pose.x>=b.right-.5&&v.x>0)v.x=0;
+  if(pose.y<=b.top+.5&&v.y<0||pose.y>=b.bottom-.5&&v.y>0)v.y=0;
+  return v;
 }
 
 // Stop-distance feed-forward before each wall. The final inequality constrains

@@ -1,10 +1,10 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-15';
-import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-15';
-import { PORTS, thrusterCommands, projectPort, jetVector } from './car-thrusters.mjs?v=20261017-15';
-import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-15';
-import { EXHAUST_PADDING, EXHAUST_LAYER_OPACITY, plumeProfile, exhaustSurface, exhaustVisibility, stepExhaustEmitters, depthMistOpacity, particleOpacity } from './car-exhaust.mjs?v=20261017-15';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath, dragPose, boundedRelease } from './car-dynamics.mjs?v=20261017-16';
+import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-16';
+import { PORTS, thrusterCommands, projectPort, jetVector } from './car-thrusters.mjs?v=20261017-16';
+import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-16';
+import { EXHAUST_PADDING, EXHAUST_LAYER_OPACITY, plumeProfile, exhaustSurface, exhaustVisibility, stepExhaustEmitters, depthMistOpacity, particleOpacity, particleBudget } from './car-exhaust.mjs?v=20261017-16';
 
-import { HEIGHTS, AIR_EXTENSION, suspensionStep, blendRide, landingResponse } from './car-ride.mjs?v=20261017-15';
+import { HEIGHTS, AIR_EXTENSION, LANDING_SECONDS, suspensionStep, stepLandingSuspension, blendRide, landingResponse } from './car-ride.mjs?v=20261017-16';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
@@ -115,6 +115,10 @@ export function initialize() {
       .environments small { display: block; font-size: 11px; color: #526c79; }
       .environments [aria-pressed="true"] { background: #e1ecee; border-color: #406c7e; }
       .boost-button { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      @media (max-width:720px), (max-height:450px) {
+        :host([data-home]) .boost-button { width: 140px; min-width: 140px; min-height: 44px; padding: 6px 8px; font-size: 12px; }
+        :host([data-home]) .boost-hint { font-size: 9px; white-space: nowrap; }
+      }
       @media (max-height: 360px) { .garage { bottom: 58px; max-height: calc(100dvh - 72px); padding: 10px; } }
       @media print { :host { display: none; } }
     </style>
@@ -151,6 +155,7 @@ export function initialize() {
   document.body.append(host);
   const homeFrame = !!document.querySelector('.home-hero') && !!document.querySelector('body > footer');
   if (homeFrame) document.body.classList.add('car-home');
+  if (homeFrame) host.dataset.home='';
   const car = root.querySelector('.car'), vehicle = root.querySelector('.vehicle');
   const shell = root.querySelector('.shell'), wheels = root.querySelectorAll('.wheel');
   const struts = root.querySelectorAll('.strut'), boostButton = root.querySelector('.boost-button');
@@ -259,8 +264,9 @@ export function initialize() {
   function targets() {
     const airborne=flight ? clamp((flight.elapsed-.1)/.25,0,1) : 0;
     const base = (heights[heightMode]+(AIR_EXTENSION-heights[heightMode])*airborne) * g.size;
-    const rough = driveAllowed() ? settings().bump * g.size / 176 : 0;
-    const nose = clamp(acceleration / (9.81 * g.size / 4.84), -.6, 2.8) * g.size * .018;
+    const recovery=landing?clamp((landing.elapsed-.7)/1.1,0,1):1,roadBlend=recovery*recovery*(3-2*recovery);
+    const rough = driveAllowed() ? settings().bump * g.size / 176 * roadBlend : 0;
+    const nose = clamp(acceleration / (9.81 * g.size / 4.84), -.6, 2.8) * g.size * .018 * roadBlend;
     const balance = flight ? clamp((flight.frontThrust - flight.rearThrust) * g.size * .002, -g.size*.004, g.size*.004) : 0;
     return { front: base - nose - balance + (Math.sin(distance / 17) + .35 * Math.sin(distance / 7.3)) * rough,
       rear: base + nose * .65 + balance + (Math.sin(distance / 17 - 2) + .35 * Math.sin(distance / 7.3 - 1)) * rough };
@@ -363,7 +369,7 @@ export function initialize() {
     const activePorts=new Set(commands.map(c=>c.key));
     for(const key of smokeCredit.keys())if(!activePorts.has(key))smokeCredit.delete(key);
     particles=particles.filter(p=>p.age<p.life);
-    const limit=innerWidth<=600?112:160;
+    const limit=particleBudget(innerWidth);
     for(const command of commands){
       const style=plumeProfile(command.power,g.size);
       let credit=Math.min((smokeCredit.get(command.key)||0)+dt*style.rate,6);
@@ -394,13 +400,13 @@ export function initialize() {
     context.globalAlpha=1;
     // Narrow continuous cores make the force direction legible without fog.
     for(const command of commands){
-      const power=Math.sqrt(command.power),width=g.size*(.008+.006*power);
-      const visibility=exhaustVisibility(command.power);context.globalAlpha=visibility*.62;
+      const power=Math.sqrt(command.power),width=g.size*(.010+.009*power);
+      const visibility=exhaustVisibility(command.power);context.globalAlpha=visibility*.72;
       const projected=Math.hypot(command.dx,command.dy);
       // Depth exhaust becomes an expanding local cloud instead of disappearing
       // at quarter-roll or drawing an impossible full-length screen-plane jet.
       const depthOpacity=depthMistOpacity(command.dz);
-      if(depthOpacity>0){const r=width*(1+Math.abs(command.dz));context.globalAlpha=visibility*depthOpacity;context.drawImage(puff,command.x-r,command.y-r,r*2,r*2);context.globalAlpha=visibility*.62;}
+      if(depthOpacity>0){const r=width*(1+Math.abs(command.dz));context.globalAlpha=visibility*depthOpacity;context.drawImage(puff,command.x-r,command.y-r,r*2,r*2);context.globalAlpha=visibility*.72;}
       if(projected<.0001)continue;
       const ux=command.dx/projected,uy=command.dy/projected;
       const room=Math.min(ux<-.001?(command.x-wallLeft)/-ux:ux>.001?(wallRight-command.x)/ux:Infinity,
@@ -423,11 +429,7 @@ export function initialize() {
     ride = blendRide(rideFrom, ENVIRONMENTS[environment], modeElapsed);
     if (landing) {
       landing.elapsed += dt;
-      for (const axle of ['front', 'rear']) if (!landing[axle + 'Applied'] && landing.elapsed >= landing[axle + 'Delay']) {
-        if (axle === 'front') front.velocity += landing.front; else rear.velocity += landing.rear;
-        landing[axle + 'Applied'] = true;
-      }
-      if (landing.elapsed > 2.3) landing = null;
+      if (landing.elapsed > LANDING_SECONDS) landing = null;
     }
     if (flight) {
       flight.wheelOffset=suspensionPose().comShift;
@@ -446,7 +448,7 @@ export function initialize() {
       }
     } else if (press?.dragged) {
       acceleration = 0;
-      pose = contain(g, { ...press.pose, x: press.pose.x + press.dx, y: press.pose.y + press.dy });
+      pose = dragPose(g,press.pose,{x:press.pose.x+press.dx,y:press.pose.y+press.dy});
     } else if (driveAllowed()) {
       const before = distance, previousSpeed = speed, next = boostStarted !== null && !boostProfile.full
         ? stepBoostDrive(g, { distance, speed, boostTravel }, boostProfile, dt, settings())
@@ -466,8 +468,8 @@ export function initialize() {
       }
     }
     const t = targets();
-    front = suspensionStep(front, t.front, dt, settings(), landing?.elapsed ?? null,g.size);
-    rear = suspensionStep(rear, t.rear, dt, settings(), landing?.elapsed ?? null,g.size);
+    front = landing?stepLandingSuspension(front,t.front,dt,settings(),landing,'front',g.size):suspensionStep(front,t.front,dt,settings(),null,g.size);
+    rear = landing?stepLandingSuspension(rear,t.rear,dt,settings(),landing,'rear',g.size):suspensionStep(rear,t.rear,dt,settings(),null,g.size);
     smoke(dt); paint();
     if (active()) frame = requestAnimationFrame(tick); else lastTime = 0;
   }
@@ -490,8 +492,8 @@ export function initialize() {
     if (!press || press.id !== e.pointerId) return;
     const held = press; press = null; releaseCapture(held.id);
     if (held.dragged) {
-      pose = contain(g, { ...held.pose, x: held.pose.x + held.dx, y: held.pose.y + held.dy });
-      launch('drop', cancelled ? { x: 0, y: 0 } : releaseVelocity(held.samples, performance.now(), g.size));
+      pose = dragPose(g,held.pose,{x:held.pose.x+held.dx,y:held.pose.y+held.dy});
+      launch('drop', cancelled ? { x: 0, y: 0 } : boundedRelease(g,pose,releaseVelocity(held.samples, performance.now(), g.size)));
     } else if (!cancelled) tap();
     schedule();
   }
@@ -505,11 +507,11 @@ export function initialize() {
     if (homeFrame) {
       const header = document.querySelector('body > header').getBoundingClientRect();
       const footer = document.querySelector('body > footer').getBoundingClientRect();
-      const gap=innerWidth<=600||innerHeight<=450?2:8;
+      const gap=innerWidth<=720||innerHeight<=450?2:8;
       const top = Math.max(viewport.top + safeArea.top, header.bottom) + gap;
       const bottom = Math.min(viewport.top + viewport.height - safeArea.bottom, footer.top) - gap;
       viewport.top = top; viewport.height = Math.max(80, bottom - top);
-      viewport.compact = innerWidth <= 600 || innerHeight <= 450;
+      viewport.compact = innerWidth <= 720 || innerHeight <= 450;
       viewport.carSize = viewport.compact ? 104 : 160;
       safeArea.top = 0; safeArea.bottom = 0;
     }
@@ -520,7 +522,9 @@ export function initialize() {
     if (homeFrame) {
       document.body.style.setProperty('--car-lane', `${Math.ceil(g.carHeight + g.edgeInset + 18)}px`);
       const footer = document.querySelector('body > footer').getBoundingClientRect();
-      const dock = Math.max(10, innerHeight - footer.bottom + (footer.height - 50) / 2);
+      const buttonHeight=boostButton.getBoundingClientRect().height||44;
+      const dockSafe=parseFloat(safe.paddingBottom)||0;
+      const dock = Math.max(6, innerHeight - footer.bottom + dockSafe + (footer.height-dockSafe-buttonHeight)/2);
       host.style.setProperty('--dock-bottom', `${dock}px`);
       host.style.setProperty('--dock-right', `${Math.max(16,innerWidth-footer.right)}px`);
     }
@@ -542,7 +546,7 @@ export function initialize() {
   car.addEventListener('pointerdown', e => {
     if (!e.isPrimary || e.button !== 0 || press || media.matches) return;
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, dragged: false,
-      pose: { ...pose }, samples: [{ x: e.clientX, y: e.clientY, time: performance.now() }] };
+      pose: { ...pose }, samples: [{ x: pose.x, y: pose.y, time: performance.now() }] };
     car.setPointerCapture(e.pointerId);
   });
   car.addEventListener('pointermove', e => {
@@ -553,7 +557,8 @@ export function initialize() {
       clearTimeout(tapTimer); tapTimer = 0;
       press.dragged = true; press.pose = { ...pose, roll: 0 }; flight = null; boostStarted = null;
     }
-    press.samples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
+    const sample=press.dragged?dragPose(g,press.pose,{x:press.pose.x+press.dx,y:press.pose.y+press.dy}):pose;
+    press.samples.push({ x: sample.x, y: sample.y, time: performance.now() });
     press.samples = press.samples.slice(-12); schedule();
   });
   car.addEventListener('pointerup', e => finishGesture(e));

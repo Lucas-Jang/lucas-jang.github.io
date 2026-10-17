@@ -3,6 +3,7 @@
 export const EXHAUST_PADDING = 128;
 export const exhaustVisibility = force => -Math.expm1(-Math.max(0,force)*4);
 export const EXHAUST_LAYER_OPACITY = .66;
+export const particleBudget = width => width<=600?168:240;
 // Visual pressure only: physics still receives the complete requested force.
 // Equal attack/release time constants preserve brightness during valve handoff.
 export function stepExhaustEmitters(emitters,commands,seconds) {
@@ -19,7 +20,7 @@ export function stepExhaustEmitters(emitters,commands,seconds) {
 }
 export function depthMistOpacity(depth) {
   const t=Math.max(0,Math.min(1,(Math.abs(depth)-.08)/.72));
-  return t*t*(3-2*t)*.16;
+  return t*t*(3-2*t)*.22;
 }
 export function particleOpacity(p,seconds,landing=false) {
   // Fade is stored on each particle: cancelling/restarting a landing must not
@@ -30,8 +31,8 @@ export function particleOpacity(p,seconds,landing=false) {
 }
 export function plumeProfile(force,size) {
   const power=Math.max(0,force),root=Math.sqrt(power);
-  return {rate:28*power**.7,speed:85+50*root,radius:size*(.012+.012*root),
-    growth:size*(.10+.025*root),life:.45+Math.min(.30,root*.08),opacity:Math.min(.28,.16+root*.035)*exhaustVisibility(power)};
+  return {rate:42*power**.7,speed:85+50*root,radius:size*(.018+.016*root),
+    growth:size*(.13+.035*root),life:.55+Math.min(.32,root*.09),opacity:Math.min(.40,.24+root*.045)*exhaustVisibility(power)};
 }
 export function exhaustSurface(width,height,dpr=1) {
   const w=width+EXHAUST_PADDING*2,h=height+EXHAUST_PADDING*2;

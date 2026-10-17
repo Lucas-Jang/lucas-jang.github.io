@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ground drag regression</title>
+<style>body{background:#dfe9ed;color:#142d3d;font:14px system-ui;margin:20px}button{min-height:44px}pre{white-space:pre-wrap}iframe{display:block;border:1px solid #819ba9;max-width:none}</style>
+<h1>Actual home · below-road drag regression</h1><button id="run">Run floor suite</button><pre id="results">Ready</pre><iframe id="preview" title="Actual blog home"></iframe>
+<script type="module">
+import{geometry}from'/scripts/car-dynamics.mjs?v=20261017-16';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms)),check=(ok,label)=>{if(!ok)throw Error(label);results.textContent+='\nPASS '+label};
+run.onclick=async()=>{run.disabled=true;results.textContent='Running';try{
+for(const[width,height]of[[320,568],[390,844],[844,390],[1280,720]]){
+ localStorage.setItem('lj-veracruz-v1',JSON.stringify({height:'ride',environment:'normal'}));preview.style.width=width+'px';preview.style.height=height+'px';preview.src='/?floor-qa='+width;await new Promise(r=>preview.onload=r);await preview.contentDocument.fonts.ready;await sleep(300);
+ const win=preview.contentWindow,doc=preview.contentDocument,host=doc.querySelector('#lucas-roaming-car'),root=host.shadowRoot,car=root.querySelector('.car'),boost=root.querySelector('.boost-button');
+ car.setPointerCapture=()=>{};car.hasPointerCapture=()=>false;
+ const style=doc.createElement('style');style.textContent='astro-dev-toolbar{display:none!important}';doc.head.append(style);
+ const header=doc.querySelector('header').getBoundingClientRect(),footer=doc.querySelector('footer').getBoundingClientRect(),compact=width<=720||height<=450,gap=compact?2:8;
+ const g=geometry({width,height:footer.top-header.bottom-gap*2,top:header.bottom+gap,compact,carSize:compact?104:160});
+ const point=(type,x,y)=>car.dispatchEvent(new win.PointerEvent(type,{pointerId:7,isPrimary:true,pointerType:'touch',button:0,clientX:x,clientY:y,bubbles:true}));
+ const key=(el,k)=>el.dispatchEvent(new win.KeyboardEvent('keydown',{key:k,bubbles:true}));
+ for(const mode of['normal','sport','offroad','mud']){
+  key(boost,'ArrowDown');root.querySelector(`[data-environment="${mode}"]`).click();await sleep(1150);
+  for(const x of[width*.1,width*.5,width*.9]){
+   const r=car.getBoundingClientRect();point('pointerdown',r.x+r.width/2,r.y+r.height/2);point('pointermove',x,height-10);await sleep(40);
+   point('pointermove',x,height+60);await sleep(35);point('pointermove',x,height+160);await sleep(35);
+   const held={x:+host.dataset.x,y:+host.dataset.y};check(Math.abs(held.y-g.bottom)<.01&&Math.abs(+host.dataset.edgeAngle)<.01,width+' '+mode+' drag stays upright at physical floor');
+   point('pointerup',x,height+160);const released={x:+host.dataset.x,y:+host.dataset.y};check(Math.hypot(released.x-held.x,released.y-held.y)<.01,'release has no position snap');
+   await sleep(100);check(host.dataset.state==='cruising'&&host.dataset.trick===''&&+host.dataset.verticalVelocity===0&&+host.dataset.activeJets===0,'no upward kick, flight loop or corrective jet after below-road release');
+  }
+ }
+ if(width===390){
+  const r=car.getBoundingClientRect();point('pointerdown',r.x+r.width/2,r.y+r.height/2);point('pointermove',width*.5,height-10);await sleep(150);point('pointermove',width*.5,height-10);await sleep(20);point('pointermove',width*.5,height*.5);point('pointerup',width*.5,height*.5);await sleep(50);
+  check(host.dataset.trick==='drop'&&+host.dataset.verticalVelocity<0,'a real upward flick still preserves intentional throw momentum');
+  for(let n=0;n<400&&host.dataset.state!=='cruising';n++)await sleep(30);check(host.dataset.state==='cruising','intentional throw settles normally');
+ }
+}
+results.textContent+='\nALL PASSED';document.title='PASS · Floor drag';}catch(e){results.textContent+='\nFAIL '+e.message;document.title='FAIL · Floor drag'}run.disabled=false};
+</script>

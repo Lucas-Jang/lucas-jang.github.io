@@ -5,7 +5,7 @@
 <button id="run" disabled>Run exhaust suite</button><pre id="results">Loading</pre><pre id="metrics"></pre>
 <script type="module">
 localStorage.setItem('lj-veracruz-v1',JSON.stringify({height:'ride',environment:'normal'}));
-const {initialize}=await import('/scripts/roaming-car.js?v=20261017-15');initialize();
+const {initialize}=await import('/scripts/roaming-car.js?v=20261017-16');initialize();
 const host=document.querySelector('#lucas-roaming-car'),root=host.shadowRoot,car=root.querySelector('.car'),boost=root.querySelector('.boost-button'),fx=root.querySelector('.effects');
 car.setPointerCapture=()=>{};car.hasPointerCapture=()=>false;boost.setPointerCapture=()=>{};boost.hasPointerCapture=()=>false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms)),check=(ok,label)=>{if(!ok)throw Error(label);results.textContent+='\nPASS '+label};
@@ -42,7 +42,7 @@ run.onclick=async()=>{run.disabled=true;results.textContent='Running';recording=
  current='ordinary boost';key(car,'b');await wait(()=>host.dataset.boostKind==='normal');await wait(()=>!boost.disabled);check(host.dataset.trick==='','ordinary boost finishes without a jump');
  current='full-charge ramp';charge('pointerdown');await sleep(260);charge('pointerup');await wait(()=>host.dataset.trick==='ramp');await wait(()=>host.dataset.state==='cruising');check(host.dataset.landingPhase==='absorbing','full-charge ramp and landing complete');
  await sleep(2200);check(+host.dataset.particles===0&&+host.dataset.smokeEmitters===0,'mist and valve afterglow clear completely');
- check(maxParticles>10&&maxParticles<=(innerWidth<=600?112:160),'small bounded particle population stays visible');
+ check(maxParticles>10&&maxParticles<=(innerWidth<=600?168:240),'small bounded particle population stays visible');
  check(maxMean<.20,'vehicle-centred mean smoke opacity stays below 20%: '+maxMean.toFixed(4));
  check(maxJump<.08,'no >8 percentage-point frame flash at normal cadence: '+maxJump.toFixed(4));
  check(maxPeak<=.67,'overlapping emissions respect layer opacity cap');

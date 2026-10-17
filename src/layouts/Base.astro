@@ -82,6 +82,13 @@ const gaMeasurementId = import.meta.env.PROD
             <a data-nav-utility="archive" href="/archive/"><span>글 목록</span></a>
             <a data-nav-utility="search" href="/search/"><span>검색</span></a>
           </div>
+          <div class="home-menu-meta">
+            <span>© {new Date().getFullYear()} LucasJang</span>
+            <p class="site-stats" aria-label="방문 통계">
+              <span>방문 <span data-stat="visitors">—</span></span><span aria-hidden="true">·</span>
+              <span>오늘 <span data-stat="today">—</span></span>
+            </p>
+          </div>
         </div>
       </details>
     </header>
@@ -100,7 +107,7 @@ const gaMeasurementId = import.meta.env.PROD
       </p>
     </footer>
     <script src="/scripts/site-stats.js?v=20260926-5" defer></script>
-    {Astro.url.pathname === '/' && <script is:inline type="module" src="/scripts/roaming-car.js?v=20261017-15"></script>}
+    {Astro.url.pathname === '/' && <script is:inline type="module" src="/scripts/roaming-car.js?v=20261017-16"></script>}
     <script is:inline>
       (() => {
         const currentCategory = new URLSearchParams(location.search).get('category');
