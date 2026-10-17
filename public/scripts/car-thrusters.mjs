@@ -1,4 +1,4 @@
-import { BODY_DEPTH, VIEW_YAW, projectWorldPoint } from './car-projection.mjs?v=20261017-14';
+import { BODY_DEPTH, VIEW_YAW, projectWorldPoint } from './car-projection.mjs?v=20261017-15';
 
 // Flush bumper, rocker, roof-rack and lateral trim valves. Side vents supply
 // lift/wall clearance at 90°/270° roll, when roof/rocker normals point in depth.
@@ -31,6 +31,7 @@ export function jetVector(pose, suspension, v) {
 
 export function thrusterCommands(g, pose, suspension, flight, boost = 0) {
   const roll=(pose.roll||0)*Math.PI/180,heading=pose.angle*Math.PI/180;
+  const axes=[{x:1,y:0,z:0},{x:0,y:1,z:0},{x:0,y:0,z:1}].map(v=>jetVector(pose,suspension,v));
   const nodes=PORTS.flatMap(port=>[1,-1].map(side=>({port,side,key:`${port.id}:${side}`,
     normal:jetVector(pose,suspension,{x:port.nx,y:port.ny,z:(port.nz||0)*side}),
     force:{x:0,y:0,z:0},sources:new Set()})));
@@ -89,6 +90,6 @@ export function thrusterCommands(g, pose, suspension, flight, boost = 0) {
     const {x,y,z}=node.force,power=Math.hypot(x,y,z);
     if(power<1e-7)return[];
     return[{key:node.key,port:node.port.id,side:node.side,...projectPort(g,pose,suspension,node.port,node.side),
-      dx:x/power,dy:y/power,dz:z/power,power,sources:[...node.sources]}];
+      dx:x/power,dy:y/power,dz:z/power,localDirection:{x:dot(node.force,axes[0])/power,y:dot(node.force,axes[1])/power,z:dot(node.force,axes[2])/power},power,sources:[...node.sources]}];
   });
 }

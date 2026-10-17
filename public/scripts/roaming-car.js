@@ -1,10 +1,10 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-14';
-import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-14';
-import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-14';
-import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-14';
-import { EXHAUST_PADDING, plumeProfile, exhaustSurface, exhaustVisibility } from './car-exhaust.mjs?v=20261017-14';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-15';
+import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-15';
+import { PORTS, thrusterCommands, projectPort, jetVector } from './car-thrusters.mjs?v=20261017-15';
+import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-15';
+import { EXHAUST_PADDING, EXHAUST_LAYER_OPACITY, plumeProfile, exhaustSurface, exhaustVisibility, stepExhaustEmitters, depthMistOpacity, particleOpacity } from './car-exhaust.mjs?v=20261017-15';
 
-import { HEIGHTS, AIR_EXTENSION, suspensionStep, blendRide, landingResponse } from './car-ride.mjs?v=20261017-14';
+import { HEIGHTS, AIR_EXTENSION, suspensionStep, blendRide, landingResponse } from './car-ride.mjs?v=20261017-15';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
@@ -76,7 +76,7 @@ export function initialize() {
       .thruster.fore, .thruster.aft { width: 2.2%; height: 7%; border-radius: 45%; }
       .thruster.roof { width: 4%; height: 3%; border-radius: 3px; }
       .effects, .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
-      .effects { z-index: 3; max-width: none; } .terrain { z-index: 0; overflow: visible; }
+      .effects { z-index: 3; max-width: none; opacity: ${EXHAUST_LAYER_OPACITY}; } .terrain { z-index: 0; overflow: visible; }
       .mode-banner { position: fixed; right: max(var(--dock-right,12px),env(safe-area-inset-right)); bottom: max(calc(var(--dock-bottom,10px) + 76px),calc(env(safe-area-inset-bottom) + 76px)); max-width: calc(100% - 24px); padding: 10px 14px; border: 1px solid var(--mode-color,#a4bac4); border-radius: 16px; background: #f8f8f1; color: #203a48; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .2s,transform .25s; box-shadow: 0 4px 18px #19354322; }
       .mode-banner[data-visible="true"] { opacity: 1; transform: translateY(0); }
       .mode-changing .mesh { filter: drop-shadow(0 0 calc(var(--mode-pulse,0) * 7px) var(--mode-color,#a4bac4)); }
@@ -179,7 +179,7 @@ export function initialize() {
   let g, distance = 0, pose, flight = null, press = null, frame = 0, lastTime = 0, wheelAngle = 0;
   let front = { value: 0, velocity: 0 }, rear = { ...front };
   let speed = 0, acceleration = 0, boostStarted = null, boostElapsed = 0, boostProfile = null, pageSuspended = false;
-  let particles = [], smokeCredit = new Map(), smokeDirty = false, viewportKey = '', lastPhase = '';
+  let particles = [], smokeCredit = new Map(), smokeEmitters = new Map(), smokeDirty = false, viewportKey = '', lastPhase = '';
   let tapTimer = 0, lastTap = 0, boostPointer = null, pendingBoost = 0, pendingBoostAt = 0;
   const settings = () => ride;
   const announce = message => { live.textContent = message; };
@@ -351,21 +351,27 @@ export function initialize() {
   function smoke(dt) {
     if(!context)return;
     const boosting=boostStarted!==null&&driveAllowed();
-    const commands=thrusterCommands(g,{...pose,...contain(g,pose)},suspensionPose(),flight,boosting?boostForce():0);
+    const visualPose={...pose,...contain(g,pose)},suspension=suspensionPose();
+    const raw=thrusterCommands(g,visualPose,suspension,flight,boosting?boostForce():0);
+    const commands=stepExhaustEmitters(smokeEmitters,raw,dt).map(c=>{
+      const direction=jetVector(visualPose,suspension,c.localDirection);
+      return {...c,...projectPort(g,visualPose,suspension,PORTS.find(p=>p.id===c.port),c.side),dx:direction.x,dy:direction.y,dz:direction.z};
+    });
+    host.dataset.smokePower=String(commands.reduce((sum,c)=>sum+c.power,0));host.dataset.smokeEmitters=String(commands.length);
     if(!particles.length&&!commands.length){if(smokeDirty)clearExhaust();smokeDirty=false;return;}
     smokeDirty=true;
     const activePorts=new Set(commands.map(c=>c.key));
     for(const key of smokeCredit.keys())if(!activePorts.has(key))smokeCredit.delete(key);
     particles=particles.filter(p=>p.age<p.life);
-    const limit=innerWidth<=600?300:480;
+    const limit=innerWidth<=600?112:160;
     for(const command of commands){
       const style=plumeProfile(command.power,g.size);
-      let credit=Math.min((smokeCredit.get(command.key)||0)+dt*style.rate,18);
+      let credit=Math.min((smokeCredit.get(command.key)||0)+dt*style.rate,6);
       while(credit>=1){
         credit--;
         // Saturation replaces old mist instead of starving newly active valves.
         if(particles.length>=limit)particles.shift();
-        const spread=(Math.random()-.5)*style.speed*.45,depthSpread=Math.abs(command.dz||0)*style.speed*.45,azimuth=Math.random()*Math.PI*2;
+        const spread=(Math.random()-.5)*style.speed*.22,depthSpread=Math.abs(command.dz||0)*style.speed*.20,azimuth=Math.random()*Math.PI*2;
         particles.push({x:command.x,y:command.y,vx:command.dx*style.speed-command.dy*spread+Math.cos(azimuth)*depthSpread+(flight?.vx||0)*.2,
           vy:command.dy*style.speed+command.dx*spread+Math.sin(azimuth)*depthSpread+(flight?.vy||0)*.2,age:0,
           life:style.life*(.85+Math.random()*.3),radius:style.radius*(.7+Math.random()*.6),growth:style.growth,opacity:style.opacity});
@@ -381,27 +387,25 @@ export function initialize() {
       if(p.x>wallRight&&p.vx>0){p.x=wallRight;p.vy+=Math.abs(p.vx)*.3;p.vx=-p.vx*.1;}
       if(p.y<ceiling&&p.vy<0){p.y=ceiling;p.vx+=(p.vx>=0?1:-1)*Math.abs(p.vy)*.5;p.vy=-p.vy*.1;}
       const drag=Math.exp(-dt*1.8);p.vx*=drag;p.vy=p.vy*drag-9*dt;
-      const age=p.age/p.life,radius=p.radius+p.age*p.growth;
-      // Condensed foreground mist clears once the valves close, so the heavy
-      // compression/rebound remains legible rather than hidden inside white fog.
-      context.globalAlpha=Math.max(0,(1-age)**1.25*p.opacity)*Math.exp(-(landing?.elapsed||0)*8);
+      const radius=p.radius+p.age*p.growth;
+      context.globalAlpha=particleOpacity(p,dt,!!landing);
       context.drawImage(puff,p.x-radius,p.y-radius,radius*2,radius*2);
     }
     context.globalAlpha=1;
-    // Continuous wide cores are independent of the particle budget and remain
-    // visible while the controller is balancing, including the far-side valves.
+    // Narrow continuous cores make the force direction legible without fog.
     for(const command of commands){
-      const power=Math.sqrt(command.power),width=g.size*(.018+.018*power);
-      const visibility=exhaustVisibility(command.power);context.globalAlpha=visibility;
+      const power=Math.sqrt(command.power),width=g.size*(.008+.006*power);
+      const visibility=exhaustVisibility(command.power);context.globalAlpha=visibility*.62;
       const projected=Math.hypot(command.dx,command.dy);
       // Depth exhaust becomes an expanding local cloud instead of disappearing
       // at quarter-roll or drawing an impossible full-length screen-plane jet.
-      if(Math.abs(command.dz||0)>.3){const r=width*(1+Math.abs(command.dz));context.globalAlpha=visibility*.65;context.drawImage(puff,command.x-r,command.y-r,r*2,r*2);context.globalAlpha=visibility;}
-      if(projected<.04)continue;
+      const depthOpacity=depthMistOpacity(command.dz);
+      if(depthOpacity>0){const r=width*(1+Math.abs(command.dz));context.globalAlpha=visibility*depthOpacity;context.drawImage(puff,command.x-r,command.y-r,r*2,r*2);context.globalAlpha=visibility*.62;}
+      if(projected<.0001)continue;
       const ux=command.dx/projected,uy=command.dy/projected;
       const room=Math.min(ux<-.001?(command.x-wallLeft)/-ux:ux>.001?(wallRight-command.x)/ux:Infinity,
         uy<-.001?(command.y-ceiling)/-uy:uy>.001?(floor-command.y)/uy:Infinity);
-      const length=Math.max(.1,Math.min(g.size*(.13+.07*power)*projected,room));
+      const length=Math.max(.01,Math.min(g.size*(.12+.045*power)*projected,room));
       const x=command.x+ux*length,y=command.y+uy*length;
       const gradient=context.createLinearGradient(command.x,command.y,x,y);
       gradient.addColorStop(0,'rgba(255,255,255,.96)');gradient.addColorStop(.35,'rgba(251,255,255,.72)');gradient.addColorStop(1,'rgba(242,252,255,0)');
@@ -531,7 +535,7 @@ export function initialize() {
       canvas.width=Math.ceil(surface.width*dpr);canvas.height=Math.ceil(surface.height*dpr);
       canvas.style.cssText=`left:-${padding}px;top:-${padding}px;width:${surface.width}px;height:${surface.height}px;max-width:none`;
       context.setTransform(dpr,0,0,dpr,padding*dpr,padding*dpr);
-      particles=[];smokeCredit.clear();
+      particles=[];smokeCredit.clear();smokeEmitters.clear();
     }
     drawTerrain(); lastTime = 0; schedule();
   }
@@ -620,7 +624,7 @@ export function initialize() {
   const suspend = () => {
     clearTimeout(tapTimer); tapTimer = 0; clearBoostCharge(); cancelPendingBoost();
     if (press) finishGesture({ pointerId: press.id }, true);
-    particles = []; smokeCredit.clear();
+    particles = []; smokeCredit.clear(); smokeEmitters.clear();
     clearExhaust(); lastTime = 0; schedule();
   };
   const motionChanged = () => {
