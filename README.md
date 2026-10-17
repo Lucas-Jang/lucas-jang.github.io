@@ -86,4 +86,3 @@ draft: false
 `master` 또는 `main`에 push하면 Actions가 검사, 빌드, Pagefind 인덱싱, Pages 배포를 실행합니다. GitHub Pages의 Source를 **GitHub Actions**로 설정해야 합니다. 커스텀 도메인은 `public/CNAME` 파일을 추가해 연결합니다.
 
 현재는 로컬 이미지를 사용합니다. 이미지가 많아지면 frontmatter의 URL만 Cloudinary 또는 R2 URL로 교체하는 방식으로 외부 스토리지로 옮길 수 있습니다. 편집 UI가 필요해지면 Decap CMS나 Git 기반 CMS를 추가해 같은 MDX 구조를 그대로 유지할 수 있습니다.
-
