@@ -1,20 +1,20 @@
 <!doctype html><meta charset="utf-8"><title>Veracruz · section skill frame review</title>
 <style>body{background:#dce5e5;color:#263e49;font:13px system-ui;margin:20px}h1{font-size:22px}h2{font-size:16px;margin-top:22px}.row{display:flex;gap:8px}figure{margin:0;padding:6px;background:#f8f8f1;border-radius:10px;width:210px;flex:none}canvas{width:198px;height:198px;display:block}figcaption{font-size:11px}.bars{height:4px;background:#e1e6e5;display:flex;margin-top:5px}.front{background:#625298}.rear{background:#218b9e}</style>
-<h1>킥플립 · 8구간 프레임 검수</h1><p>주행면 근처 이탈 → 입체 회전 → 원래 주행면 복귀 · 전후륜 분사량 표시(전륜 보라 / 후륜 청록)</p><main id="grid"></main>
+<h1>킥플립 · 8구간 프레임 검수</h1><p>추진 도약 → 중력 체공 → 공중 보정 → 바닥 접지 · 전후륜 분사량 표시(전륜 보라 / 후륜 청록)</p><main id="grid"></main>
 <script type="module">
-import {geometry,trackPose,createFlight,stepFlight,stuntVelocity,tangent,roadPath} from '/scripts/car-dynamics.mjs?v=20261017-11';
-import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-11';
-import {thrusterCommands} from '/scripts/car-thrusters.mjs?v=20261017-11';
+import {geometry,trackPose,createFlight,stepFlight,stuntVelocity,tangent,roadPath} from '/scripts/car-dynamics.mjs?v=20261017-12';
+import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-12';
+import {thrusterCommands} from '/scripts/car-thrusters.mjs?v=20261017-12';
 const image=new Image();image.src='/images/widgets/veracruz-body.webp';await image.decode();
 const g=geometry({width:1280,height:720}),names=['바닥 직선','좌하 코너','왼쪽 벽','좌상 코너','천장 직선','우상 코너','오른쪽 벽','우하 코너'];let start=0;
 for(let section=0;section<8;section++){
  const distance=start+g.lengths[section]*.5;start+=g.lengths[section];const p=trackPose(g,distance),speed=100,forward=tangent(p,speed),hop=stuntVelocity(g,p,speed,'kickflip'),inward=hop.x*p.nx+hop.y*p.ny;
  let f=createFlight(g,p,'kickflip',{x:forward.x+p.nx*inward,y:forward.y+p.ny*inward},{distance,speed}),frames=[{...f}];
- for(let n=0;n<300&&!f.landed;n++){f=stepFlight(g,f,1/60);frames.push({...f})}
- const heading=document.createElement('h2');heading.textContent=`${section+1}. ${names[section]} · ${(frames.length/60).toFixed(2)}초 · 복귀 ${f.landed?'완료':'실패'}`;const row=document.createElement('div');row.className='row';grid.append(heading,row);
+ for(let n=0;n<900&&!f.landed;n++){f=stepFlight(g,f,1/60);frames.push({...f})}
+ const heading=document.createElement('h2');heading.textContent=`${section+1}. ${names[section]} · ${(frames.length/60).toFixed(2)}초 · 착지 ${f.landed?'완료':'실패'}`;const row=document.createElement('div');row.className='row';grid.append(heading,row);
  const center={x:(p.x+f.x)/2,y:(p.y+f.y)/2};
  for(const n of [0,15,30,45,60,84,frames.length-1]){
-  const pose=frames[Math.min(n,frames.length-1)],figure=document.createElement('figure'),canvas=document.createElement('canvas'),caption=document.createElement('figcaption');canvas.width=396;canvas.height=396;const ctx=canvas.getContext('2d');ctx.scale(1.1,1.1);ctx.translate(180-center.x,180-center.y);
+  const pose=frames[Math.min(n,frames.length-1)],figure=document.createElement('figure'),canvas=document.createElement('canvas'),caption=document.createElement('figcaption');canvas.width=396;canvas.height=396;const ctx=canvas.getContext('2d');ctx.scale(1.1,1.1);ctx.translate(180-pose.x,180-pose.y);
   ctx.strokeStyle='#b4c8ce';ctx.lineWidth=3;ctx.stroke(new Path2D(roadPath(g)));
   for(const jet of thrusterCommands(g,pose,{heave:0,pitch:0},pose)){ctx.beginPath();ctx.moveTo(jet.x,jet.y);ctx.lineTo(jet.x+jet.dx*30*Math.sqrt(jet.power),jet.y+jet.dy*30*Math.sqrt(jet.power));ctx.lineWidth=2+jet.power;ctx.strokeStyle='#78bbc8';ctx.stroke();}
   const layer=document.createElement('canvas');layer.width=256;layer.height=156;drawCarMesh(layer.getContext('2d'),image,g,pose,{heave:0,pitch:0},n*12,40);

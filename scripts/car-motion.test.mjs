@@ -8,6 +8,78 @@ import { meshFaces, MESH_PADDING } from '../public/scripts/car-mesh.mjs';
 import { stepBoostDrive, cruiseSpeed } from '../public/scripts/car-dynamics.mjs';
 import { blendRide, balanceJets, landingResponse, FRONT_LOAD } from '../public/scripts/car-ride.mjs';
 import { projectPoint } from '../public/scripts/car-projection.mjs';
+import { AIR_EXTENSION, HEIGHTS, suspensionStep } from '../public/scripts/car-ride.mjs';
+import { plumeProfile, exhaustSurface, EXHAUST_PADDING } from '../public/scripts/car-exhaust.mjs';
+
+test('floor kickflip has a substantial ballistic arc without reaching the ceiling',()=>{
+  for(const fps of[10,60,120]){
+    const g=geometry({width:1280,height:900}),p=trackPose(g,0),v=stuntVelocity(g,p,100,'kickflip');
+    let f=createFlight(g,p,'kickflip',v,{incoming:tangent(p,100)}),top=p.y,free=0;
+    for(let t=0;t<12&&!f.landed;t+=1/fps){f=stepFlight(g,f,1/fps);top=Math.min(top,f.y);
+      if(!f.lit&&!f.avoiding&&f.elapsed>.15){assert(Math.abs(f.accelerationY-f.gravity)<1e-8);free++;}}
+    assert(f.landed);assert(free>fps*.4);assert(p.y-top>g.size*.55&&p.y-top<g.size*1.15);
+    assert(top>g.top+g.size*.5);assert(f.impactSpeed>.85&&f.impactSpeed<1.65);
+  }
+});
+
+test('twice the mass needs twice the corrective force without changing gravity or trajectory',()=>{
+  const g=geometry({width:1280,height:900}),s=createFlight(g,{x:600,y:700,angle:10},'drop',{x:100,y:400});
+  const light=stepFlight(g,{...s,mass:1},1/120),heavy=stepFlight(g,{...s,mass:2},1/120);
+  assert.equal(light.gravity,heavy.gravity);assert.equal(light.y,heavy.y);assert.equal(light.vy,heavy.vy);
+  assert(Math.abs(heavy.forceY-light.forceY*2)<1e-8);assert(Math.abs(heavy.forceX-light.forceX*2)<1e-8);
+  assert(plumeProfile(heavy.jets.down,g.size).rate>plumeProfile(light.jets.down,g.size).rate);
+  const spin=stepFlight(g,createFlight(g,trackPose(g,0),'kickflip'),.1);
+  const jets=thrusterCommands(g,spin,{},spin);assert(spin.rollThrust>0);assert(jets.some(j=>j.key.endsWith(':couple')));
+});
+
+test('air springs extend beyond mud ride height and visibly compress/rebound before settling',()=>{
+  const size=160;
+  for(const ride of Object.values(ENVIRONMENTS))for(const fps of[30,60,120]){
+    const base=HEIGHTS[ride.height]*size;let front={value:base,velocity:0},rear={...front};
+    for(let t=0;t<.8;t+=1/fps){front=suspensionStep(front,AIR_EXTENSION*size,1/fps,ride,null,size);rear=suspensionStep(rear,AIR_EXTENSION*size,1/fps,ride,null,size);}
+    assert(front.value<HEIGHTS.high*size-size*.012);assert(front.value>=-size*.1);
+    const response=landingResponse({size},{impactSpeed:1.3,mass:2,touchdownAngle:-.3},ride);
+    let maximum=-Infinity,minimum=Infinity,peaks=0,last=front.value,lastDirection=1;
+    for(let t=0;t<3;t+=1/fps){
+      if(t<1/fps)front.velocity+=response.front;
+      if(t>=response.rearDelay&&t<response.rearDelay+1/fps)rear.velocity+=response.rear;
+      front=suspensionStep(front,base,1/fps,ride,t,size);rear=suspensionStep(rear,base,1/fps,ride,t,size);
+      const value=(front.value+rear.value)/2,direction=Math.sign(value-last);
+      if(t<1.5&&direction&&direction!==lastDirection){peaks++;lastDirection=direction;}
+      if(t>.1)maximum=Math.max(maximum,value);if(t>.35&&t<1.5)minimum=Math.min(minimum,value);
+      last=value;assert(front.value<=size*.07&&rear.value<=size*.07);
+    }
+    assert(maximum>base+size*.006,JSON.stringify({ride:ride.label,maximum,base,peaks}));
+    assert(minimum<base-size*.003);assert(peaks>=3);assert(Math.abs(front.value-base)<.05);
+  }
+});
+
+test('exhaust force increases emission and overscan has no internal viewport crop',()=>{
+  for(const size of[104,160,176])for(const force of[.1,.5,1,2,5,10]){
+    const a=plumeProfile(force,size),b=plumeProfile(force*2,size);assert(b.rate>a.rate&&b.radius>a.radius&&b.speed>a.speed);
+  }
+  for(const [width,height]of[[390,844],[1280,720],[3440,1440]]){
+    const s=exhaustSurface(width,height,3);assert.equal(s.width,width+EXHAUST_PADDING*2);assert.equal(s.height,height+EXHAUST_PADDING*2);
+    assert(s.width*s.height*s.dpr*s.dpr<=4000001);assert(s.padding>100);
+  }
+});
+
+test('hanging wheels meet the floor before the chassis and contact rebasing is visually continuous',()=>{
+  const g=geometry({width:1280,height:900}),offset=g.size*.075,heave=-g.size*.085;
+  let f={...createFlight(g,{x:600,y:600,angle:0},'drop',{y:150}),wheelOffset:offset};
+  for(let t=0;t<14&&!f.landed;t+=1/120)f=stepFlight(g,f,1/120);
+  assert(f.landed);assert.equal(f.y,g.bottom-offset);assert(f.impactSpeed>.85&&f.impactSpeed<1.65);
+  const p={x:0,y:0,z:0};
+  const before=projectPoint(g,{roll:0},{heave,comShift:offset},p);
+  const after=projectPoint(g,{roll:0},{heave,comShift:0},p);
+  assert(Math.abs(f.y+before.y-(g.bottom+after.y))<1e-8);
+  const tyreBefore=projectPoint(g,{roll:0},{heave,comShift:offset},p,false);
+  const tyreAfter=projectPoint(g,{roll:0},{heave,comShift:0},p,false);
+  assert(Math.abs(f.y+tyreBefore.y-(g.bottom+tyreAfter.y))<1e-8);
+  const offsetForMass=-heave*.88,body=projectPoint(g,{roll:0},{heave,comShift:offsetForMass},p);
+  const wheel=projectPoint(g,{roll:0},{heave,comShift:offsetForMass},p,false),rest=projectPoint(g,{roll:0},{},p);
+  assert(Math.abs(.88*(body.y-rest.y)+.12*(wheel.y-rest.y))<1e-8,'extension cannot lift the combined mass centre');
+});
 
 test('kickflip takeoff has a visible outward pulse from every departure surface',()=>{
   for(const [width,height]of screens){const g=geometry({width,height});let start=0;
@@ -28,7 +100,7 @@ test('inverted ramp departures continue the circuit rotation through upright 360
       f=stepFlight(g,f,1/fps);inside(g,f);
       if(!f.landed){assert(f.angle>=last-.01,JSON.stringify({angle,last,f}));last=f.angle;}
     }
-    assert(f.landed);assert(last>357);assert(f.impactSpeed<.8);
+    assert(f.landed);assert(last>357);assert(f.impactSpeed<1.65);
   }
 });
 
@@ -56,21 +128,23 @@ test('home arena leaves header and footer outside every drive and stunt body env
   }
 });
 
-test('local kickflip stays within half a car of its moving track anchor in every section',()=>{
+test('2,880 kickflips integrate gravity and land on the physical floor without track attraction',()=>{
   let cases=0;
-  for(const [width,height]of screens)for(const fps of [10,60,120])for(const speed of [58,78,100,155]){
+  for(const [width,height]of screens)for(const fps of[10,60,120])for(const speed of[58,78,100,155]){
     const g=geometry({width,height});let start=0;
-    for(const length of g.lengths){for(const fraction of [.01,.5,.99]){
-      const distance=start+length*fraction,p=trackPose(g,distance),v=tangent(p,speed),hop=stuntVelocity(g,p,speed,'kickflip');
-      const inward=hop.x*p.nx+hop.y*p.ny;
-      let f=createFlight(g,p,'kickflip',{x:v.x+p.nx*inward,y:v.y+p.ny*inward},{distance,speed});
-      for(let n=0;n<fps*5&&!f.landed;n++){
-        f=stepFlight(g,f,1/fps);const base=trackPose(g,f.anchorDistance);
-        assert(Math.hypot(f.x-base.x,f.y-base.y)<g.size*.55,JSON.stringify({width,height,fps,distance,f}));
-        assert(f.constraintError<.001);inside(g,f);
+    for(const length of g.lengths){for(const fraction of[.01,.5,.99]){
+      const p=trackPose(g,start+length*fraction),v=stuntVelocity(g,p,speed,'kickflip');
+      let f=createFlight(g,p,'kickflip',v,{incoming:tangent(p,speed)}),freeFrames=0,finalFrames=0;
+      for(let i=0;i<fps*14&&!f.landed;i++){
+        f=stepFlight(g,f,1/fps);inside(g,f);assert(f.constraintError<.001);
+        if(!f.landed){
+          assert(Math.abs(f.accelerationY-(f.gravity+f.forceY/f.mass))<1e-6);
+          if(!f.lit&&f.elapsed>.15&&!f.avoiding){assert(Math.abs(f.accelerationY-f.gravity)<1e-6);freeFrames++;}
+          if(f.finalDrop){assert(Math.abs(f.accelerationY-f.gravity)<1e-6);finalFrames++;}
+        }
       }
-      assert(f.landed,JSON.stringify({width,height,fps,distance,f}));
-      const attached=trackPose(g,f.attachDistance);assert(Math.hypot(attached.x-f.x,attached.y-f.y)<.001);cases++;
+      assert(f.landed,JSON.stringify({width,height,speed,fps,p,f}));assert.equal(f.y,g.bottom);
+      assert(f.impactSpeed>.85&&f.impactSpeed<1.65,JSON.stringify({width,height,fps,f}));cases++;
     }start+=length;}
   }
   assert.equal(cases,2880);
@@ -92,13 +166,13 @@ test('small square screens retain a real acceleration range in every mode',()=>{
   }
 });
 
-test('resizing an attached-surface flip preserves roll and returns to the remapped surface',()=>{
-  const previous=geometry({width:1280,height:720}),distance=previous.perimeter*.37,p=trackPose(previous,distance),forward=tangent(p,100),v=stuntVelocity(previous,p,100,'kickflip'),hop=v.x*p.nx+v.y*p.ny;
-  const original=stepFlight(previous,createFlight(previous,p,'kickflip',{x:forward.x+p.nx*hop,y:forward.y+p.ny*hop},{distance,speed:100}),.1);
+test('resizing a ballistic flip preserves angular progress and returns to the remapped floor',()=>{
+  const previous=geometry({width:1280,height:720}),p=trackPose(previous,previous.perimeter*.37);
+  const original=stepFlight(previous,createFlight(previous,p,'kickflip',stuntVelocity(previous,p,100,'kickflip')),.1);
   for(const [width,height]of screens){const g=geometry({width,height});let f=resizeFlight(g,previous,original);
     assert.equal(f.roll,original.roll);assert.equal(f.elapsed,original.elapsed);
-    for(let t=0;t<5&&!f.landed;t+=1/60)f=stepFlight(g,f,1/60);
-    assert(f.landed);const target=trackPose(g,f.attachDistance);assert(Math.hypot(f.x-target.x,f.y-target.y)<.001);
+    for(let t=0;t<14&&!f.landed;t+=1/60)f=stepFlight(g,f,1/60);
+    assert(f.landed);assert.equal(f.y,g.bottom);assert(f.impactSpeed<1.65);
   }
 });
 
@@ -175,7 +249,7 @@ test('every straight and curved section launches inward and lands gently at low/
           assert([f.x, f.y, f.vx, f.vy, f.angle, f.roll].every(Number.isFinite));
         }
         assert(f.landed, `${width}×${height}, ${fps} FPS, ${kind}, segment start ${start}`);
-        assert(f.impactSpeed <= .65); assert(maximumCorrection < .001, `hard position correction ${maximumCorrection}`); cases++;
+        assert(f.impactSpeed <= 1.65); assert(maximumCorrection < .001, `hard position correction ${maximumCorrection}`); cases++;
       }
       start += length;
     }
@@ -186,7 +260,7 @@ test('every straight and curved section launches inward and lands gently at low/
 test('all 61 rotation frames have finite closed body faces and fit the padded canvas', () => {
   for (const size of [104, 136, 176]) for (let frame = 0; frame <= 60; frame++) {
     const g = { size, carHeight: size * .43 }, t = Math.min(1, frame / 60 / .96);
-    const faces = meshFaces(g, { roll: 360 * t * t * (3 - 2 * t) }, { heave: -size * .034, pitch: 5 }, frame * 14);
+    const faces = meshFaces(g, { roll: 360 * t * t * (3 - 2 * t) }, { heave: AIR_EXTENSION*size, comShift: -AIR_EXTENSION*size*.88, pitch: 5 }, frame * 14);
     assert(faces.length > 50);
     for (const face of faces) for (const p of face.points) {
       assert([p.x, p.y, p.depth].every(Number.isFinite));
@@ -248,7 +322,7 @@ test('300 extreme releases remain clear of every wall without bounce or position
         assert(f.constraintError < 1e-7);
       }
       assert(f.landed, JSON.stringify(f));
-      assert(f.impactSpeed < .8);
+      assert(f.impactSpeed < 1.65);
     }
   }
 });
@@ -359,7 +433,7 @@ test('gravity drops and stunts stay visible and land gently on the floor, from e
       }
       assert(flight.landed, JSON.stringify({ width, height, kind, flight }));
       assert.equal(flight.roll, 0); assert.equal(flight.angle, 0);
-      assert(flight.impactSpeed < .8, JSON.stringify(flight));
+      assert(flight.impactSpeed < 1.65, JSON.stringify(flight));
       const attached = trackPose(g, bottomDistance(g, flight.x));
       assert(Math.hypot(attached.x - flight.x, attached.y - flight.y) < 1.5);
     }
@@ -416,7 +490,7 @@ test('maximum boost momentum lands safely at 10–120 FPS from all four walls', 
         assert(Number.isFinite(f.angle) && Number.isFinite(f.vx));
       }
       assert(f.landed, JSON.stringify({ width, height, dt, side, f }));
-      assert(different); assert(f.impactSpeed < .8);
+      assert(different); assert(f.impactSpeed < 1.65);
     }
   }
 });
@@ -437,7 +511,7 @@ test('rotation and zoom preserve world momentum and active flip progress until a
     assert.equal(f.elapsed, flight.elapsed); assert.equal(f.roll, flight.roll);
     inside(g, f);
     for (let t = 0; t < 12 && !f.landed; t += 1 / 60) f = stepFlight(g, f, 1 / 60);
-    assert(f.landed); assert(f.impactSpeed < .8);
+    assert(f.landed); assert(f.impactSpeed < 1.65);
   }
 });
 
@@ -456,7 +530,7 @@ test('landing controller survives a thrown car and low frame rates without hard 
     let f = createFlight(g, { x: 180, y: 180, angle: 180 }, 'drop', velocity);
     let ignited = false;
     for (let t = 0; t < 12 && !f.landed; t += dt) { f = stepFlight(g, f, dt); ignited ||= f.thrust > f.gravity; }
-    assert(f.landed); assert(ignited); assert(f.impactSpeed < .8);
+    assert(f.landed); assert(ignited); assert(f.impactSpeed < 1.65);
   }
 });
 

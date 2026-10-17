@@ -1,5 +1,5 @@
 import { clamp } from './car-motion.mjs';
-import { BODY_DEPTH, projectWorldPoint } from './car-projection.mjs?v=20261017-11';
+import { BODY_DEPTH, projectWorldPoint } from './car-projection.mjs?v=20261017-12';
 
 // Coordinates lie on the photographed bumper trim, rocker panels and roof rack.
 // Both visible sides use these same anchors, inside the suspension/body shell.
@@ -65,8 +65,26 @@ export function thrusterCommands(g, pose, suspension, flight, boost = 0) {
       if (weight < .01) continue;
       result.push({ key: `${port.id}:${side}`, port: port.id, side,
         ...projectPort(g, pose, suspension, port, side), dx: force.dx / magnitude, dy: force.dy / magnitude,
-        power: clamp(magnitude, 0, 3.5) * weight });
+        power: clamp(magnitude, 0, 16) * weight });
     }
   }
+  // Attitude jets form opposing force couples: visible even during a ballistic
+  // arc with zero NET lift. Rotation no longer happens with all valves dark.
+  const normal={x:-Math.sin(angle),y:Math.cos(angle)};
+  const couple=(axle,sign,power,side=null)=>{
+    if(power<.005)return;
+    const dx=normal.x*sign,dy=normal.y*sign;
+    const candidates=PORTS.filter(p=>p.axle===axle).map(port=>({port,score:(-Math.sin(angle)*port.ny*Math.cos(roll))*dx+(Math.cos(angle)*port.ny*Math.cos(roll))*dy})).sort((a,b)=>b.score-a.score);
+    const port=candidates[0].port;
+    for(const s of side===null?[1,-1]:[side]){
+      const visibility=side===null?(1+s*Math.cos(roll))/2:1;
+      if(visibility<.01)continue;
+      result.push({key:`${port.id}:${s}:couple`,port:port.id,side:s,...projectPort(g,pose,suspension,port,s),dx,dy,power:power*visibility});
+    }
+  };
+  const turn=Math.sign(flight?.torqueAcceleration||0),pitchPower=flight?.torqueThrust||0;
+  couple('front',turn,pitchPower);couple('rear',-turn,pitchPower);
+  const spin=Math.sign(flight?.rollAcceleration||0),rollPower=flight?.rollThrust||0;
+  for(const side of[1,-1]){couple('front',spin*side,rollPower*.57,side);couple('rear',spin*side,rollPower*.43,side);}
   return result;
 }

@@ -12,10 +12,10 @@ const nativeMatch = window.matchMedia.bind(window); let reduce = false; const li
 const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
 window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
 localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
-const { initialize } = await import('/scripts/roaming-car.js?v=20261017-11');
+const { initialize } = await import('/scripts/roaming-car.js?v=20261017-12');
 initialize(); // The shipped entry point intentionally does not mount on this QA URL.
-const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-11');
-const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-11');
+const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-12');
+const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-12');
 const host = document.getElementById('lucas-roaming-car'), root=host.shadowRoot;
 const car=root.querySelector('.car'), boost=root.querySelector('.boost-button'), panel=root.querySelector('.garage');
 // Synthetic touch dispatch cannot own a native active pointer. Only capture is stubbed.
@@ -37,7 +37,7 @@ function portAlignmentError(){
  const roll=Number(vehicle.style.transform.match(/rotateX\(([-+\deE.]+)deg\)/)?.[1]||0);
  const heave=Number(shell.style.transform.match(/translateY\(([-+\deE.]+)px\)/)?.[1]||0);
  const pose={x:+host.dataset.x,y:+host.dataset.y,angle:+host.dataset.edgeAngle,roll};
- const suspension={pitch:+host.dataset.pitch,heave},v=window.visualViewport;
+ const suspension={pitch:+host.dataset.pitch,heave,comShift:+host.dataset.airborneComShift||0},v=window.visualViewport;
  const g=geometry({width:v?.width||document.documentElement.clientWidth,height:v?.height||innerHeight,left:v?.offsetLeft||0,top:v?.offsetTop||0});
  return Math.max(...[...root.querySelectorAll('.thruster')].map(e=>{
   const port=PORTS.find(p=>p.id===e.dataset.port),p=projectPort(g,pose,suspension,port,e.dataset.side==='near'?1:-1),r=e.getBoundingClientRect();
@@ -149,7 +149,9 @@ try{
  await wait(()=>host.dataset.state==='cruising');check(!boost.disabled,'landing restores boost and continuous driving');
  check(host.dataset.landingPhase==='absorbing','touchdown starts residual air-spring absorption');
  const impact=+host.dataset.landingImpact;let compression=0,stagger=0;for(let i=0;i<28;i++){compression=Math.max(compression,+host.dataset.frontTravel,+host.dataset.rearTravel);stagger=Math.max(stagger,Math.abs(+host.dataset.frontTravel-+host.dataset.rearTravel));await sleep(50)}
- check((impact<=.15||compression>.2)&&stagger>.15&&host.dataset.landingPhase==='','front/rear springs respond to residual impact and settle after touchdown');
+ check(impact>.85&&impact<1.65&&compression>.2&&stagger>.15,'gravity touchdown leaves a bounded impulse and visible front/rear compression');
+ await wait(()=>host.dataset.landingPhase==='');
+ check(Math.abs(+host.dataset.heave)<.15,'air springs settle after visible compression and rebound');
  key(boost,' ');await sleep(120);key(boost,'Escape');
  boost.dispatchEvent(new KeyboardEvent('keyup',{key:' ',bubbles:true}));
  check(host.dataset.boostKind===''&&+host.dataset.boostCharge===0,'Escape cancels keyboard charge without triggering a boost');
