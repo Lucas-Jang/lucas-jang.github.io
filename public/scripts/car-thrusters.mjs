@@ -1,4 +1,4 @@
-import { BODY_DEPTH, VIEW_YAW, projectWorldPoint } from './car-projection.mjs?v=20261017-15';
+import { BODY_DEPTH, VIEW_YAW, projectWorldPoint } from './car-projection.mjs?v=20261017-16';
 
 // Flush bumper, rocker, roof-rack and lateral trim valves. Side vents supply
 // lift/wall clearance at 90°/270° roll, when roof/rocker normals point in depth.

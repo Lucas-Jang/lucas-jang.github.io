@@ -5,7 +5,7 @@
 <button id="run" disabled>Record landing sequence</button><pre id="results">Loading</pre><div id="frames"></div>
 <script type="module">
 localStorage.setItem('lj-veracruz-v1',JSON.stringify({height:'ride',environment:'normal'}));
-const{initialize}=await import('/scripts/roaming-car.js?v=20261017-15');initialize();
+const{initialize}=await import('/scripts/roaming-car.js?v=20261017-16');initialize();
 const host=document.querySelector('#lucas-roaming-car'),root=host.shadowRoot,car=root.querySelector('.car');
 const frameGrid=document.getElementById('frames');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -36,13 +36,13 @@ run.onclick=async()=>{run.disabled=true;results.textContent='Running';try{
   frame('apex',t>=.8&&t<1.05,'④ 최대 리바운드 · 늘어진 바퀴');frame('rotate',t>=1.20&&t<1.5,'⑥ 회전 종료 · 중력 낙하');
   frame('brake',d.state==='braking'&&t>1.5,'⑦ 고압 공중 밸런싱');frame('drop',d.finalDrop==='true','⑧ 양력 종료 · 짧은 중력 접지');
   if(d.landingPhase==='absorbing')landed=true;
-  frame('contact',landed&&l>.03&&l<.13,'⑨ 접지 · 압축 시작');frame('compress',landed&&l>=.18&&l<.3,'⑩ 첫 압축');
-  frame('rebound',landed&&l>=.48&&l<.65,'⑪ 반동 · 꿀렁');frame('damp',landed&&l>=.78&&l<1,'⑫ 두 번째 꿀렁 · 감쇠');
+  frame('contact',landed&&l>.03&&l<.13,'⑨ 접지 · 압축 시작');frame('compress',landed&&l>=.34&&l<.46,'⑩ 부드러운 최대 압축');
+  frame('rebound',landed&&l>=.65&&l<.78,'⑪ 완만한 반동 · 꿀렁');frame('damp',landed&&l>=.9&&l<1.1,'⑫ 원래 차고로 복귀');
   frame('settle',landed&&l>=1.7,'⑬ 잔진동 수렴');
   if(landed&&d.landingPhase==='')break;
   await sleep(16);
  }
- check(landed&&host.dataset.state==='cruising','gravity contact returns to driving');check(maxCloud>10&&maxCloud<=(innerWidth<=600?112:160),'clean corrective exhaust stays visible within the reduced particle budget');
+ check(landed&&host.dataset.state==='cruising','gravity contact returns to driving');check(maxCloud>10&&maxCloud<=(innerWidth<=600?168:240),'clean corrective exhaust stays visible within the reduced particle budget');
  check(maxExtension<-Number(host.dataset.carSize)*.07,'air extension clearly exceeds mud height');
  check(selected.has('brake')&&selected.has('drop')&&selected.has('rebound')&&selected.has('damp'),'all landing stages recorded');
  const fx=root.querySelector('.effects').getBoundingClientRect();check(fx.left< -100&&fx.right>innerWidth+100,'overscan canvas extends beyond both viewport edges');

@@ -8,7 +8,8 @@ import { meshFaces, MESH_PADDING } from '../public/scripts/car-mesh.mjs';
 import { stepBoostDrive, cruiseSpeed } from '../public/scripts/car-dynamics.mjs';
 import { blendRide, balanceJets, landingResponse, FRONT_LOAD } from '../public/scripts/car-ride.mjs';
 import { projectPoint } from '../public/scripts/car-projection.mjs';
-import { AIR_EXTENSION, HEIGHTS, suspensionStep } from '../public/scripts/car-ride.mjs';
+import { AIR_EXTENSION, HEIGHTS, suspensionStep, stepLandingSuspension, landingImpulse } from '../public/scripts/car-ride.mjs';
+import { dragPose, boundedRelease } from '../public/scripts/car-dynamics.mjs';
 import { plumeProfile, exhaustSurface, EXHAUST_PADDING, exhaustVisibility, stepExhaustEmitters, depthMistOpacity, particleOpacity, EXHAUST_LAYER_OPACITY } from '../public/scripts/car-exhaust.mjs';
 
 test('floor kickflip has a substantial ballistic arc without reaching the ceiling',()=>{
@@ -32,25 +33,28 @@ test('twice the mass needs twice the corrective force without changing gravity o
   const jets=thrusterCommands(g,spin,{},spin);assert(spin.rollThrust>0);assert(jets.some(j=>j.sources.includes('roll')));
 });
 
-test('air springs extend beyond mud ride height and visibly compress/rebound before settling',()=>{
+test('air springs isolate contact with a slow compression, gentle rebound and exact ride-height recovery',()=>{
   const size=160;
-  for(const ride of Object.values(ENVIRONMENTS))for(const fps of[30,60,120]){
-    const base=HEIGHTS[ride.height]*size;let front={value:base,velocity:0},rear={...front};
+  for(const ride of Object.values(ENVIRONMENTS))for(const height of Object.keys(HEIGHTS))for(const fps of[10,30,60,120]){
+    const base=HEIGHTS[height]*size;let front={value:base,velocity:0},rear={...front};
     for(let t=0;t<.8;t+=1/fps){front=suspensionStep(front,AIR_EXTENSION*size,1/fps,ride,null,size);rear=suspensionStep(rear,AIR_EXTENSION*size,1/fps,ride,null,size);}
     assert(front.value<HEIGHTS.high*size-size*.012);assert(front.value>=-size*.1);
     const response=landingResponse({size},{impactSpeed:1.3,mass:2,touchdownAngle:-.3},ride);
-    let maximum=-Infinity,minimum=Infinity,peaks=0,last=front.value,lastDirection=1;
-    for(let t=0;t<3;t+=1/fps){
-      if(t<1/fps)front.velocity+=response.front;
-      if(t>=response.rearDelay&&t<response.rearDelay+1/fps)rear.velocity+=response.rear;
-      front=suspensionStep(front,base,1/fps,ride,t,size);rear=suspensionStep(rear,base,1/fps,ride,t,size);
-      const value=(front.value+rear.value)/2,direction=Math.sign(value-last);
-      if(t<1.5&&direction&&direction!==lastDirection){peaks++;lastDirection=direction;}
-      if(t>.1)maximum=Math.max(maximum,value);if(t>.35&&t<1.5)minimum=Math.min(minimum,value);
-      last=value;assert(front.value<=size*.07&&rear.value<=size*.07);
+    let maximum=-Infinity,minimum=Infinity,peakTime=0,maxVelocity=0;
+    const first=stepLandingSuspension(front,base,1/120,ride,{...response,elapsed:1/120},'front',size);
+    assert(Math.abs(first.value-front.value)<size*.004,'contact cannot kick the chassis in one frame');
+    for(let n=1;n<=fps*3;n++){
+      const t=n/fps,landing={...response,elapsed:t};
+      front=stepLandingSuspension(front,base,1/fps,ride,landing,'front',size);rear=stepLandingSuspension(rear,base,1/fps,ride,landing,'rear',size);
+      const value=(front.value+rear.value)/2;
+      if(value>maximum){maximum=value;peakTime=t;}if(t>=.5&&t<1.5)minimum=Math.min(minimum,value);
+      maxVelocity=Math.max(maxVelocity,Math.abs(front.velocity),Math.abs(rear.velocity));
+      assert(front.value<Math.max(size*.07,base+size*.045)&&rear.value<Math.max(size*.07,base+size*.045),'no hard travel-stop clipping');
     }
-    assert(maximum>base+size*.006,JSON.stringify({ride:ride.label,maximum,base,peaks}));
-    assert(minimum<base-size*.003);assert(peaks>=3);assert(Math.abs(front.value-base)<.05);
+    assert(maximum>base+size*.006&&maximum<base+size*.05,JSON.stringify({ride:ride.label,maximum,base}));
+    assert(peakTime>=.2&&peakTime<=.65);assert(maxVelocity<size*1.1);
+    assert(minimum<base-size*.001&&minimum>base-size*.008,'a small smooth rebound, not repeated bouncing');
+    assert(Math.abs(front.value-base)<.05&&Math.abs(rear.value-base)<.05);
   }
 });
 
@@ -649,12 +653,13 @@ test('all modes and eight departure sections emit force-linked air through launc
   assert.equal(cases,96);for(const phase of['ascent','fall','braking','touchdown'])assert(phases.has(phase));
 });
 
-test('clean exhaust is smaller, shorter lived and translucent even under heavy pressure',()=>{
+test('readable exhaust exceeds the faint v15 mist while staying below the old opaque cloud',()=>{
   assert(EXHAUST_LAYER_OPACITY<=.66);
   for(const force of[.1,.5,1,2,5,10])for(const size of[96,104,160]){
     const p=plumeProfile(force,size),oldRoot=Math.sqrt(force);
-    assert(p.rate<90*force**.82*.45);assert(p.radius<size*(.025+.032*oldRoot)*.5);
-    assert(p.life<.76);assert(p.opacity<=.28);assert(p.growth<size*(.22+.10*oldRoot)*.5);
+    assert(p.rate>28*force**.7&&p.rate<90*force**.82*.65);
+    assert(p.radius>size*(.012+.012*oldRoot)&&p.radius<size*(.025+.032*oldRoot)*.75);
+    assert(p.life<1);assert(p.opacity<=.40);assert(p.growth<size*(.22+.10*oldRoot)*.7);
   }
 });
 
@@ -693,4 +698,56 @@ test('depth mist has no angle threshold flash and cleared landing particles neve
   for(let i=0;i<5;i++){p.age+=1/60;const next=particleOpacity(p,1/60,true);assert(next<last);last=next;}
   p.age+=1/60;assert(particleOpacity(p,1/60,false)<last,'regrab cannot restore cleared fog');
   assert.equal(particleOpacity({age:0,life:.7,opacity:.25},0,false),0,'particles fade in at birth');
+});
+
+test('landing contact load is distributed smoothly and conserves its impulse at 10–120 FPS',()=>{
+ for(const ride of Object.values(ENVIRONMENTS))for(const fps of[10,30,60,120]){
+  const response=landingResponse({size:160},{impactSpeed:1.3,mass:2,touchdownAngle:-.3},ride);
+  for(const axle of['front','rear']){
+   let impulse=0;for(let i=0;i<fps;i++)impulse+=landingImpulse(response,axle,i/fps,(i+1)/fps);
+   assert(Math.abs(impulse-response[axle])<1e-8);
+   assert(landingImpulse(response,axle,0,1/120)<response[axle]*.003);
+  }
+ }
+});
+
+test('below-floor dragging and release stay on the tyre floor without hop, corrective jets or position snap',()=>{
+ let cases=0;
+ for(const[width,height]of screens){const g=geometry({width,height});
+  for(const angle of[0,45,90,135,180,225,270,315])for(const x of[-500,0,width*.25,width*.5,width,width+500])for(const distance of[1,100,1000]){
+   const origin=contain(g,{x:width*.5,y:g.top+g.size,angle}),p=dragPose(g,origin,{x,y:g.bottom+distance});
+   assert.equal(p.angle,0);assert.equal(p.y,g.bottom);assert(p.x>=g.left+g.radius&&p.x<=g.right-g.radius);
+   const v=boundedRelease(g,p,{x:100,y:2000});assert.equal(v.y,0);
+   const f=createFlight(g,p,'drop',v),after=stepFlight(g,f,.1),road=trackPose(g,bottomDistance(g,f.x));
+   assert(f.landed&&after.landed);assert.equal(f.impactSpeed,0);assert.equal(f.vy,0);assert.equal(after.y,g.bottom);
+   assert(Math.hypot(road.x-p.x,road.y-p.y)<1e-7);assert.equal(thrusterCommands(g,f,{},f).length,0);cases++;
+  }
+ }
+ assert.equal(cases,1440);
+});
+
+test('drag samples use constrained motion; pulling beyond a pinned floor cannot store launch energy',()=>{
+ const g=geometry({width:390,height:716,top:66,compact:true,carSize:104}),origin=trackPose(g,g.lengths[0]*.5),samples=[];
+ for(let n=0;n<8;n++){const p=dragPose(g,origin,{x:origin.x,y:g.bottom+n*120});samples.push({x:p.x,y:p.y,time:n*12});}
+ assert.equal(releaseVelocity(samples,84,g.size).y,0);
+ const p=dragPose(g,origin,{x:origin.x,y:g.bottom});
+ assert(boundedRelease(g,p,{x:0,y:-100}).y<0,'a genuine inward/upward flick is still available');
+ assert(!createFlight(g,p,'drop',{x:0,y:-100}).landed);
+ const raw=createFlight(g,{x:origin.x,y:g.bottom+200,angle:0},'drop',{x:0,y:2000});assert(raw.landed&&raw.vy===0);
+});
+
+test('a 60px mobile footer extends both vertical road segments and preserves horizontal straights',()=>{
+ for(const[width,height]of[[320,568],[390,844],[430,932]]){
+  const before=geometry({width,height:height-64-104-4,top:66,compact:true,carSize:104}),after=geometry({width,height:height-64-60-4,top:66,compact:true,carSize:104});
+  assert(Math.abs(after.perimeter-before.perimeter-88)<1e-6);assert(Math.abs(after.lengths[2]-before.lengths[2]-44)<1e-6);
+  assert.equal(after.lengths[0],before.lengths[0]);
+ }
+});
+
+test('regrabbing a previous flight cannot leak old final-drop or torque commands into a grounded release',()=>{
+ const g=geometry({width:390,height:844}),old={x:180,y:g.bottom-40,angle:18,roll:345,finalDrop:true,torqueAcceleration:800,rollAcceleration:900,torqueThrust:2,rollThrust:3,forceY:-900};
+ const point=dragPose(g,old,{x:190,y:g.bottom+100}),ground=createFlight(g,point,'drop',{x:0,y:1000});
+ assert(ground.landed);assert.equal(thrusterCommands(g,ground,{},ground).length,0);assert.equal(ground.finalDrop,false);
+ const airborne=createFlight(g,{...old,y:g.top+200},'drop',{x:0,y:0});
+ assert(!airborne.landed&&!airborne.finalDrop);assert.equal(airborne.torqueThrust,0);assert.equal(airborne.rollThrust,0);
 });
