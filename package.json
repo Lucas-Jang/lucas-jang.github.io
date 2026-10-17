@@ -12,6 +12,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "test:car": "node --test scripts/car-motion.test.mjs",
+    "test:stats": "node --test scripts/site-stats.test.mjs",
     "stats:update": "node scripts/fetch-goatcounter-stats.mjs"
   },
   "dependencies": {
