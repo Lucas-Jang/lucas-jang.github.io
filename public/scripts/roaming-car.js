@@ -278,7 +278,7 @@ export function initialize() {
         mesh.style.cssText = `left:-${MESH_PADDING}px;top:-${MESH_PADDING}px;width:${w}px;height:${h}px`;
         meshContext.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
-      car.classList.toggle('mesh-ready', drawCarMesh(meshContext, bodyImage, g, pose, suspension, wheelAngle));
+      car.classList.toggle('mesh-ready', drawCarMesh(meshContext, bodyImage, g, { ...pose, environment }, suspension, wheelAngle));
     }
     const boosting = boostStarted !== null && driveAllowed();
     const commands = thrusterCommands(g, { ...pose, ...p }, suspension, flight, boosting ? boostProfile?.power || 0 : 0);
@@ -298,7 +298,7 @@ export function initialize() {
     if (boostHint.textContent !== hint) boostHint.textContent = hint;
     host.dataset.state = flight ? flight.phase : press?.dragged ? 'dragging' : media.matches ? 'reduced-motion' : 'cruising';
     Object.assign(host.dataset, { edgeAngle: String(pose.angle), trick: flight?.kind || '',
-      verticalVelocity: String(flight?.vy || 0), thrust: String(flight?.thrust || 0),
+      horizontalVelocity: String(flight?.vx || 0), verticalVelocity: String(flight?.vy || 0), thrust: String(flight?.thrust || 0),
       frontThrust: String(flight?.frontThrust || 0), rearThrust: String(flight?.rearThrust || 0),
       speed: String(speed), acceleration: String(acceleration), pitch: String(pitch),
       particles: String(particles.length), x: String(p.x), y: String(p.y),

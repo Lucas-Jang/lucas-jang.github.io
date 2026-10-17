@@ -27,6 +27,7 @@ function shade(color, points) {
 // floating CSS planes; every body edge connects identical near/far vertices.
 export function meshFaces(g, pose, suspension, wheelAngle = 0) {
   const faces = [], depth = g.size * BODY_DEPTH / 2;
+  const muddy = pose.environment === 'mud';
   const bodyPoint = (u, v, z) => ({ x: (u - .5) * g.size, y: (.0465 - .5) * g.carHeight + v * g.size * IMAGE_RATIO, z });
   function add(points, color, body = true, texture = false, cull = true) {
     const projected = points.map(p => projectPoint(g, pose, suspension, p, p.body ?? body));
@@ -39,7 +40,7 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
     const p = CAR_PROFILE[i], q = CAR_PROFILE[(i + 1) % CAR_PROFILE.length];
     const x = (p[0] + q[0]) / 2, y = (p[1] + q[1]) / 2;
     const windshield = x > .24 && x < .43 && y < .36;
-    const color = windshield ? [77, 96, 104] : y > .58 ? [49, 60, 65] : [242, 241, 229];
+    const color = windshield ? [77, 96, 104] : y > .58 ? muddy ? [91, 74, 55] : [49, 60, 65] : [242, 241, 229];
     const section = (v, t) => {
       const point = bodyPoint(...v, depth * t);
       // A gently crowned roof/bonnet closes the volume without flat side slabs.
@@ -65,7 +66,7 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
     const ring = (angle, zz, r = radius) => ({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r, z: zz });
     for (let i = 0; i < 20; i++) {
       const a = i * Math.PI / 10, b = (i + 1) * Math.PI / 10;
-      add([ring(a, z + width / 2), ring(a, z - width / 2), ring(b, z - width / 2), ring(b, z + width / 2)], [37, 44, 49], false);
+      add([ring(a, z + width / 2), ring(a, z - width / 2), ring(b, z - width / 2), ring(b, z + width / 2)], muddy ? [101, 82, 62] : [37, 44, 49], false);
     }
     for (const faceSide of [1, -1]) {
       const zz = z + faceSide * width / 2;
@@ -91,6 +92,14 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
     const base = { x: cx, y: cy, z: anchor.z, body: false };
     add([{ ...anchor, x: cx - g.size * .02 }, { ...anchor, x: cx + g.size * .02 },
       { ...base, x: cx + g.size * .02 }, { ...base, x: cx - g.size * .02 }], [76, 94, 102], false, false, false);
+    const pitch = (suspension.pitch || 0) * Math.PI / 180, pivot = g.carHeight * .08;
+    const ax = Math.cos(pitch) * cx - Math.sin(pitch) * (anchor.y - pivot);
+    const ay = pivot + Math.sin(pitch) * cx + Math.cos(pitch) * (anchor.y - pivot) + (suspension.heave || 0);
+    const bandPoint = (t, dx) => ({x: ax + (cx - ax) * t + dx, y: ay + (cy - ay) * t, z: anchor.z});
+    for (let band = 0; band < 5; band++) {
+      const t = (band + .15) / 5, b = (band + .55) / 5, w = g.size * .023;
+      add([bandPoint(t, -w), bandPoint(t, w), bandPoint(b, w), bandPoint(b, -w)], [149, 166, 173], false, false, false);
+    }
   }
   for (const port of PORTS) for (const side of [1, -1]) {
     const cx = (port.x - .5) * g.size, cy = (port.y - .5) * g.carHeight, z = side * (depth + 1);

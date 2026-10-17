@@ -5,7 +5,7 @@
      the widget, animation loop, events, physics and DOM run in the real browser. -->
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Veracruz interaction regression</title>
-<style>body{font:15px system-ui;background:#648596;color:#fff;margin:24px}button{min-height:44px;padding:10px}pre{white-space:pre-wrap;max-width:650px}</style>
+<style>html{overflow-y:scroll}body{font:15px system-ui;background:#648596;color:#fff;margin:24px}button{min-height:44px;padding:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:650px}</style>
 <h1>Veracruz interaction regression</h1><button id="run">Run interaction suite</button><pre id="results">Ready</pre>
 <script type="module">
 const nativeMatch = window.matchMedia.bind(window); let reduce = false; const listeners = new Set();
@@ -48,18 +48,27 @@ async function throwToward(dx,dy){
  const r=car.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
  const cx=innerWidth*.5,cy=innerHeight*.4;
  pointer('pointerdown',x,y);pointer('pointermove',cx,cy);await sleep(130);
- pointer('pointermove',cx,cy);await sleep(20);pointer('pointermove',cx+dx*32,cy+dy*32);pointer('pointerup',cx+dx*32,cy+dy*32);
+ pointer('pointermove',cx,cy);const inputStart=performance.now();await sleep(20);const inputMs=performance.now()-inputStart;
+ pointer('pointermove',cx+dx*32,cy+dy*32);pointer('pointerup',cx+dx*32,cy+dy*32);
+ const released={x:+host.dataset.horizontalVelocity,y:+host.dataset.verticalVelocity};
  const observed={left:false,right:false,up:false,down:false};let gap=Infinity,error=0;
  for(let i=0;i<150&&host.dataset.trick==='drop';i++){
   for(const side of Object.keys(observed))observed[side]||=+host.dataset['jet'+side[0].toUpperCase()+side.slice(1)]>.1;
   const box=car.getBoundingClientRect();gap=Math.min(gap,box.left,box.top,innerWidth-box.right,innerHeight-box.bottom);
   error=Math.max(error,portAlignmentError());await sleep(20);
  }
- await wait(()=>host.dataset.state==='cruising');return{observed,gap,error};
+ await wait(()=>host.dataset.state==='cruising');return{observed,gap,error,released,inputMs};
 }
 run.onclick=async()=>{
 run.disabled=true; results.textContent='Running';
 try{
+ if(location.search==='?walls'){
+   await sleep(1000);
+   for(const [dx,dy,name]of[[-1,0,'left'],[1,0,'right'],[0,-1,'up'],[0,1,'down']]){
+     const sample=await throwToward(dx,dy);check(sample.observed[name]&&sample.gap>0&&sample.error<.8,name+' '+JSON.stringify(sample));
+   }
+   results.textContent+='\nALL PASSED';return;
+ }
  await sleep(1000);
  check(host.dataset.state==='cruising'&&!car.hidden,'old paused/hidden preferences migrate to moving visible car');
  check(host.dataset.renderMode==='mesh'&&root.querySelector('.mesh').width>0,'closed mesh renderer loaded; CSS construction is invisible');
