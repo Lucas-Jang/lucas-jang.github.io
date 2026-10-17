@@ -151,7 +151,15 @@ footer a:hover { opacity: 0.58; }
   border-radius: 0.9rem;
   background: var(--paper);
   box-shadow: 0 1rem 2.5rem rgba(20, 45, 61, 0.14);
+  max-height: calc(100vh - var(--header-height) - var(--space-4));
+  max-height: calc(100dvh - var(--header-height) - var(--space-4));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+.menu-home { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  min-height: 3rem; padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line); border-radius: 0.5rem 0.5rem 0 0; font-size: 0.94rem; font-weight: 650; }
+.menu-home span { color: var(--muted); font-weight: 400; }
 .menu-panel nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1); }
 .menu-panel p { grid-column: 1 / -1; margin: var(--space-1) var(--space-2) var(--space-2); color: var(--muted); font-size: 0.75rem; font-weight: 650; letter-spacing: 0.04em; }
 .menu-panel nav a,
