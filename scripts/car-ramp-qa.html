@@ -2,8 +2,8 @@
 <style>body{background:#dce5e5;color:#263e49;font:14px system-ui;margin:20px}#grid{display:grid;grid-template-columns:repeat(2,640px);gap:16px}figure{margin:0;background:#f8f8f1;border-radius:12px;overflow:hidden}figcaption{padding:12px}canvas{display:block;width:640px;height:360px}</style>
 <h1>램프 점프 · 8구간 궤적 검수</h1><p>동일한 실제 물리·렌더러 · 최대 부스트 속도 · 60 FPS 전 프레임 궤적 · 출발/자세 회복/착지</p><div id="grid"></div>
 <script type="module">
-import {geometry,trackPose,createFlight,stuntVelocity,boostSpeed,stepFlight,roadPath} from '/scripts/car-dynamics.mjs?v=20261017-12';
-import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-12';
+import {geometry,trackPose,createFlight,stuntVelocity,boostSpeed,stepFlight,roadPath} from '/scripts/car-dynamics.mjs?v=20261017-14';
+import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-14';
 const image=new Image();image.src='/images/widgets/veracruz-body.webp';await image.decode();
 const g=geometry({width:1280,height:720}),names=['바닥 직선','좌하 코너','왼쪽 벽','좌상 코너','천장 직선','우상 코너','오른쪽 벽','우하 코너'];let start=0;
 for(let section=0;section<8;section++){
