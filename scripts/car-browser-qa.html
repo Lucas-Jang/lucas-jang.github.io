@@ -6,16 +6,16 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Veracruz interaction regression</title>
 <style>html{overflow-y:scroll}body{font:15px system-ui;background:#648596;color:#fff;margin:24px}button{min-height:44px;padding:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:650px}</style>
-<h1>Veracruz interaction regression</h1><button id="run">Run interaction suite</button><pre id="results">Ready</pre>
+<h1>Veracruz interaction regression</h1><button id="run" disabled>Run interaction suite</button><pre id="results">Loading widget</pre>
 <script type="module">
 const nativeMatch = window.matchMedia.bind(window); let reduce = false; const listeners = new Set();
 const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
 window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
 localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
-const { initialize } = await import('/scripts/roaming-car.js?v=20261017-7');
+const { initialize } = await import('/scripts/roaming-car.js?v=20261017-9');
 initialize(); // The shipped entry point intentionally does not mount on this QA URL.
-const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-7');
-const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-7');
+const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-9');
+const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-9');
 const host = document.getElementById('lucas-roaming-car'), root=host.shadowRoot;
 const car=root.querySelector('.car'), boost=root.querySelector('.boost-button'), panel=root.querySelector('.garage');
 // Synthetic touch dispatch cannot own a native active pointer. Only capture is stubbed.
@@ -76,7 +76,7 @@ try{
  if(Math.min(innerWidth,innerHeight)<=600)check(+host.dataset.carSize<=134,'mobile car is compact while preserving its touch target');
  check(root.querySelectorAll('button').length===6&&panel.hidden,'only car + boost visible; four contextual environment options');
  check(!root.querySelector('[data-pause],[data-kneel],[data-trick],.garage-toggle'),'retired controls removed');
- check(root.querySelectorAll('.shell .thruster').length===10&&!root.querySelector('.nozzle,.afterburner'),'ten flush body-mounted ports replace detached thruster boxes');
+ check(root.querySelectorAll('.shell .thruster').length===12&&!root.querySelector('.nozzle,.afterburner'),'twelve flush ports provide independent upper/lower front and rear thrust');
  check(portAlignmentError()<.8,'smoke anchors coincide with actual body port centers');
  key(boost,'ArrowDown');const before=position();await sleep(500);
  check(!panel.hidden&&changed(before,position())&&+host.dataset.speed>90,'environment panel and keyboard focus never stop cruising');
@@ -120,18 +120,18 @@ try{
   check(sample.observed[name]&&sample.gap>0&&sample.error<.8,'real DOM '+name+' throw fires the matching jet while body and exhaust stay clear/aligned · '+JSON.stringify(sample));
  }
  mode('normal');await sleep(1500);
- boostPointer('pointerdown');await sleep(230);
+ boostPointer('pointerdown');await sleep(130);
  check(panel.hidden&&+host.dataset.boostCharge>.4&&+host.dataset.boostCharge<1&&host.dataset.state==='cruising','partial hold charges visibly without opening settings or stopping');
  boostPointer('pointerup');await sleep(450);
  check(+host.dataset.acceleration/(9.81*+host.dataset.carSize/4.84)>1.5&&+host.dataset.pitch>3&&+host.dataset.particles>0,'boost acceleration in world units, nose-up and rear smoke');
  check(boost.disabled&&host.dataset.boostKind==='normal','partial charge selects ordinary boost and blocks duplicate input');
- await sleep(1800);
+ await wait(()=>!boost.disabled);
  check(host.dataset.boostKind===''&&host.dataset.trick===''&&!boost.disabled,'ordinary boost ends without any ramp and keeps coasting');
  boostPointer('pointerdown');await sleep(200);boostPointer('pointercancel');
  check(+host.dataset.boostCharge===0&&host.dataset.boostKind==='','pointer cancellation clears charging without boosting');
  boostPointer('pointerdown');await sleep(120);boostPointer('pointermove',160,100);boostPointer('pointerup',160,100);
  check(host.dataset.boostKind===''&&+host.dataset.boostCharge===0,'dragging away cancels charge rather than firing');
- boostPointer('pointerdown');await sleep(500);
+ boostPointer('pointerdown');await sleep(260);
  check(+host.dataset.boostCharge===1&&root.querySelector('.boost-label').textContent==='풀차지'&&panel.hidden,'full charge has explicit ready feedback and never opens modes');
  boostPointer('pointerup');await sleep(80);
  check(host.dataset.boostKind==='ramp'&&host.dataset.trick==='','only full charge arms a ramp after release');
@@ -141,13 +141,16 @@ try{
  let asymmetric=false;for(let i=0;i<20;i++){asymmetric||=Math.abs(+host.dataset.frontThrust-+host.dataset.rearThrust)>.15;await sleep(100)}
  check(asymmetric,'front/rear jets balance with different timing and power');
  await wait(()=>host.dataset.state==='cruising');check(!boost.disabled,'landing restores boost and continuous driving');
+ check(host.dataset.landingPhase==='absorbing','touchdown starts residual air-spring absorption');
+ const impact=+host.dataset.landingImpact;let compression=0,stagger=0;for(let i=0;i<28;i++){compression=Math.max(compression,+host.dataset.frontTravel,+host.dataset.rearTravel);stagger=Math.max(stagger,Math.abs(+host.dataset.frontTravel-+host.dataset.rearTravel));await sleep(50)}
+ check((impact<=.15||compression>.2)&&stagger>.15&&host.dataset.landingPhase==='','front/rear springs respond to residual impact and settle after touchdown');
  key(boost,' ');await sleep(120);key(boost,'Escape');
  boost.dispatchEvent(new KeyboardEvent('keyup',{key:' ',bubbles:true}));
  check(host.dataset.boostKind===''&&+host.dataset.boostCharge===0,'Escape cancels keyboard charge without triggering a boost');
- key(boost,'Enter');await sleep(230);boost.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));
+ key(boost,'Enter');await sleep(130);boost.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));
  check(host.dataset.boostKind==='normal','keyboard hold/release selects normal boost');
  await wait(()=>!boost.disabled);
- for(const name of ['sport','offroad','mud','normal']){mode(name);await sleep(80);check(host.dataset.environment===name,'environment '+name+' selection and persistent driving')}
+ for(const name of ['sport','offroad','mud','normal']){mode(name);await sleep(80);check(host.dataset.environment===name&&host.dataset.modeTransition==='true'&&root.querySelector('.mode-banner').dataset.visible==='true','environment '+name+' starts a visible progressive transition');await sleep(1200);check(host.dataset.modeTransition==='false'&&+host.dataset.speed>0,'environment '+name+' transition completes while driving');if(name==='offroad')check(+host.dataset.heave< -3,'offroad raises the air suspension visibly');if(name==='sport')check(+host.dataset.heave>1,'sport lowers the body visibly')}
  reduce=true;listeners.forEach(fn=>fn(motion));await sleep(200);const stationary=position();await sleep(250);
  check(!changed(stationary,position())&&host.dataset.state==='reduced-motion'&&+host.dataset.particles===0,'reduced motion stops animation and clears particles');
  const low=host.dataset.height;car.click();check(host.dataset.height!==low,'accessible click still adjusts suspension with reduced motion');
@@ -167,4 +170,5 @@ try{
  key(boost,'Escape');results.textContent+='\nALL PASSED';document.title='PASS · Veracruz interaction regression';
 }catch(e){results.textContent+='\nFAIL '+e.stack;document.title='FAIL · Veracruz regression'}finally{run.disabled=false}
 };
+results.textContent='Ready';run.disabled=false;
 </script>
