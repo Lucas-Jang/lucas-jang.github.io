@@ -1,6 +1,25 @@
-import { clamp, mod, contain, trackPose } from './car-motion.mjs';
-export { geometry, trackPose, contain, clamp, mod } from './car-motion.mjs';
+import { clamp, mod, contain, trackPose, geometry as baseGeometry } from './car-motion.mjs';
+export { trackPose, contain, clamp, mod } from './car-motion.mjs';
 export { spring } from './car-physics.mjs';
+
+// Broad circular corners, with the same tangent and exact arc for the road
+// and the car. The short viewport dimension limits the radius on phones.
+export function geometry(viewport, safe = {}) {
+  const g = baseGeometry(viewport, safe);
+  const radius = Math.min(g.size * 1.7, (g.right - g.left) / 2, (g.bottom - g.top) / 2);
+  const h = Math.max(0, g.right - g.left - 2 * radius);
+  const v = Math.max(0, g.bottom - g.top - 2 * radius), a = Math.PI * radius / 2;
+  return { ...g, radius, lengths: [h, a, v, a, h, a, v, a], perimeter: 2 * h + 2 * v + 4 * a };
+}
+
+export function roadPath(g) {
+  const offset = g.carHeight * .43, radius = g.radius + offset;
+  const l = g.left - offset, r = g.right + offset, t = g.top - offset, b = g.bottom + offset;
+  return `M${r - radius},${b}H${l + radius}A${radius},${radius} 0 0 1 ${l},${b - radius}`
+    + `V${t + radius}A${radius},${radius} 0 0 1 ${l + radius},${t}`
+    + `H${r - radius}A${radius},${radius} 0 0 1 ${r},${t + radius}`
+    + `V${b - radius}A${radius},${radius} 0 0 1 ${r - radius},${b}Z`;
+}
 
 export const GRAVITY = 9.81;
 export const ENVIRONMENTS = Object.freeze({
@@ -19,8 +38,9 @@ export function tangent(pose, speed) {
 export function boostSpeed(g) { return 100 / 3.6 * g.size / 4.84; }
 export function stepDrive(g, state, seconds, environment = ENVIRONMENTS.normal, boosted = false) {
   const dt = clamp(seconds, 0, .1);
-  const desired = boosted ? boostSpeed(g) : environment.speed;
-  const acceleration = boosted ? boostSpeed(g) : environment.acceleration;
+  const power = boosted === true ? 1 : clamp(Number(boosted) || 0, 0, 1);
+  const desired = power ? environment.speed + (boostSpeed(g) - environment.speed) * power : environment.speed;
+  const acceleration = power ? boostSpeed(g) * (.45 + .55 * power) : environment.acceleration;
   const next = state.speed + clamp(desired - state.speed, -environment.acceleration * dt, acceleration * dt);
   const travel = (state.speed + next) * .5 * dt;
   return { speed: next, acceleration: dt ? (next - state.speed) / dt : 0, travel,

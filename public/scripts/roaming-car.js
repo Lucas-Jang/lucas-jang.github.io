@@ -1,10 +1,12 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, tangent, stepDrive, cornerCrossed, releaseVelocity, resizeFlight } from './car-dynamics.mjs?v=20261017-4';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, tangent, stepDrive, cornerCrossed, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-5';
+import { BOOST_CHARGE_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-5';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
-if (!document.getElementById(id)) initialize();
+if (isCarHome(location)) initialize();
 
-function initialize() {
+export function initialize() {
+  if (document.getElementById(id)) return;
   const host = document.createElement('div');
   host.id = id;
   host.setAttribute('data-pagefind-ignore', '');
@@ -83,7 +85,13 @@ function initialize() {
         pointer-events: auto;
         min-width: 54px; min-height: 44px; padding: 8px 13px; border: 1px solid #a4b7be;
         border-radius: 24px; background: #f8f8f1; box-shadow: 0 2px 12px #19354316; font-weight: 500; }
-      .boost-button { background: #284d61; color: #fff; border-color: #284d61; min-width: 76px; }
+      .boost-button { background: #284d61; color: #fff; border-color: #284d61; min-width: 104px;
+        display: grid; gap: 2px; line-height: 1.3; overflow: hidden; }
+      .boost-button::before { content: ''; position: absolute; inset: 0; background: #85e4ea;
+        opacity: .35; transform: scaleX(var(--charge,0)); transform-origin: left; pointer-events: none; }
+      .boost-button[data-full="true"] { box-shadow: 0 0 0 2px #a9edf2, 0 2px 12px #19354316; }
+      .boost-label, .boost-hint { position: relative; }
+      .boost-hint { font-size: 10px; font-weight: 400; opacity: .85; }
       .boost-button:disabled { opacity: .65; cursor: default; }
       .garage { position: fixed; right: max(12px, env(safe-area-inset-right));
         bottom: max(64px, calc(env(safe-area-inset-bottom) + 54px)); pointer-events: auto;
@@ -115,9 +123,9 @@ function initialize() {
         <span class="nozzle a"></span><span class="nozzle b"></span><span class="afterburner"></span>
       </span>
     </button>
-    <span id="car-help" class="sr">한 번 탭하면 차고 높이 전환, 더블탭하면 킥플립. 공중으로 끌어 놓으면 중력 낙하 후 추진 착지. 키보드 Enter는 차고 높이, K는 킥플립, B는 부스트. 부스트를 길게 누르거나 아래 방향키를 누르면 주행 환경 선택.</span>
+    <span id="car-help" class="sr">차량을 한 번 탭하면 차고 높이 전환, 더블탭하면 킥플립. 공중으로 끌어 놓으면 중력 낙하 후 추진 착지. 부스트는 누르고 놓기. 1초 풀차지에서만 램프 점프. 부스트를 위로 쓸면 주행 환경 선택. 키보드 Enter는 차고 높이, K는 킥플립, B는 일반 부스트. 부스트에 포커스한 채 Space 또는 Enter를 누르고 놓으면 충전, 아래 방향키는 환경 선택.</span>
     <span class="sr" role="status" aria-live="polite" aria-atomic="true"></span>
-    <div class="launcher"><button class="boost-button" type="button" aria-label="부스트 · 길게 누르면 주행 환경" aria-describedby="car-help" aria-expanded="false" aria-controls="car-environments">부스트</button></div>
+    <div class="launcher"><button class="boost-button" type="button" aria-label="부스트 · 1초 풀차지 후 놓으면 램프 점프" title="누르고 놓기 · 풀차지는 램프 점프 · 위로 쓸면 환경 선택" aria-describedby="car-help" aria-expanded="false" aria-controls="car-environments"><span class="boost-label">부스트</span><span class="boost-hint" aria-hidden="true">꾹 · 램프 / ↑ 환경</span></button></div>
     <section id="car-environments" class="garage" aria-label="주행 환경" hidden>
       <div class="environments" role="group" aria-label="주행 환경">
         <button type="button" data-environment="normal" aria-pressed="true">노말<small>균형 잡힌 주행</small></button>
@@ -130,6 +138,7 @@ function initialize() {
   const car = root.querySelector('.car'), vehicle = root.querySelector('.vehicle');
   const shell = root.querySelector('.shell'), wheels = root.querySelectorAll('.wheel');
   const struts = root.querySelectorAll('.strut'), boostButton = root.querySelector('.boost-button');
+  const boostLabel = root.querySelector('.boost-label'), boostHint = root.querySelector('.boost-hint');
   const canvas = root.querySelector('.effects'), context = canvas.getContext('2d');
   const terrain = root.querySelector('.terrain'), terrainPath = terrain.querySelector('path');
   const panel = root.querySelector('.garage'), live = root.querySelector('[role="status"]');
@@ -142,9 +151,9 @@ function initialize() {
   let heightMode = Object.hasOwn(heights, stored.height) ? stored.height : 'ride';
   let g, distance = 0, pose, flight = null, press = null, frame = 0, lastTime = 0, wheelAngle = 0;
   let front = { value: 0, velocity: 0 }, rear = { ...front };
-  let speed = 0, acceleration = 0, boostStarted = null, boostElapsed = 0, pageSuspended = false;
+  let speed = 0, acceleration = 0, boostStarted = null, boostElapsed = 0, boostProfile = null, pageSuspended = false;
   let particles = [], smokeCredit = [0, 0, 0], smokeDirty = false, viewportKey = '', lastPhase = '';
-  let tapTimer = 0, lastTap = 0, boostHold = 0, boostPointer = null, longBoost = false;
+  let tapTimer = 0, lastTap = 0, boostPointer = null;
   const settings = () => ENVIRONMENTS[environment];
   const announce = message => { live.textContent = message; };
   function save() {
@@ -177,12 +186,31 @@ function initialize() {
       tapTimer = setTimeout(() => { tapTimer = 0; cycleHeight(); }, 320);
     }
   }
-  function boost() {
+  function boost(heldMs = 0) {
     setPanel(false);
     if (media.matches) { announce('동작 줄이기 설정에 따라 급가속과 점프를 생략해요'); return; }
     if (flight || press?.dragged || boostStarted !== null) return;
+    boostProfile = chargedBoost(heldMs);
     boostStarted = performance.now(); boostElapsed = 0;
-    announce('부스트 · 1초 급가속 후 다음 코너에서 램프 점프'); schedule();
+    announce(boostProfile.full ? '풀차지 · 급가속 후 다음 코너에서 램프 점프' : '일반 부스트 · 점프 없이 가속해요'); schedule();
+  }
+  function clearBoostCharge() {
+    const held = boostPointer; boostPointer = null;
+    if (held?.id !== null && held?.id !== undefined && boostButton.hasPointerCapture?.(held.id)) boostButton.releasePointerCapture(held.id);
+  }
+  function beginBoostCharge(id, x = 0, y = 0) {
+    if (boostPointer || flight || press?.dragged || boostStarted !== null) return;
+    setPanel(false);
+    boostPointer = { id, x, y, time: performance.now(), cancelled: false, environment: false, notified: false };
+    if (id !== null) boostButton.setPointerCapture(id);
+    announce(media.matches ? '동작 줄이기 · 위로 쓸면 환경 선택' : '부스트 충전 · 1초를 채우고 놓으면 램프 점프'); schedule();
+  }
+  function finishBoostCharge(cancelled = false) {
+    if (!boostPointer) return;
+    const held = boostPointer, duration = performance.now() - held.time;
+    clearBoostCharge();
+    if (!cancelled && !held.cancelled) boost(duration);
+    schedule();
   }
   function driveAllowed() { return !media.matches && !flight && !press?.dragged; }
   function targets() {
@@ -217,25 +245,29 @@ function initialize() {
     const boosting = boostStarted !== null && driveAllowed();
     vehicle.style.setProperty('--front-jet', String(clamp(flight?.frontThrust || 0, 0, 2.2)));
     vehicle.style.setProperty('--rear-jet', String(clamp(flight?.rearThrust || 0, 0, 2.2)));
-    vehicle.style.setProperty('--boost', boosting ? '1' : '0');
+    vehicle.style.setProperty('--boost', boosting ? String(boostProfile?.power || 0) : '0');
     vehicle.style.setProperty('--adhesion', !flight && !press?.dragged && p.angle > 10 ? '.4' : '0');
     boostButton.disabled = !!flight || boostStarted !== null || !!press?.dragged;
-    boostButton.textContent = flight ? '착지 중' : boosting ? '추진 중' : '부스트';
+    const charge = boostPointer && !boostPointer.cancelled ? clamp((performance.now() - boostPointer.time) / BOOST_CHARGE_MS, 0, 1) : 0;
+    boostButton.style.setProperty('--charge', String(charge));
+    boostButton.dataset.full = String(charge === 1);
+    if (charge === 1 && !boostPointer.notified) { boostPointer.notified = true; announce('풀차지 완료 · 놓으면 램프 점프'); }
+    const label = flight ? '착지 중' : boosting ? boostProfile?.full ? '램프 추진' : '부스트 중' : charge === 1 ? '풀차지' : charge > 0 ? `${Math.floor(charge * 100)}%` : '부스트';
+    const hint = charge === 1 ? '놓으면 램프 점프' : charge > 0 ? '계속 누르면 램프' : '꾹 · 램프 / ↑ 환경';
+    if (boostLabel.textContent !== label) boostLabel.textContent = label;
+    if (boostHint.textContent !== hint) boostHint.textContent = hint;
     host.dataset.state = flight ? flight.phase : press?.dragged ? 'dragging' : media.matches ? 'reduced-motion' : 'cruising';
     Object.assign(host.dataset, { edgeAngle: String(pose.angle), trick: flight?.kind || '',
       verticalVelocity: String(flight?.vy || 0), thrust: String(flight?.thrust || 0),
       frontThrust: String(flight?.frontThrust || 0), rearThrust: String(flight?.rearThrust || 0),
       speed: String(speed), acceleration: String(acceleration), pitch: String(pitch),
-      particles: String(particles.length), x: String(p.x), y: String(p.y) });
+      particles: String(particles.length), x: String(p.x), y: String(p.y),
+      boostCharge: String(charge), boostKind: boosting ? boostProfile?.full ? 'ramp' : 'normal' : '',
+      boostPower: String(boosting ? boostProfile?.power || 0 : 0), cornerRadius: String(g.radius) });
   }
   function drawTerrain() {
     terrain.setAttribute('width', String(innerWidth)); terrain.setAttribute('height', String(innerHeight));
-    let path = '';
-    for (let i = 0; i <= 240; i++) {
-      const p = contain(g, trackPose(g, g.perimeter * i / 240));
-      path += `${i ? 'L' : 'M'}${p.x - p.nx * g.carHeight * .43},${p.y - p.ny * g.carHeight * .43}`;
-    }
-    terrainPath.setAttribute('d', `${path}Z`); terrainPath.setAttribute('stroke', settings().color);
+    terrainPath.setAttribute('d', roadPath(g)); terrainPath.setAttribute('stroke', settings().color);
     terrainPath.setAttribute('stroke-width', String(settings().track));
     terrainPath.setAttribute('stroke-dasharray', settings().dash);
     terrainPath.setAttribute('opacity', environment === 'normal' ? '.1' : '.35');
@@ -243,7 +275,7 @@ function initialize() {
   function smoke(dt) {
     if (!context) return;
     const boosting = boostStarted !== null && driveAllowed();
-    const powers = [flight?.frontThrust || 0, flight?.rearThrust || 0, boosting ? 2 : 0];
+    const powers = [flight?.frontThrust || 0, flight?.rearThrust || 0, boosting ? (boostProfile?.power || 0) * 2 : 0];
     if (!particles.length && powers.every(p => p <= .03)) {
       if (smokeDirty) context.clearRect(0, 0, innerWidth, innerHeight);
       smokeDirty = false; return;
@@ -298,13 +330,14 @@ function initialize() {
       acceleration = 0;
       pose = contain(g, { ...press.pose, x: press.pose.x + press.dx, y: press.pose.y + press.dy });
     } else if (driveAllowed()) {
-      const before = distance, next = stepDrive(g, { distance, speed }, dt, settings(), boostStarted !== null);
+      const before = distance, next = stepDrive(g, { distance, speed }, dt, settings(), boostStarted !== null ? boostProfile.power : false);
       distance = next.distance; speed = next.speed; acceleration = next.acceleration;
       wheelAngle -= next.travel / (g.size * .075) * 180 / Math.PI * (environment === 'mud' ? 1.35 : 1);
       pose = trackPose(g, distance);
       if (boostStarted !== null) {
         boostElapsed += dt;
-        if (boostElapsed >= 1 && cornerCrossed(g, before, next.travel)) launch('ramp');
+        if (shouldRamp(boostProfile, boostElapsed, cornerCrossed(g, before, next.travel))) launch('ramp');
+        else if (!boostProfile.full && boostElapsed >= boostProfile.duration) { boostStarted = null; boostProfile = null; }
       }
     }
     const t = targets();
@@ -313,6 +346,7 @@ function initialize() {
     if (active()) frame = requestAnimationFrame(tick); else lastTime = 0;
   }
   function launch(kind, velocity) {
+    clearBoostCharge();
     if (media.matches) { announce('동작 줄이기 설정에 따라 회전과 점프를 생략해요'); return; }
     if (!velocity) {
       velocity = flight ? { x: flight.vx, y: flight.vy } : tangent(pose, speed * (kind === 'ramp' ? .8 : .6));
@@ -320,7 +354,7 @@ function initialize() {
       velocity.y += (pose.ny || 0) * g.size * .8;
     }
     flight = createFlight(g, pose, kind, velocity); lastPhase = '';
-    boostStarted = null; acceleration = 0;
+    boostStarted = null; boostProfile = null; acceleration = 0;
     announce(kind === 'kickflip' ? '킥플립 · 입체 회전 후 균형 착지' : kind === 'ramp' ? '램프 점프 · 관성 도약 후 추진 착지' : '중력 낙하 · 추진 착지');
     schedule();
   }
@@ -388,29 +422,40 @@ function initialize() {
   });
   boostButton.addEventListener('pointerdown', e => {
     if (!e.isPrimary || e.button !== 0) return;
-    boostPointer = { id: e.pointerId, x: e.clientX, y: e.clientY }; longBoost = false;
-    boostHold = setTimeout(() => { longBoost = true; setPanel(true); }, 520);
+    beginBoostCharge(e.pointerId, e.clientX, e.clientY);
   });
   boostButton.addEventListener('pointermove', e => {
-    if (boostPointer?.id === e.pointerId && Math.hypot(e.clientX - boostPointer.x, e.clientY - boostPointer.y) > 12) {
-      longBoost = true; clearTimeout(boostHold);
+    if (!boostPointer || boostPointer.id !== e.pointerId || boostPointer.cancelled) return;
+    const dx = e.clientX - boostPointer.x, dy = e.clientY - boostPointer.y;
+    if (dy < -22 && Math.abs(dy) > Math.abs(dx)) {
+      boostPointer.cancelled = true; boostPointer.environment = true; setPanel(true);
+    } else if (Math.abs(dx) > 24 || dy > 24) {
+      boostPointer.cancelled = true; announce('부스트 충전을 취소했어요');
     }
+    schedule();
   });
-  const clearBoostHold = () => { clearTimeout(boostHold); boostPointer = null; };
-  boostButton.addEventListener('pointerup', clearBoostHold);
-  boostButton.addEventListener('pointercancel', () => { longBoost = true; clearBoostHold(); });
-  boostButton.addEventListener('pointerleave', clearBoostHold);
-  boostButton.addEventListener('click', () => { if (!longBoost) boost(); longBoost = false; });
-  boostButton.addEventListener('contextmenu', e => { e.preventDefault(); clearBoostHold(); longBoost = true; setPanel(true); });
+  boostButton.addEventListener('pointerup', e => { if (boostPointer?.id === e.pointerId) finishBoostCharge(); });
+  boostButton.addEventListener('pointercancel', () => finishBoostCharge(true));
+  boostButton.addEventListener('lostpointercapture', () => finishBoostCharge(true));
+  boostButton.addEventListener('click', e => { if (e.detail === 0) boost(); });
+  boostButton.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (!boostPointer || e.button === 2) { clearBoostCharge(); setPanel(true); schedule(); }
+  });
   boostButton.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') longBoost = false;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setPanel(true, true); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!e.repeat) beginBoostCharge(null); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); clearBoostCharge(); setPanel(true, true); schedule(); }
   });
+  boostButton.addEventListener('keyup', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (boostPointer?.id === null) finishBoostCharge(); }
+  });
+  boostButton.addEventListener('blur', () => { if (boostPointer?.id === null) { finishBoostCharge(true); } });
   root.querySelectorAll('[data-environment]').forEach(b => b.addEventListener('click', () => {
     environment = b.dataset.environment; setHeight(settings().height); drawTerrain(); setPanel(false); boostButton.focus({ preventScroll: true });
     announce(`${settings().label} · ${names[heightMode]} · 계속 주행해요`);
   }));
   root.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && boostPointer) { finishBoostCharge(true); announce('부스트 충전을 취소했어요'); }
     if (e.key === 'Escape' && !panel.hidden) { e.preventDefault(); setPanel(false); boostButton.focus({ preventScroll: true }); }
     if (!panel.hidden && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.target.matches('[data-environment]')) {
       e.preventDefault(); const buttons = [...root.querySelectorAll('[data-environment]')];
@@ -421,7 +466,7 @@ function initialize() {
     if (!panel.hidden && !e.composedPath().includes(panel) && !e.composedPath().includes(boostButton)) setPanel(false);
   }, { passive: true });
   const suspend = () => {
-    clearTimeout(tapTimer); tapTimer = 0; clearBoostHold();
+    clearTimeout(tapTimer); tapTimer = 0; clearBoostCharge();
     if (press) finishGesture({ pointerId: press.id }, true);
     particles = []; smokeCredit = [0, 0, 0];
     context?.clearRect(0, 0, innerWidth, innerHeight); lastTime = 0; schedule();
@@ -429,7 +474,7 @@ function initialize() {
   const motionChanged = () => {
     if (media.matches) {
       if (press) { const held = press; press = null; releaseCapture(held.id); }
-      flight = null; boostStarted = null; speed = 0; acceleration = 0; pose = trackPose(g, distance); suspend();
+      flight = null; boostStarted = null; boostProfile = null; speed = 0; acceleration = 0; pose = trackPose(g, distance); suspend();
     }
     schedule();
   };

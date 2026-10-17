@@ -1,8 +1,57 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring, stepDrive, boostSpeed, tangent, cornerCrossed, releaseVelocity, resizeFlight } from '../public/scripts/car-dynamics.mjs';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring, stepDrive, boostSpeed, tangent, cornerCrossed, releaseVelocity, resizeFlight, roadPath } from '../public/scripts/car-dynamics.mjs';
+import { BOOST_CHARGE_MS, isCarHome, chargedBoost, shouldRamp } from '../public/scripts/car-controls.mjs';
 
 const screens = [[240, 320], [320, 568], [390, 844], [844, 390], [768, 1024], [1280, 720], [2560, 1080], [3440, 1440], [500, 200], [200, 500]];
+
+test('the car is available only on the unfiltered home feed, including explicit ALL', () => {
+  for (const path of ['/', '/#main-content', '/?utm_source=test', '/?category=ALL']) assert(isCarHome(new URL(path, 'https://lucas-jang.github.io')));
+  for (const path of ['/?category=DEV', '/?category=LIFE', '/about/', '/archive/', '/search/', '/posts/test/', '/__car-qa.html']) assert(!isCarHome(new URL(path, 'https://lucas-jang.github.io')));
+});
+
+test('charge power and duration grow smoothly; only the exact full charge can arm a ramp', () => {
+  let previous = chargedBoost(0);
+  for (let milliseconds = 1; milliseconds < BOOST_CHARGE_MS; milliseconds++) {
+    const profile = chargedBoost(milliseconds);
+    assert(profile.power > previous.power && profile.duration > previous.duration);
+    assert(!profile.full); assert(!shouldRamp(profile, 10, true)); previous = profile;
+  }
+  const full = chargedBoost(BOOST_CHARGE_MS);
+  assert(full.full); assert.equal(full.power, 1);
+  assert(!shouldRamp(full, .99, true)); assert(!shouldRamp(full, 1, false));
+  assert(shouldRamp(full, 1, true)); assert.deepEqual(chargedBoost(10000), full);
+  assert.deepEqual(chargedBoost(-100), chargedBoost(0));
+});
+
+test('partial-charge boost has lower speed and retains coast-down momentum', () => {
+  const g = geometry({ width: 1280, height: 720 });
+  const speeds = [0, 250, 650, 1000].map(ms => {
+    const profile = chargedBoost(ms); let s = { speed: 100, distance: 0 };
+    for (let i = 0; i < 120; i++) s = stepDrive(g, s, 1 / 60, ENVIRONMENTS.normal, profile.power);
+    const next = stepDrive(g, s, 1 / 60);
+    assert(next.speed < s.speed && next.speed > 100);
+    return s.speed;
+  });
+  assert(speeds.every((v, i) => !i || v > speeds[i - 1]));
+});
+
+test('the rendered road has exact broad circular arcs and continuous corner tangents', () => {
+  for (const [width, height] of screens) {
+    const g = geometry({ width, height });
+    assert(g.radius >= Math.min(g.size, (g.right - g.left) / 2, (g.bottom - g.top) / 2));
+    assert.equal((roadPath(g).match(/A/g) || []).length, 4);
+    assert(!roadPath(g).includes('NaN')); assert(roadPath(g).endsWith('Z'));
+    let distance = 0;
+    for (const length of g.lengths) {
+      distance += length;
+      const before = trackPose(g, distance - .001), after = trackPose(g, distance + .001);
+      assert(Math.hypot(before.x - after.x, before.y - after.y) <= .00201);
+      const angle = Math.abs(((after.angle - before.angle + 540) % 360) - 180);
+      assert(angle < .01);
+    }
+  }
+});
 test('the already-deployed cached client keeps its original animation API', async () => {
   const previous = await import('../public/scripts/car-motion.mjs');
   const g = previous.geometry({ width: 390, height: 844 });
