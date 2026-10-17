@@ -1,6 +1,6 @@
 export const BOOST_CHARGE_MS = 200;
 export const BOOST_DOUBLE_MS = 280;
-export const BOOST_TAP_MS = 90;
+export const BOOST_TAP_MS = BOOST_CHARGE_MS;
 
 export function isCarHome(url) {
   const category = new URL(url.href).searchParams.get('category');
