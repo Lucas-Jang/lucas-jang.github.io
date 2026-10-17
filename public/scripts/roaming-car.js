@@ -1,5 +1,5 @@
 import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-9';
-import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-9';
+import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-10';
 import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-9';
 import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-9';
 
@@ -241,7 +241,7 @@ export function initialize() {
     const held = boostPointer, duration = performance.now() - held.time;
     clearBoostCharge();
     if (!cancelled && !held.cancelled) {
-      if (duration <= BOOST_TAP_MS) { if (held.repeatTap) launch('kickflip'); else queueBoostTap(duration); }
+      if (duration < BOOST_TAP_MS) { if (held.repeatTap) launch('kickflip'); else queueBoostTap(duration); }
       else boost(duration);
     }
     schedule();
@@ -306,7 +306,7 @@ export function initialize() {
     const skill = flight?.kind === 'kickflip' ? 'kickflip' : flight?.kind === 'ramp' || boosting && boostProfile?.full ? 'ramp' : boosting ? 'boost' : '';
     boostButton.dataset.skill = skill; host.dataset.skill = skill;
     const label = flight ? flight.kind === 'kickflip' ? '킥플립' : flight.kind === 'ramp' ? '램프 점프' : '착지 보정' : boosting ? boostProfile?.full ? '램프 추진' : '부스트 중' : charge === 1 ? '풀차지' : charge > 0 ? `${Math.floor(charge * 100)}%` : '부스트';
-    const hint = flight ? flight.lit ? '균형 잡으며 착지 중' : '도약 · 자세 보정 중' : boosting ? boostProfile?.full ? '다음 코너에서 도약' : boostOutput < boostProfile.power * .5 ? '관성 유지 · 감속 중' : '급가속 · 추진 중' : landing ? '착지 · 에어서스 안정화' : pendingBoost ? '한 번 더 · 킥플립' : charge === 1 ? '놓으면 램프 점프' : charge > 0 ? '계속 누르면 램프' : '2탭 킥플립 · 꾹 램프 · ↑ 환경';
+    const hint = flight ? flight.lit ? '균형 잡으며 착지 중' : '도약 · 자세 보정 중' : boosting ? boostProfile?.full ? '다음 코너에서 도약' : boostOutput < boostProfile.power * .5 ? '관성 유지 · 감속 중' : '급가속 · 추진 중' : pendingBoost ? '한 번 더 · 킥플립' : charge === 1 ? '놓으면 램프 점프' : charge > 0 ? '계속 누르면 램프' : landing ? '착지 · 에어서스 안정화' : '2탭 킥플립 · 꾹 램프 · ↑ 환경';
     if (boostLabel.textContent !== label) boostLabel.textContent = label;
     if (boostHint.textContent !== hint) boostHint.textContent = hint;
     host.dataset.state = flight ? flight.phase : press?.dragged ? 'dragging' : media.matches ? 'reduced-motion' : 'cruising';

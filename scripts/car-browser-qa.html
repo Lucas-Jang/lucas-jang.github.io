@@ -12,7 +12,7 @@ const nativeMatch = window.matchMedia.bind(window); let reduce = false; const li
 const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
 window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
 localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
-const { initialize } = await import('/scripts/roaming-car.js?v=20261017-9');
+const { initialize } = await import('/scripts/roaming-car.js?v=20261017-10');
 initialize(); // The shipped entry point intentionally does not mount on this QA URL.
 const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-9');
 const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-9');
@@ -100,6 +100,11 @@ try{
  check(host.dataset.trick==='kickflip'&&root.querySelector('.boost-label').textContent==='킥플립','boost button double tap triggers named kickflip');
  check(boost.dataset.skill==='kickflip'&&getComputedStyle(boost).backgroundColor!==idleColor,'kickflip has distinct persistent colour feedback');
  await wait(()=>host.dataset.state==='cruising');
+ boostPointer('pointerdown');await sleep(110);boostPointer('pointerup');await sleep(80);
+ check(host.dataset.boostKind===''&&!boost.disabled,'human-duration first tap remains available for double-tap arbitration');
+ boostPointer('pointerdown');await sleep(110);boostPointer('pointerup');await sleep(50);
+ check(host.dataset.trick==='kickflip','two 110 ms presses trigger kickflip instead of consuming the first tap as boost');
+ await wait(()=>host.dataset.state==='cruising');
  boostPointer('pointerdown');boostPointer('pointerup');await sleep(350);
  check(host.dataset.boostKind==='normal'&&boost.dataset.skill==='boost','single quick boost tap fires only normal boost after the double-tap window');
  await wait(()=>!boost.disabled);
@@ -122,7 +127,7 @@ try{
  mode('normal');await sleep(1500);
  boostPointer('pointerdown');await sleep(130);
  check(panel.hidden&&+host.dataset.boostCharge>.4&&+host.dataset.boostCharge<1&&host.dataset.state==='cruising','partial hold charges visibly without opening settings or stopping');
- boostPointer('pointerup');await sleep(450);
+ boostPointer('pointerup');await sleep(650);
  check(+host.dataset.acceleration/(9.81*+host.dataset.carSize/4.84)>1.5&&+host.dataset.pitch>3&&+host.dataset.particles>0,'boost acceleration in world units, nose-up and rear smoke');
  check(boost.disabled&&host.dataset.boostKind==='normal','partial charge selects ordinary boost and blocks duplicate input');
  await wait(()=>!boost.disabled);
@@ -147,7 +152,7 @@ try{
  key(boost,' ');await sleep(120);key(boost,'Escape');
  boost.dispatchEvent(new KeyboardEvent('keyup',{key:' ',bubbles:true}));
  check(host.dataset.boostKind===''&&+host.dataset.boostCharge===0,'Escape cancels keyboard charge without triggering a boost');
- key(boost,'Enter');await sleep(130);boost.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));
+ key(boost,'Enter');await sleep(130);boost.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));await sleep(350);
  check(host.dataset.boostKind==='normal','keyboard hold/release selects normal boost');
  await wait(()=>!boost.disabled);
  for(const name of ['sport','offroad','mud','normal']){mode(name);await sleep(80);check(host.dataset.environment===name&&host.dataset.modeTransition==='true'&&root.querySelector('.mode-banner').dataset.visible==='true','environment '+name+' starts a visible progressive transition');await sleep(1200);check(host.dataset.modeTransition==='false'&&+host.dataset.speed>0,'environment '+name+' transition completes while driving');if(name==='offroad')check(+host.dataset.heave< -3,'offroad raises the air suspension visibly');if(name==='sport')check(+host.dataset.heave>1,'sport lowers the body visibly')}
