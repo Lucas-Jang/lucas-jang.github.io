@@ -5,7 +5,10 @@ export { spring } from './car-physics.mjs';
 // Broad circular corners, with the same tangent and exact arc for the road
 // and the car. The short viewport dimension limits the radius on phones.
 export function geometry(viewport, safe = {}) {
-  const g = baseGeometry(viewport, safe);
+  const base = baseGeometry(viewport, safe);
+  const size = Math.min(viewport.width, viewport.height) <= 600 ? Math.min(base.size, Math.max(104, base.size * .76)) : base.size;
+  const carHeight = size * .43, delta = (base.carHeight - carHeight) / 2;
+  const g = { ...base, size, carHeight, left: base.left - delta, top: base.top - delta, right: base.right + delta, bottom: base.bottom + delta };
   const radius = Math.min(g.size * 1.7, (g.right - g.left) / 2, (g.bottom - g.top) / 2);
   const h = Math.max(0, g.right - g.left - 2 * radius);
   const v = Math.max(0, g.bottom - g.top - 2 * radius), a = Math.PI * radius / 2;
@@ -34,6 +37,20 @@ export function tangent(pose, speed) {
   return { x: -Math.cos(a) * speed, y: -Math.sin(a) * speed };
 }
 
+export function stuntVelocity(g, pose, speed, kind = 'ramp') {
+  const direction = tangent(pose, 1), angle = pose.angle * Math.PI / 180;
+  const nx = Math.sin(angle), ny = -Math.cos(angle), bounds = flightBounds(g, pose);
+  const rayRoom = (x, y) => Math.max(0, Math.min(
+    x < -.001 ? (pose.x - bounds.left) / -x : x > .001 ? (bounds.right - pose.x) / x : Infinity,
+    y < -.001 ? (pose.y - bounds.top) / -y : y > .001 ? (bounds.bottom - pose.y) / y : Infinity));
+  const room = rayRoom(direction.x, direction.y);
+  const gravity = GRAVITY * g.size / 4.84;
+  const forward = Math.min(speed * (kind === 'ramp' ? .7 : .45), Math.sqrt(2 * gravity * Math.max(g.size * .15, room - g.size * .25)));
+  const inwardRoom = rayRoom(nx, ny);
+  const hop = Math.sqrt(2 * gravity * Math.max(g.size * .15, Math.min(g.size * .9, inwardRoom * .38)));
+  return { x: direction.x * forward + nx * hop, y: direction.y * forward + ny * hop };
+}
+
 // A one-second 0–100 km/h acceleration in the car's 4.84 m world scale.
 export function boostSpeed(g) { return 100 / 3.6 * g.size / 4.84; }
 export function stepDrive(g, state, seconds, environment = ENVIRONMENTS.normal, boosted = false) {
@@ -49,24 +66,31 @@ export function stepDrive(g, state, seconds, environment = ENVIRONMENTS.normal, 
 
 // The next entry into a rounded wall corner, including perimeter wraparound.
 export function cornerCrossed(g, distance, travel) {
+  return cornerCrossing(g, distance, travel) !== null;
+}
+
+export function cornerCrossing(g, distance, travel) {
   let end = 0;
+  let crossing = null;
   for (let i = 0; i < 8; i++) {
     end += g.lengths[i];
-    if (i % 2 === 0 && mod(end - distance - .000001, g.perimeter) + .000001 <= travel) return true;
+    const offset = mod(end - distance - .000001, g.perimeter) + .000001;
+    if (i % 2 === 0 && offset <= travel && (!crossing || offset < crossing.offset)) crossing = { offset, distance: mod(end, g.perimeter) };
   }
-  return false;
+  return crossing;
 }
 
 export function createFlight(g, pose, kind = 'drop', velocity = {}) {
   const scale = g.size / 4.84, gravity = GRAVITY * scale;
   const start = contain(g, pose);
-  const vx = clamp(velocity.x || 0, -g.size * 8, g.size * 8);
-  const jump = Math.sqrt(2 * gravity * Math.min(g.size * .85, (g.bottom - g.top) * .4));
-  const vy = kind === 'drop' ? clamp(velocity.y || 0, -g.size * 6, g.size * 8) : Math.min(velocity.y || 0, -jump);
+  const automatic = kind === 'drop' ? { x: 0, y: 0 } : stuntVelocity(g, start, 0, kind);
+  const vx = clamp(velocity.x ?? automatic.x, -g.size * 8, g.size * 8);
+  const vy = clamp(velocity.y ?? automatic.y, -g.size * 6, g.size * 8);
+  const fallTime = (-vy + Math.sqrt(vy * vy + 2 * gravity * Math.max(0, g.bottom - start.y))) / gravity;
   return { ...start, kind, scale, gravity, vx, vy, thrust: 0, frontThrust: 0, rearThrust: 0,
     jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, constraintError: 0,
-    angle: mod(start.angle + 180, 360) - 180, angularVelocity: 0, elapsed: 0, roll: 0,
-    targetX: clamp(start.x + vx * .65, g.left + g.radius, g.right - g.radius),
+    angle: mod(start.angle + 180, 360) - 180, initialAngle: mod(start.angle + 180, 360) - 180, angularVelocity: 0, elapsed: 0, roll: 0,
+    targetX: clamp(start.x + vx * fallTime, g.left + g.radius, g.right - g.radius),
     phase: vy < 0 ? 'ascent' : 'fall', lit: false, landed: false };
 }
 
@@ -74,7 +98,7 @@ export function createFlight(g, pose, kind = 'drop', velocity = {}) {
 // Eight pixels are a hard visual clearance; the controller adds a soft buffer.
 export function flightBounds(g, pose) {
   const angle = pose.angle * Math.PI / 180, roll = (pose.roll || 0) * Math.PI / 180;
-  const height = Math.max(g.carHeight, Math.abs(Math.cos(roll)) * g.carHeight + Math.abs(Math.sin(roll)) * g.size * .18);
+  const height = Math.max(g.carHeight, Math.abs(Math.cos(roll)) * g.carHeight + Math.abs(Math.sin(roll)) * g.size * .35);
   const halfX = (Math.abs(Math.cos(angle)) * g.size + Math.abs(Math.sin(angle)) * height) / 2 + 8;
   const halfY = (Math.abs(Math.sin(angle)) * g.size + Math.abs(Math.cos(angle)) * height) / 2 + 8;
   const left = g.left - g.carHeight / 2 - 12 + halfX;
@@ -114,7 +138,9 @@ export function stepFlight(g, state, seconds) {
   for (let i = 0; i < steps && !f.landed; i++) {
     f.elapsed += dt;
     const previousBounds = flightBounds(g, f);
-    const targetAngle = f.vy < -20 && !f.lit ? 12 : 0;
+    const progress = clamp((f.elapsed - .12) / .8, 0, 1), eased = progress * progress * (3 - 2 * progress);
+    const loft = Math.sin(Math.PI * clamp(f.elapsed / .95, 0, 1)) * 8;
+    const targetAngle = f.kind === 'drop' ? 0 : (f.initialAngle ?? 0) * (1 - eased) + loft;
     const torque = clamp((targetAngle - f.angle) * 42 - f.angularVelocity * 12, -1700, 1700);
     f.angularVelocity += torque * dt; f.angle += f.angularVelocity * dt;
     const t = clamp(f.elapsed / .96, 0, 1);

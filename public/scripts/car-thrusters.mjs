@@ -1,4 +1,5 @@
 import { clamp } from './car-motion.mjs';
+import { BODY_DEPTH, projectWorldPoint } from './car-projection.mjs?v=20261017-7';
 
 // Coordinates lie on the photographed bumper trim, rocker panels and roof rack.
 // Both visible sides use these same anchors, inside the suspension/body shell.
@@ -11,22 +12,8 @@ export const PORTS = Object.freeze([
 ]);
 
 export function projectPort(g, pose, suspension, port, side = 1) {
-  const pitch = (suspension.pitch || 0) * Math.PI / 180;
-  const roll = (pose.roll || 0) * Math.PI / 180;
-  const yaw = Math.sin(roll) * 10 * Math.PI / 180;
-  const angle = pose.angle * Math.PI / 180;
-  const x = (port.x - .5) * g.size, y = (port.y - .58) * g.carHeight;
-  const px = Math.cos(pitch) * x - Math.sin(pitch) * y;
-  const py = Math.sin(pitch) * x + Math.cos(pitch) * y + (suspension.heave || 0);
-  const z = side * (g.size * .09 + 1);
-  const rx = Math.cos(yaw) * px + Math.sin(yaw) * z;
-  const rz = -Math.sin(yaw) * px + Math.cos(yaw) * z;
-  const ry = Math.cos(roll) * py - Math.sin(roll) * rz;
-  const depth = Math.sin(roll) * py + Math.cos(roll) * rz;
-  const perspective = 700 / (700 - depth);
-  const dx = rx * perspective, dy = (g.carHeight * .08 + ry) * perspective;
-  return { x: pose.x + Math.cos(angle) * dx - Math.sin(angle) * dy,
-    y: pose.y + Math.sin(angle) * dx + Math.cos(angle) * dy };
+  return projectWorldPoint(g, pose, suspension, { x: (port.x - .5) * g.size,
+    y: (port.y - .5) * g.carHeight, z: side * (g.size * BODY_DEPTH / 2 + 1) });
 }
 
 // Select the outward-facing flush port and vector its exhaust toward the wall.

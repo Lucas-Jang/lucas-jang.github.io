@@ -3,6 +3,53 @@ import assert from 'node:assert/strict';
 import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring, stepDrive, boostSpeed, tangent, cornerCrossed, releaseVelocity, resizeFlight, roadPath, flightBounds } from '../public/scripts/car-dynamics.mjs';
 import { BOOST_CHARGE_MS, isCarHome, chargedBoost, shouldRamp } from '../public/scripts/car-controls.mjs';
 import { PORTS, projectPort, thrusterCommands } from '../public/scripts/car-thrusters.mjs';
+import { stuntVelocity, cornerCrossing, mod } from '../public/scripts/car-dynamics.mjs';
+import { meshFaces, MESH_PADDING } from '../public/scripts/car-mesh.mjs';
+
+test('every straight and curved section launches inward and lands gently at low/high FPS', () => {
+  let cases = 0;
+  for (const [width, height] of screens) for (const fps of [10, 60]) for (const kind of ['ramp', 'kickflip']) {
+    const g = geometry({ width, height }); let start = 0;
+    for (const length of g.lengths) {
+      for (const fraction of [.01, .5, .99]) {
+        const pose = trackPose(g, start + length * fraction), v = stuntVelocity(g, pose, boostSpeed(g), kind);
+        assert(v.x * pose.nx + v.y * pose.ny > 0, 'launch must point away from its own wall');
+        let f = createFlight(g, pose, kind, v), maximumCorrection = 0;
+        for (let frame = 0; frame < fps * 14 && !f.landed; frame++) {
+          f = stepFlight(g, f, 1 / fps); maximumCorrection = Math.max(maximumCorrection, f.constraintError);
+          assert([f.x, f.y, f.vx, f.vy, f.angle, f.roll].every(Number.isFinite));
+        }
+        assert(f.landed, `${width}×${height}, ${fps} FPS, ${kind}, segment start ${start}`);
+        assert(f.impactSpeed <= .65); assert(maximumCorrection < .001, `hard position correction ${maximumCorrection}`); cases++;
+      }
+      start += length;
+    }
+  }
+  assert.equal(cases, 960);
+});
+
+test('all 61 rotation frames have finite closed body faces and fit the padded canvas', () => {
+  for (const size of [104, 136, 176]) for (let frame = 0; frame <= 60; frame++) {
+    const g = { size, carHeight: size * .43 }, t = Math.min(1, frame / 60 / .96);
+    const faces = meshFaces(g, { roll: 360 * t * t * (3 - 2 * t) }, { heave: -size * .034, pitch: 5 }, frame * 14);
+    assert(faces.length > 50);
+    for (const face of faces) for (const p of face.points) {
+      assert([p.x, p.y, p.depth].every(Number.isFinite));
+      assert(p.x >= -MESH_PADDING && p.x <= size + MESH_PADDING);
+      assert(p.y >= -MESH_PADDING && p.y <= g.carHeight + MESH_PADDING);
+    }
+  }
+});
+
+test('corner crossing returns the precise arc entry, including perimeter wrapping', () => {
+  const g = geometry({ width: 1280, height: 720 }); let end = 0;
+  for (let i = 0; i < 8; i++) {
+    end += g.lengths[i]; if (i % 2) continue;
+    const crossing = cornerCrossing(g, mod(end - 12, g.perimeter), 24);
+    assert(crossing); assert(Math.abs(crossing.offset - 12) < 1e-5);
+    assert(Math.abs(crossing.distance - mod(end, g.perimeter)) < 1e-5);
+  }
+});
 
 const screens = [[240, 320], [320, 568], [390, 844], [844, 390], [768, 1024], [1280, 720], [2560, 1080], [3440, 1440], [500, 200], [200, 500]];
 
@@ -92,7 +139,7 @@ test('charge power and duration grow smoothly; only the exact full charge can ar
 
 test('partial-charge boost has lower speed and retains coast-down momentum', () => {
   const g = geometry({ width: 1280, height: 720 });
-  const speeds = [0, 250, 650, 1000].map(ms => {
+  const speeds = [0, .25, .65, 1].map(f => f * BOOST_CHARGE_MS).map(ms => {
     const profile = chargedBoost(ms); let s = { speed: 100, distance: 0 };
     for (let i = 0; i < 120; i++) s = stepDrive(g, s, 1 / 60, ENVIRONMENTS.normal, profile.power);
     const next = stepDrive(g, s, 1 / 60);

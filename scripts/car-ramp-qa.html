@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>Veracruz · 8 section ramp review</title>
+<style>body{background:#dce5e5;color:#263e49;font:14px system-ui;margin:20px}#grid{display:grid;grid-template-columns:repeat(2,640px);gap:16px}figure{margin:0;background:#f8f8f1;border-radius:12px;overflow:hidden}figcaption{padding:12px}canvas{display:block;width:640px;height:360px}</style>
+<h1>램프 점프 · 8구간 궤적 검수</h1><p>동일한 실제 물리·렌더러 · 최대 부스트 속도 · 60 FPS 전 프레임 궤적 · 출발/자세 회복/착지</p><div id="grid"></div>
+<script type="module">
+import {geometry,trackPose,createFlight,stuntVelocity,boostSpeed,stepFlight,roadPath} from '/scripts/car-dynamics.mjs?v=20261017-7';
+import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-7';
+const image=new Image();image.src='/images/widgets/veracruz-body.webp';await image.decode();
+const g=geometry({width:1280,height:720}),names=['바닥 직선','좌하 코너','왼쪽 벽','좌상 코너','천장 직선','우상 코너','오른쪽 벽','우하 코너'];let start=0;
+for(let section=0;section<8;section++){
+ const p=trackPose(g,start+g.lengths[section]*.5);start+=g.lengths[section];
+ let f=createFlight(g,p,'ramp',stuntVelocity(g,p,boostSpeed(g))),frames=[{...f}];
+ for(let n=0;n<900&&!f.landed;n++){f=stepFlight(g,f,1/60);frames.push({...f})}
+ const figure=document.createElement('figure'),caption=document.createElement('figcaption'),canvas=document.createElement('canvas');
+ caption.textContent=`${section+1}. ${names[section]} · ${frames.length}프레임 · 착지 ${f.impactSpeed.toFixed(2)}m/s`;
+ canvas.width=1280;canvas.height=720;const ctx=canvas.getContext('2d');
+ ctx.strokeStyle='#b8cbd0';ctx.lineWidth=3;ctx.stroke(new Path2D(roadPath(g)));
+ ctx.beginPath();frames.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle='#267e96';ctx.lineWidth=3;ctx.stroke();
+ for(const n of [0,19,38,72,144,frames.length-1]){
+  const p=frames[Math.min(n,frames.length-1)];ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle*Math.PI/180);ctx.translate(-g.size/2,-g.carHeight/2);
+  // Separate layer: the widget renderer clears only its own canvas.
+  const layer=document.createElement('canvas');layer.width=256;layer.height=156;
+  drawCarMesh(layer.getContext('2d'),image,g,p,{heave:0,pitch:0},n*10,40);ctx.drawImage(layer,-40,-40);ctx.restore();
+  ctx.fillStyle='#263e49';ctx.font='18px system-ui';ctx.fillText(`${p.elapsed.toFixed(2)}s`,p.x-18,p.y+g.carHeight*.8);
+ }
+ figure.append(caption,canvas);grid.append(figure);
+}
+document.title='READY · 8 sections';
+</script>
