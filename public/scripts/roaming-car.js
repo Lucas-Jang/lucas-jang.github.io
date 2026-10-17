@@ -377,7 +377,9 @@ export function initialize() {
       if(p.y<ceiling&&p.vy<0){p.y=ceiling;p.vx+=(p.vx>=0?1:-1)*Math.abs(p.vy)*.5;p.vy=-p.vy*.1;}
       const drag=Math.exp(-dt*1.8);p.vx*=drag;p.vy=p.vy*drag-9*dt;
       const age=p.age/p.life,radius=p.radius+p.age*p.growth;
-      context.globalAlpha=Math.max(0,(1-age)**1.25*p.opacity)*Math.exp(-(landing?.elapsed||0)*.9);
+      // Condensed foreground mist clears once the valves close, so the heavy
+      // compression/rebound remains legible rather than hidden inside white fog.
+      context.globalAlpha=Math.max(0,(1-age)**1.25*p.opacity)*Math.exp(-(landing?.elapsed||0)*8);
       context.drawImage(puff,p.x-radius,p.y-radius,radius*2,radius*2);
     }
     context.globalAlpha=1;
