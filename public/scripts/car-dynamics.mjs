@@ -1,6 +1,6 @@
 import { clamp, mod, contain as legacyContain } from './car-motion.mjs';
-import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-9';
-import { balanceJets } from './car-ride.mjs?v=20261017-9';
+import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-11';
+import { balanceJets } from './car-ride.mjs?v=20261017-11';
 export { geometry, trackPose, roadPath };
 export { clamp, mod } from './car-motion.mjs';
 export function contain(g,pose) {
@@ -84,10 +84,17 @@ export function createFlight(g, pose, kind = 'drop', velocity = {}, attachment =
   const vx = clamp(velocity.x ?? automatic.x, -g.size * 8, g.size * 8);
   const vy = clamp(velocity.y ?? automatic.y, -g.size * 6, g.size * 8);
   const fallTime = (-vy + Math.sqrt(vy * vy + 2 * gravity * Math.max(0, g.bottom - start.y))) / gravity;
+  const rampAngle = mod(start.angle, 360), initialAngle = kind === 'ramp' ? rampAngle : mod(start.angle + 180, 360) - 180;
+  // Follow the increasing heading of the circuit through the next upright
+  // revolution. An inverted departure must not suddenly reverse its rotation.
+  const landingAngle = kind === 'ramp' && rampAngle > 60 ? 360 : 0;
+  const turnDuration = .85 + Math.abs(landingAngle - initialAngle) / 250;
+  const a = start.angle * Math.PI / 180;
   return { ...start, kind, scale, gravity, vx, vy, originX: start.x, thrust: 0, frontThrust: 0, rearThrust: 0,
+    launchNormal: { x: Math.sin(a), y: -Math.cos(a) }, landingAngle, turnDuration,
     localFlip: kind === 'kickflip' && !!attachment, attachDistance: attachment?.distance, attachSpeed: Math.min(160, attachment?.speed || 0),
     jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, constraintError: 0,
-    angle: mod(start.angle + 180, 360) - 180, initialAngle: mod(start.angle + 180, 360) - 180, angularVelocity: 0, elapsed: 0, roll: 0,
+    angle: initialAngle, initialAngle, angularVelocity: 0, elapsed: 0, roll: 0,
     targetX: clamp(start.x + vx * fallTime, g.left + g.radius, g.right - g.radius),
     phase: vy < 0 ? 'ascent' : 'fall', lit: false, landed: false };
 }
@@ -141,8 +148,13 @@ export function stepFlight(g, state, seconds) {
     const previousBounds = flightBounds(g, f);
     const progress = clamp((f.elapsed - .12) / .8, 0, 1), eased = progress * progress * (3 - 2 * progress);
     const loft = Math.sin(Math.PI * clamp(f.elapsed / .95, 0, 1)) * 8;
-    const targetAngle = f.kind === 'drop' ? 0 : (f.initialAngle ?? 0) * (1 - eased) + loft;
-    const torque = clamp((targetAngle - f.angle) * 42 - f.angularVelocity * 12, -1700, 1700);
+    const u = clamp((f.elapsed - .08) / f.turnDuration, 0, 1), delta = f.landingAngle - f.initialAngle;
+    const blend = u ** 3 * (10 - 15 * u + 6 * u * u);
+    const rate = delta * 30 * u * u * (1 - u) ** 2 / f.turnDuration;
+    const feed = delta * 60 * u * (1 - u) * (1 - 2 * u) / f.turnDuration ** 2;
+    const targetAngle = f.kind === 'ramp' ? f.initialAngle + delta * blend
+      : f.kind === 'drop' ? 0 : (f.initialAngle ?? 0) * (1 - eased) + loft;
+    const torque = clamp((targetAngle - f.angle) * 42 + ((f.kind === 'ramp' ? rate : 0) - f.angularVelocity) * 12 + (f.kind === 'ramp' ? feed : 0), -1700, 1700);
     f.angularVelocity += torque * dt; f.angle += f.angularVelocity * dt;
     const t = clamp(f.elapsed / .96, 0, 1);
     f.roll = f.kind === 'kickflip' ? 360 * (t * t * (3 - 2 * t)) : 0;
@@ -151,7 +163,7 @@ export function stepFlight(g, state, seconds) {
     const stopping = Math.max(0, f.vy) ** 2 / (2 * f.gravity * 3.5);
     if (f.vy >= 0 && remaining <= stopping + g.size * .22) f.lit = true;
     const ready = f.elapsed > (f.kind === 'kickflip' ? 1.05 : .55)
-      && Math.abs(f.targetX - f.x) < .6 && Math.abs(f.vx) < 8 && Math.abs(f.angle) < 3;
+      && Math.abs(f.targetX - f.x) < .6 && Math.abs(f.vx) < 8 && Math.abs(f.angle - f.landingAngle) < 3 && Math.abs(f.angularVelocity) < 12;
     const desiredVy = ready ? Math.min(f.scale * .42 + remaining * 3, Math.sqrt(2 * f.gravity * 1.7 * remaining)) : 0;
     f.thrust = f.lit ? clamp(f.gravity + 11 * (f.vy - desiredVy), 0, f.gravity * 5) : 0;
     const steer = f.lit ? clamp((f.targetX - f.x) * 32 - f.vx * 11.3, -f.gravity * 3, f.gravity * 3) : 0;
@@ -170,15 +182,18 @@ export function stepFlight(g, state, seconds) {
     const impulse = f.kind !== 'drop' && f.elapsed < .16 ? 1 - f.elapsed / .16 : 0;
     const total = Math.max(f.thrust / f.gravity, impulse * 2.6);
     Object.assign(f, balanceJets(g, f, torque, total, dt));
-    f.jets = { left: Math.max(0, ax) / f.gravity, right: Math.max(0, -ax) / f.gravity,
-      up: Math.max(0, ay - f.gravity) / f.gravity, down: total };
+    const n=f.launchNormal;
+    f.jets = { left: Math.max(Math.max(0, ax) / f.gravity, Math.max(0,n?.x||0)*impulse*2.6),
+      right: Math.max(Math.max(0, -ax) / f.gravity, Math.max(0,-(n?.x||0))*impulse*2.6),
+      up: Math.max(Math.max(0, ay - f.gravity) / f.gravity,Math.max(0,n?.y||0)*impulse*2.6),
+      down: Math.max(f.thrust/f.gravity,Math.max(0,-(n?.y||0))*impulse*2.6) };
     const x = clamp(f.x, bounds.left, bounds.right), y = clamp(f.y, bounds.top, bounds.bottom);
     f.constraintError = Math.max(f.constraintError || 0, Math.abs(x - f.x), Math.abs(y - f.y));
     f.x = x; f.y = y; // Floating-point roundoff only; no restitution/bounce.
     f.phase = f.lit ? 'braking' : f.vy < 0 ? 'ascent' : 'fall';
     if (ready && g.bottom - f.y < .06 && Math.abs(f.vy) < Math.min(24, f.scale * .65)) {
       f.impactSpeed = Math.abs(f.vy) / f.scale;
-      f.touchdownAngle = f.angle; f.touchdownAngularVelocity = f.angularVelocity;
+      f.touchdownAngle = mod(f.angle + 180,360)-180; f.touchdownAngularVelocity = f.angularVelocity;
       Object.assign(f, { y: g.bottom, angle: 0, angularVelocity: 0, roll: 0,
         thrust: 0, frontThrust: 0, rearThrust: 0, jets: { left: 0, right: 0, up: 0, down: 0 }, avoiding: false, phase: 'attached', landed: true });
     }
@@ -215,7 +230,13 @@ function stepLocalFlip(g,state,seconds) {
     f.constraintError=Math.max(f.constraintError||0,Math.abs(x-f.x),Math.abs(y-f.y));f.x=x;f.y=y;
     f.thrust=Math.max(0,f.gravity-ay);f.lit=assist>0;
     f.jets={left:Math.max(0,ax)/f.gravity,right:Math.max(0,-ax)/f.gravity,up:Math.max(0,ay-f.gravity)/f.gravity,down:f.thrust/f.gravity};
-    Object.assign(f,balanceJets(g,f,torque,Math.max(f.thrust/f.gravity,Math.hypot(ax,ay-f.gravity)/f.gravity*.55),dt));
+    // The takeoff impulse already supplies the initial inward velocity. Render
+    // its finite valve pulse from the very first ascent frame, away from the
+    // departure surface, as well as the continuous controller's balancing jets.
+    const pulse=2.6*Math.max(0,1-f.elapsed/.28)**2,n=f.launchNormal;
+    if(n){f.jets.left=Math.max(f.jets.left,Math.max(0,n.x)*pulse);f.jets.right=Math.max(f.jets.right,Math.max(0,-n.x)*pulse);
+      f.jets.up=Math.max(f.jets.up,Math.max(0,n.y)*pulse);f.jets.down=Math.max(f.jets.down,Math.max(0,-n.y)*pulse);}
+    Object.assign(f,balanceJets(g,f,torque,Math.max(pulse,f.thrust/f.gravity,Math.hypot(ax,ay-f.gravity)/f.gravity*.55),dt));
     f.phase=f.elapsed<.7?'ascent':'braking';f.avoiding=Math.abs(ax-rawX)>.1||Math.abs(ay-rawY)>.1;
     const base=trackPose(g,p.distance),error=Math.hypot(f.x-base.x,f.y-base.y),relative=Math.hypot(f.vx-vx,f.vy-vy);
     if(f.elapsed>=1.4&&error<.55&&relative<8&&Math.abs(difference)<2){

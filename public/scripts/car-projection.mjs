@@ -12,8 +12,11 @@ export function projectPoint(g, pose, suspension, point, body = true) {
   const rz = -Math.sin(yaw) * px + Math.cos(yaw) * point.z;
   const ry = Math.cos(roll) * py - Math.sin(roll) * rz;
   const depth = Math.sin(roll) * py + Math.cos(roll) * rz;
-  const cameraY = g.carHeight * .08 + ry, scale = 700 / (700 - depth);
-  return { x: g.size / 2 + rx * scale, y: g.carHeight / 2 + cameraY * scale, depth, cameraX: rx, cameraY };
+  // The resting view is the original, undistorted side illustration. Perspective
+  // grows continuously as the car rolls, then returns to an orthographic side.
+  const perspective = Math.sin(roll) ** 2;
+  const cameraY = g.carHeight * .08 + ry, scale = 700 / (700 - depth * perspective);
+  return { x: g.size / 2 + rx * scale, y: g.carHeight / 2 + cameraY * scale, depth, cameraX: rx, cameraY, perspective };
 }
 
 export function projectWorldPoint(g, pose, suspension, point, body = true) {
