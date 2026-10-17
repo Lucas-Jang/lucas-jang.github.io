@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Home integration QA</title>
+<style>body{font:14px system-ui;background:#dfe9ed;color:#142d3d;margin:20px}button{min-height:44px}iframe{display:block;border:1px solid #819ba9;max-width:none}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>Home integration · responsive route / navigation checks</h1><button id="run">Run home suite</button><pre id="results">Ready</pre><iframe id="preview" title="Blog home preview"></iframe>
+<script type="module">
+import {geometry,trackPose} from '/scripts/car-dynamics.mjs?v=20261017-11';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const check=(ok,label)=>{if(!ok)throw Error(label);results.textContent+='\nPASS '+label};
+run.onclick=async()=>{run.disabled=true;results.textContent='Running';try{
+for(const [width,height]of[[320,568],[390,844],[844,390],[884,892],[1280,720],[1920,1080]]){
+ preview.style.width=width+'px';preview.style.height=height+'px';preview.src='/?layout-qa='+width;
+ await new Promise(r=>preview.onload=r);await preview.contentDocument.fonts.ready;await sleep(1000);
+ const win=preview.contentWindow,doc=preview.contentDocument,host=doc.querySelector('#lucas-roaming-car'),root=host.shadowRoot;
+ // Development-only inspector is absent from published pages and otherwise
+ // intercepts the last menu item on small viewports. Keep product DOM intact.
+ const devStyle=doc.createElement('style');devStyle.textContent='astro-dev-toolbar{display:none!important}';doc.head.append(devStyle);
+ const header=doc.querySelector('header').getBoundingClientRect(),footer=doc.querySelector('footer').getBoundingClientRect();
+ const g=geometry({width,height:footer.top-header.bottom-16,top:header.bottom+8,compact:width<=600||height<=450,carSize:width<=600||height<=450?112:160});
+ const main=doc.querySelector('main');
+ check(doc.documentElement.scrollWidth<=width&&main.clientWidth>=140,width+'×'+height+' content fits without horizontal page overflow '+JSON.stringify({scroll:doc.documentElement.scrollWidth,main:main.clientWidth}));
+ const visible=el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0};
+ const summary=doc.querySelector('summary');
+ if(visible(summary))summary.click();
+ await sleep(50);
+ let collision=null;
+ const menu=doc.querySelector('.menu-panel').getBoundingClientRect();
+ const targets=[...doc.querySelectorAll('header > a,.site-nav a,header summary,footer a'),root.querySelector('.boost-button')].filter(visible).map(el=>{
+  const r=el.getBoundingClientRect(),inMenu=el.closest('.menu-panel');
+  return {name:el.textContent.trim()||el.getAttribute('aria-label'),left:r.left,right:r.right,top:inMenu?Math.max(r.top,menu.top):r.top,bottom:inMenu?Math.min(r.bottom,menu.bottom):r.bottom};
+ });
+ for(let i=0;i<1000&&!collision;i++){
+  const p=trackPose(g,g.perimeter*i/1000),a=p.angle*Math.PI/180,halfX=(Math.abs(Math.cos(a))*g.size+Math.abs(Math.sin(a))*g.carHeight)/2+3,halfY=(Math.abs(Math.sin(a))*g.size+Math.abs(Math.cos(a))*g.carHeight)/2+3;
+  for(const r of targets)if(r.bottom>r.top&&p.x+halfX>r.left&&p.x-halfX<r.right&&p.y+halfY>r.top&&p.y-halfY<r.bottom){collision={target:r.name,p,r};break;}
+ }
+ check(!collision,width+'×'+height+' all 1,000 route positions clear navigation targets '+(collision?JSON.stringify(collision):''));
+ if(visible(summary)){
+   const links=[...doc.querySelectorAll('.menu-panel a')];
+   for(const link of links){link.scrollIntoView({block:'nearest'});const r=link.getBoundingClientRect(),hit=doc.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+     check(link===hit||link.contains(hit),'open menu owns its touch target: '+link.textContent.trim()+(link===hit||link.contains(hit)?'':JSON.stringify({hit:hit?.tagName,cls:hit?.className,rect:r.toJSON()})));}
+ }
+ const before={x:+host.dataset.x,y:+host.dataset.y};await sleep(250);
+ check(Math.hypot(+host.dataset.x-before.x,+host.dataset.y-before.y)>1,'open menu preserves continuous driving');
+ if(visible(summary))summary.click();
+ root.querySelector('.boost-button').dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+ check(!root.querySelector('.garage').hidden,'environment options stay reachable in home frame');
+ const box=root.querySelector('.garage').getBoundingClientRect();check(box.left>=0&&box.right<=width&&box.top>=0&&box.bottom<=height,'environment panel stays within viewport');
+ root.querySelector('.boost-button').dispatchEvent(new win.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+ main.scrollTop=main.scrollHeight;await sleep(50);check(!main.scrollHeight||main.scrollTop+main.clientHeight>=main.scrollHeight-1,'hero remains fully scrollable on short and narrow screens');
+}
+results.textContent+='\nALL PASSED';}catch(e){results.textContent+='\nFAIL '+e.message}run.disabled=false};
+</script>

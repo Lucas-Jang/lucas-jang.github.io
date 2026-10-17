@@ -18,7 +18,8 @@ function atDistance(g,d) {
 
 export function geometry(viewport,safe={}) {
   const base=baseGeometry(viewport,safe);
-  const size=Math.min(viewport.width,viewport.height)<=600?Math.min(base.size,Math.max(104,base.size*.76)):base.size;
+  const compact=viewport.compact ?? Math.min(viewport.width,viewport.height)<=600;
+  const size=Math.min(viewport.carSize || Infinity,compact?Math.min(base.size,Math.max(104,base.size*.76)):base.size);
   const carHeight=size*.43,delta=(base.carHeight-carHeight)/2;
   let edgeInset=18,g,radius,cornerPoints;
   // Calibrate the complete rotating body envelope once per viewport. The

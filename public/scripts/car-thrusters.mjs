@@ -1,5 +1,5 @@
 import { clamp } from './car-motion.mjs';
-import { BODY_DEPTH, projectWorldPoint } from './car-projection.mjs?v=20261017-7';
+import { BODY_DEPTH, projectWorldPoint } from './car-projection.mjs?v=20261017-11';
 
 // Coordinates lie on the photographed bumper trim, rocker panels and roof rack.
 // Both visible sides use these same anchors, inside the suspension/body shell.

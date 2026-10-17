@@ -1,9 +1,9 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-9';
-import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-10';
-import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-9';
-import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-9';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-11';
+import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-11';
+import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-11';
+import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-11';
 
-import { HEIGHTS, blendRide, landingResponse } from './car-ride.mjs?v=20261017-9';
+import { HEIGHTS, blendRide, landingResponse } from './car-ride.mjs?v=20261017-11';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
@@ -76,7 +76,7 @@ export function initialize() {
       .thruster.roof { width: 4%; height: 3%; border-radius: 3px; }
       .effects, .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
       .effects { z-index: 1; } .terrain { z-index: 0; overflow: visible; }
-      .mode-banner { position: fixed; right: max(12px,env(safe-area-inset-right)); bottom: max(86px,calc(env(safe-area-inset-bottom) + 76px)); max-width: calc(100% - 24px); padding: 10px 14px; border: 1px solid var(--mode-color,#a4bac4); border-radius: 16px; background: #f8f8f1; color: #203a48; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .2s,transform .25s; box-shadow: 0 4px 18px #19354322; }
+      .mode-banner { position: fixed; right: max(var(--dock-right,12px),env(safe-area-inset-right)); bottom: max(calc(var(--dock-bottom,10px) + 76px),calc(env(safe-area-inset-bottom) + 76px)); max-width: calc(100% - 24px); padding: 10px 14px; border: 1px solid var(--mode-color,#a4bac4); border-radius: 16px; background: #f8f8f1; color: #203a48; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .2s,transform .25s; box-shadow: 0 4px 18px #19354322; }
       .mode-banner[data-visible="true"] { opacity: 1; transform: translateY(0); }
       .mode-changing .mesh { filter: drop-shadow(0 0 calc(var(--mode-pulse,0) * 7px) var(--mode-color,#a4bac4)); }
       @media (prefers-reduced-motion:reduce) { .mode-banner,.terrain path { transition: none !important; } }
@@ -86,8 +86,8 @@ export function initialize() {
       .safe { visibility: hidden; position: absolute;
         padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
-      .launcher { position: fixed; right: max(12px, env(safe-area-inset-right));
-        bottom: max(10px, env(safe-area-inset-bottom)); display: flex; gap: 6px; z-index: 4; }
+      .launcher { position: fixed; right: max(var(--dock-right,12px), env(safe-area-inset-right));
+        bottom: max(var(--dock-bottom,10px), env(safe-area-inset-bottom)); display: flex; gap: 6px; z-index: 4; }
       .boost-button { position: relative;
         pointer-events: auto;
         min-width: 54px; min-height: 44px; padding: 8px 13px; border: 1px solid #a4b7be;
@@ -104,8 +104,8 @@ export function initialize() {
       .boost-button[data-skill="kickflip"] { background: #62449a; border-color: #62449a; }
       .boost-button[data-skill="ramp"] { background: #9a4b23; border-color: #9a4b23; }
       .boost-button[data-full="true"] { background: #235843; border-color: #235843; }
-      .garage { position: fixed; right: max(12px, env(safe-area-inset-right));
-        bottom: max(64px, calc(env(safe-area-inset-bottom) + 54px)); pointer-events: auto;
+      .garage { position: fixed; right: max(var(--dock-right,12px), env(safe-area-inset-right));
+        bottom: max(calc(var(--dock-bottom,10px) + 54px), calc(env(safe-area-inset-bottom) + 54px)); pointer-events: auto;
         width: min(296px, calc(100% - 24px)); max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px);
         overflow-y: auto; overscroll-behavior: contain; padding: 12px; border: 1px solid #c0cdd0; border-radius: 18px; z-index: 4;
         background: #f8f8f1; box-shadow: 0 8px 32px #19354324; }
@@ -148,6 +148,8 @@ export function initialize() {
       </div>
     </section>`;
   document.body.append(host);
+  const homeFrame = !!document.querySelector('.home-hero') && !!document.querySelector('body > footer');
+  if (homeFrame) document.body.classList.add('car-home');
   const car = root.querySelector('.car'), vehicle = root.querySelector('.vehicle');
   const shell = root.querySelector('.shell'), wheels = root.querySelectorAll('.wheel');
   const struts = root.querySelectorAll('.strut'), boostButton = root.querySelector('.boost-button');
@@ -270,6 +272,7 @@ export function initialize() {
     car.classList.toggle('mode-changing', modePulse > 0 && !media.matches);
     car.style.setProperty('--mode-pulse', String(Math.sin(Math.PI * modePulse)));
     const p = contain(g, pose), roll = pose.roll || 0;
+    car.style.perspective = `${700 / Math.max(1e-6, Math.sin(roll * Math.PI / 180) ** 2)}px`;
     car.style.width = `${g.size}px`; car.style.height = `${g.carHeight}px`;
     car.style.setProperty('--depth', `${g.size * .35}px`);
     car.style.transform = `translate3d(${p.x - g.size / 2}px,${p.y - g.carHeight / 2}px,0) rotate(${p.angle}deg)`;
@@ -461,10 +464,27 @@ export function initialize() {
       left: v?.offsetLeft || 0, top: v?.offsetTop || 0 };
     const safeArea = { top: parseFloat(safe.paddingTop) || 0, right: parseFloat(safe.paddingRight) || 0,
       bottom: parseFloat(safe.paddingBottom) || 0, left: parseFloat(safe.paddingLeft) || 0 };
+    if (homeFrame) {
+      const header = document.querySelector('body > header').getBoundingClientRect();
+      const footer = document.querySelector('body > footer').getBoundingClientRect();
+      const top = Math.max(viewport.top + safeArea.top, header.bottom) + 8;
+      const bottom = Math.min(viewport.top + viewport.height - safeArea.bottom, footer.top) - 8;
+      viewport.top = top; viewport.height = Math.max(80, bottom - top);
+      viewport.compact = innerWidth <= 600 || innerHeight <= 450;
+      viewport.carSize = viewport.compact ? 112 : 160;
+      safeArea.top = 0; safeArea.bottom = 0;
+    }
     const key = JSON.stringify({ viewport, safeArea });
     if (key === viewportKey) return;
     if (press?.dragged && oldG) flight = createFlight(oldG, pose, 'drop');
     viewportKey = key; g = geometry(viewport, safeArea); distance = progress * g.perimeter;
+    if (homeFrame) {
+      document.body.style.setProperty('--car-lane', `${Math.ceil(g.carHeight + g.edgeInset + 18)}px`);
+      const footer = document.querySelector('body > footer').getBoundingClientRect();
+      const dock = Math.max(10, innerHeight - footer.bottom + (footer.height - 50) / 2);
+      host.style.setProperty('--dock-bottom', `${dock}px`);
+      host.style.setProperty('--dock-right', `${Math.max(16,innerWidth-footer.right)}px`);
+    }
     if (oldG && boostStarted !== null) boostTravel *= g.perimeter / oldG.perimeter;
     if (press) { const held = press; press = null; releaseCapture(held.id); }
     if (flight && oldG) {
@@ -576,6 +596,11 @@ export function initialize() {
   if (media.addEventListener) media.addEventListener('change', motionChanged); else media.addListener(motionChanged);
   document.addEventListener('visibilitychange', () => { if (document.hidden) suspend(); else { lastTime = 0; schedule(); } });
   window.addEventListener('resize', resize, { passive: true });
+  if (homeFrame && window.ResizeObserver) {
+    const frameObserver = new ResizeObserver(resize);
+    frameObserver.observe(document.querySelector('body > header'));
+    frameObserver.observe(document.querySelector('body > footer'));
+  }
   window.visualViewport?.addEventListener('resize', resize, { passive: true });
   window.visualViewport?.addEventListener('scroll', resize, { passive: true });
   window.addEventListener('pagehide', () => { pageSuspended = true; suspend(); });
@@ -583,6 +608,8 @@ export function initialize() {
   bodyImage.addEventListener('load', schedule);
   bodyImage.addEventListener('error', () => {
     pageSuspended = true; car.hidden = true; boostButton.hidden = true; suspend();
+    host.style.display = 'none';
+    if (homeFrame) { document.body.classList.remove('car-home'); document.body.style.removeProperty('--car-lane'); }
     announce('자동차 그림을 불러오지 못했어요');
   });
   resize(); controls(); save(); paint(); schedule();

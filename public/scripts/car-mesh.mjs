@@ -1,6 +1,6 @@
 import { CAR_PROFILE } from './car-body-shape.mjs?v=20261017-7';
-import { BODY_DEPTH, projectPoint } from './car-projection.mjs?v=20261017-7';
-import { PORTS } from './car-thrusters.mjs?v=20261017-9';
+import { BODY_DEPTH, projectPoint } from './car-projection.mjs?v=20261017-11';
+import { PORTS } from './car-thrusters.mjs?v=20261017-11';
 
 const IMAGE_RATIO = 332 / 960;
 export const MESH_PADDING = 40;
@@ -13,7 +13,8 @@ function cross(a, b, c) {
 
 function faceVisible(points) {
   const normal = cross(points[0], points[1], points[2]), p = points[0];
-  return normal[0] * -p.cameraX + normal[1] * -p.cameraY + normal[2] * (700 - p.depth) > .00001;
+  const perspective = p.perspective ?? 1;
+  return (normal[0] * -p.cameraX + normal[1] * -p.cameraY - normal[2] * p.depth) * perspective + normal[2] * 700 > .00001;
 }
 
 function shade(color, points) {
@@ -26,7 +27,7 @@ function shade(color, points) {
 // A closed silhouette extrusion and four real tyre cylinders. No independent
 // floating CSS planes; every body edge connects identical near/far vertices.
 export function meshFaces(g, pose, suspension, wheelAngle = 0) {
-  const faces = [], depth = g.size * BODY_DEPTH / 2;
+  const faces = [], depth = g.size * BODY_DEPTH / 2, sideView = Math.abs(Math.sin((pose.roll || 0) * Math.PI / 180)) < 1e-7;
   const mud = Math.max(0,Math.min(1,pose.mudMix ?? (pose.environment === 'mud' ? 1 : 0)));
   const surface = (clean,dirty) => clean.map((v,i)=>v+(dirty[i]-v)*mud);
   const bodyPoint = (u, v, z) => ({ x: (u - .5) * g.size, y: (.0465 - .5) * g.carHeight + v * g.size * IMAGE_RATIO, z });
@@ -37,7 +38,7 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
       depth: projected.reduce((s, p) => s + p.depth, 0) / projected.length, texture,
       uv: texture ? points.map(p => p.uv) : undefined });
   }
-  for (let i = 0; i < CAR_PROFILE.length; i++) {
+  for (let i = 0; !sideView && i < CAR_PROFILE.length; i++) {
     const p = CAR_PROFILE[i], q = CAR_PROFILE[(i + 1) % CAR_PROFILE.length];
     const x = (p[0] + q[0]) / 2, y = (p[1] + q[1]) / 2;
     const windshield = x > .24 && x < .43 && y < .36;
@@ -45,7 +46,7 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
     const section = (v, t) => {
       const point = bodyPoint(...v, depth * t);
       // A gently crowned roof/bonnet closes the volume without flat side slabs.
-      if (v[1] < .5) point.y -= g.size * .022 * (1 - t * t);
+      if (v[1] < .5) point.y -= g.size * .022 * (1 - t * t) * Math.sin((pose.roll || 0) * Math.PI / 180) ** 2;
       return point;
     };
     for (let band = 0; band < 6; band++) {
@@ -55,8 +56,9 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
   }
   // Subdivided affine texture mapping keeps the existing side illustration
   // recognisable and avoids the stretching of one large projected rectangle.
-  for (const side of [1, -1]) for (let col = 0; col < 6; col++) for (let row = 0; row < 2; row++) {
-    const uv = [[col / 6, row / 2], [(col + 1) / 6, row / 2], [(col + 1) / 6, (row + 1) / 2], [col / 6, (row + 1) / 2]];
+  const columns = sideView ? 1 : 6, rows = sideView ? 1 : 2;
+  for (const side of [1, -1]) for (let col = 0; col < columns; col++) for (let row = 0; row < rows; row++) {
+    const uv = [[col / columns, row / rows], [(col + 1) / columns, row / rows], [(col + 1) / columns, (row + 1) / rows], [col / columns, (row + 1) / rows]];
     const points = uv.map(([u, v]) => ({ ...bodyPoint(u, v, side * depth), uv: [u, v] }));
     if (side < 0) points.reverse();
     add(points, null, true, true);
@@ -134,7 +136,14 @@ export function drawCarMesh(ctx, image, g, pose, suspension = {}, wheelAngle = 0
   const faces = meshFaces(g, pose, suspension, wheelAngle);
   for (const face of faces) {
     const p = face.points;
-    if (face.texture) {
+    if (face.texture && Math.abs(Math.sin((pose.roll || 0) * Math.PI / 180)) < 1e-7) {
+      // One image draw avoids triangle seams and exactly preserves the first asset.
+      const corner = (u,v) => p[face.uv.findIndex(q=>q[0]===u&&q[1]===v)];
+      const a = corner(0,0), b = corner(1,0), d = corner(0,1);
+      ctx.save();ctx.transform((b.x-a.x)/image.naturalWidth,(b.y-a.y)/image.naturalWidth,
+        (d.x-a.x)/image.naturalHeight,(d.y-a.y)/image.naturalHeight,a.x,a.y);
+      ctx.drawImage(image,0,0);ctx.restore();
+    } else if (face.texture) {
       textureTriangle(ctx, image, [p[0], p[1], p[2]], [face.uv[0], face.uv[1], face.uv[2]]);
       textureTriangle(ctx, image, [p[0], p[2], p[3]], [face.uv[0], face.uv[2], face.uv[3]]);
     } else {

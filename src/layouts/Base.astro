@@ -51,6 +51,16 @@ const gaMeasurementId = import.meta.env.PROD
     )}
   </head>
   <body class={bodyClass} data-category={bodyDataCategory}>
+    {Astro.url.pathname === '/' && <script is:inline>
+      // Reserve the home frame before the illustration modules load.
+      const carCategory = new URLSearchParams(location.search).get('category');
+      if (!carCategory || carCategory === 'ALL') {
+        document.body.classList.add('car-home');
+        window.addEventListener('load', () => {
+          if (!document.getElementById('lucas-roaming-car')) document.body.classList.remove('car-home');
+        }, { once: true });
+      }
+    </script>}
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
     <header>
       <a class="home-link" data-nav-home href="/" aria-label="LucasJang 홈으로 이동">LucasJang</a>
@@ -90,7 +100,7 @@ const gaMeasurementId = import.meta.env.PROD
       </p>
     </footer>
     <script src="/scripts/site-stats.js?v=20260926-5" defer></script>
-    {Astro.url.pathname === '/' && <script is:inline type="module" src="/scripts/roaming-car.js?v=20261017-10"></script>}
+    {Astro.url.pathname === '/' && <script is:inline type="module" src="/scripts/roaming-car.js?v=20261017-11"></script>}
     <script is:inline>
       (() => {
         const currentCategory = new URLSearchParams(location.search).get('category');

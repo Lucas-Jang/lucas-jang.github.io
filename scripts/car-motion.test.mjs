@@ -7,6 +7,54 @@ import { stuntVelocity, cornerCrossing, mod } from '../public/scripts/car-dynami
 import { meshFaces, MESH_PADDING } from '../public/scripts/car-mesh.mjs';
 import { stepBoostDrive, cruiseSpeed } from '../public/scripts/car-dynamics.mjs';
 import { blendRide, balanceJets, landingResponse, FRONT_LOAD } from '../public/scripts/car-ride.mjs';
+import { projectPoint } from '../public/scripts/car-projection.mjs';
+
+test('kickflip takeoff has a visible outward pulse from every departure surface',()=>{
+  for(const [width,height]of screens){const g=geometry({width,height});let start=0;
+    for(const length of g.lengths){const distance=start+length*.5,p=trackPose(g,distance),v=stuntVelocity(g,p,100,'kickflip'),hop=v.x*p.nx+v.y*p.ny,t=tangent(p,100);
+      const f=stepFlight(g,createFlight(g,p,'kickflip',{x:t.x+p.nx*hop,y:t.y+p.ny*hop},{distance,speed:100}),1/120);
+      const jets=thrusterCommands(g,f,{},f);
+      assert(jets.some(j=>j.power>.15&&j.dx*-p.nx+j.dy*-p.ny>.45),JSON.stringify({width,height,p,jets}));
+      assert(f.frontThrust>0&&f.rearThrust>0);start+=length;
+    }
+  }
+});
+
+test('inverted ramp departures continue the circuit rotation through upright 360 degrees',()=>{
+  for(const [width,height]of screens)for(const fps of [10,60,120])for(const angle of [90,135,179,180,181,225,270,315,359]){
+    const g=geometry({width,height}),p=contain(g,{x:width*.5,y:height*.4,angle});let f=createFlight(g,p,'ramp'),last=f.angle;
+    assert.equal(f.initialAngle,angle);assert.equal(f.landingAngle,360);
+    for(let i=0;i<fps*14&&!f.landed;i++){
+      f=stepFlight(g,f,1/fps);inside(g,f);
+      if(!f.landed){assert(f.angle>=last-.01,JSON.stringify({angle,last,f}));last=f.angle;}
+    }
+    assert(f.landed);assert(last>357);assert(f.impactSpeed<.8);
+  }
+});
+
+test('resting side texture preserves exact original proportions without camera distortion',()=>{
+  const g=geometry({width:1280,height:720}),p={roll:0};
+  for(const x of[-g.size/2,0,g.size/2])for(const y of[-g.carHeight/2,0,g.carHeight/2]){
+    const point=projectPoint(g,p,{}, {x,y,z:g.size*.175});
+    assert(Math.abs(point.x-(g.size/2+x))<1e-8);assert(Math.abs(point.y-(g.carHeight/2+y))<1e-8);
+  }
+  const textures=meshFaces(g,p,{}).filter(f=>f.texture);assert.equal(textures.length,1);
+  const xs=textures[0].points.map(p=>p.x),ys=textures[0].points.map(p=>p.y);
+  assert(Math.abs(Math.max(...xs)-Math.min(...xs)-g.size)<1e-8);
+  assert(Math.abs(Math.max(...ys)-Math.min(...ys)-g.size*332/960)<1e-8);
+});
+
+test('home arena leaves header and footer outside every drive and stunt body envelope',()=>{
+  for(const [width,height]of [[320,568],[390,844],[844,390],[884,892],[1280,720],[1920,1080],[2560,1080]]){
+    const top=height<=450?56:92,bottom=height<=450?height-72:height-112;
+    const g=geometry({width,height:bottom-top,top,compact:width<=600||height<=450,carSize:width<=600||height<=450?112:160});
+    for(let i=0;i<1000;i++)inside(g,trackPose(g,g.perimeter*i/1000));
+    let d=0;for(const length of g.lengths){const p=trackPose(g,d+length*.5);let f=createFlight(g,p,'ramp',stuntVelocity(g,p,boostSpeed(g),'ramp'));
+      for(let t=0;t<14&&!f.landed;t+=1/60){f=stepFlight(g,f,1/60);inside(g,f);}
+      assert(f.landed);d+=length;
+    }
+  }
+});
 
 test('local kickflip stays within half a car of its moving track anchor in every section',()=>{
   let cases=0;

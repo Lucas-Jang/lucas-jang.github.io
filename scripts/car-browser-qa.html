@@ -12,10 +12,10 @@ const nativeMatch = window.matchMedia.bind(window); let reduce = false; const li
 const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
 window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
 localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
-const { initialize } = await import('/scripts/roaming-car.js?v=20261017-10');
+const { initialize } = await import('/scripts/roaming-car.js?v=20261017-11');
 initialize(); // The shipped entry point intentionally does not mount on this QA URL.
-const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-9');
-const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-9');
+const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-11');
+const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-11');
 const host = document.getElementById('lucas-roaming-car'), root=host.shadowRoot;
 const car=root.querySelector('.car'), boost=root.querySelector('.boost-button'), panel=root.querySelector('.garage');
 // Synthetic touch dispatch cannot own a native active pointer. Only capture is stubbed.
@@ -88,6 +88,7 @@ try{
  check(host.dataset.height!==initial&&host.dataset.trick==='','single touch changes height once');
  const height=host.dataset.height;tap();await sleep(90);tap();await sleep(80);
  check(host.dataset.trick==='kickflip'&&host.dataset.height===height,'double touch triggers flip without a single-tap side effect');
+ check(host.dataset.state==='ascent'&&['jetLeft','jetRight','jetUp','jetDown'].some(k=>+host.dataset[k]>.1)&&+host.dataset.particles>0,'kickflip ascent already emits a visible launch plume');
  check(car.classList.contains('rolling'),'volume surfaces shown only during 3D roll');
  let alignment=0;for(let i=0;i<10;i++){alignment=Math.max(alignment,portAlignmentError());await sleep(50)}
  check(alignment<.8,'ports and exhaust anchors remain aligned during pitch and 3D roll');
