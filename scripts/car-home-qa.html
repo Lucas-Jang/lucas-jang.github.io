@@ -3,7 +3,7 @@
 <style>body{font:14px system-ui;background:#dfe9ed;color:#142d3d;margin:20px}button{min-height:44px}iframe{display:block;border:1px solid #819ba9;max-width:none}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
 <h1>Home integration · responsive route / navigation checks</h1><button id="run">Run home suite</button><pre id="results">Ready</pre><iframe id="preview" title="Blog home preview"></iframe>
 <script type="module">
-import {geometry,trackPose} from '/scripts/car-dynamics.mjs?v=20261017-12';
+import {geometry,trackPose} from '/scripts/car-dynamics.mjs?v=20261017-14';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const check=(ok,label)=>{if(!ok)throw Error(label);results.textContent+='\nPASS '+label};
 run.onclick=async()=>{run.disabled=true;results.textContent='Running';try{
@@ -15,7 +15,8 @@ for(const [width,height]of[[320,568],[390,844],[844,390],[884,892],[1280,720],[1
  // intercepts the last menu item on small viewports. Keep product DOM intact.
  const devStyle=doc.createElement('style');devStyle.textContent='astro-dev-toolbar{display:none!important}';doc.head.append(devStyle);
  const header=doc.querySelector('header').getBoundingClientRect(),footer=doc.querySelector('footer').getBoundingClientRect();
- const g=geometry({width,height:footer.top-header.bottom-16,top:header.bottom+8,compact:width<=600||height<=450,carSize:width<=600||height<=450?112:160});
+ const compact=width<=600||height<=450,gap=compact?2:8;
+ const g=geometry({width,height:footer.top-header.bottom-gap*2,top:header.bottom+gap,compact,carSize:compact?104:160});
  const main=doc.querySelector('main');
  check(doc.documentElement.scrollWidth<=width&&main.clientWidth>=140,width+'×'+height+' content fits without horizontal page overflow '+JSON.stringify({scroll:doc.documentElement.scrollWidth,main:main.clientWidth}));
  const visible=el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0};

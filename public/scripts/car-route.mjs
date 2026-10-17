@@ -19,22 +19,24 @@ function atDistance(g,d) {
 export function geometry(viewport,safe={}) {
   const base=baseGeometry(viewport,safe);
   const compact=viewport.compact ?? Math.min(viewport.width,viewport.height)<=600;
-  const size=Math.min(viewport.carSize || Infinity,compact?Math.min(base.size,Math.max(104,base.size*.76)):base.size);
+  const size=Math.min(viewport.carSize || Infinity,compact?Math.min(base.size,Math.max(96,base.size*.70)):base.size);
   const carHeight=size*.43,delta=(base.carHeight-carHeight)/2;
-  let edgeInset=18,g,radius,cornerPoints;
+  const clearance=compact?8:12,minimumInset=compact?10:18;
+  let edgeInset=minimumInset,g,radius,cornerPoints;
   // Calibrate the complete rotating body envelope once per viewport. The
   // drive loop never clamps a corner position and therefore cannot catch/jump.
   for(let iteration=0;iteration<12;iteration++){
     const extra=edgeInset-12;
     g={...base,size,carHeight,edgeInset,left:base.left-delta+extra,right:base.right+delta-extra,top:base.top-delta+extra,bottom:base.bottom+delta-extra};
-    radius=Math.min(size*1.7,(g.right-g.left)/2,(g.bottom-g.top)/2);
-    const k=clamp((radius/size-.63)*3.5+.5,.5,1.2);
+    // Real top/bottom straights instead of a narrow, oval-shaped circuit.
+    radius=Math.min(size*(compact?.9:1.7),(g.right-g.left)/2,(g.bottom-g.top)/2);
+    const k=compact?clamp(radius/size*1.67,.5,1.5):clamp((radius/size-.63)*3.5+.5,.5,1.2);
     cornerPoints=[[1,1],[1-k/5,1],[1-2*k/5,1],[0,2*k/5],[0,k/5],[0,0]];
-    let needed=18;
+    let needed=minimumInset;
     for(let i=0;i<=128;i++){
       const p=curve(i/128,cornerPoints),length=Math.hypot(p.dx,p.dy),cs=Math.abs(p.dx)/length,sn=Math.abs(p.dy)/length;
-      needed=Math.max(needed,(cs*size+sn*carHeight)/2+12-carHeight/2-radius*p.x,
-        (sn*size+cs*carHeight)/2+12-carHeight/2-radius*(1-p.y));
+      needed=Math.max(needed,(cs*size+sn*carHeight)/2+clearance-carHeight/2-radius*p.x,
+        (sn*size+cs*carHeight)/2+clearance-carHeight/2-radius*(1-p.y));
     }
     if(needed<=edgeInset+.001)break;
     edgeInset=needed+.75;

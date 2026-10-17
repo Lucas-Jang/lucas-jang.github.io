@@ -12,10 +12,10 @@ const nativeMatch = window.matchMedia.bind(window); let reduce = false; const li
 const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
 window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
 localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
-const { initialize } = await import('/scripts/roaming-car.js?v=20261017-13');
+const { initialize } = await import('/scripts/roaming-car.js?v=20261017-14');
 initialize(); // The shipped entry point intentionally does not mount on this QA URL.
-const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-12');
-const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-12');
+const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-14');
+const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-14');
 const host = document.getElementById('lucas-roaming-car'), root=host.shadowRoot;
 const car=root.querySelector('.car'), boost=root.querySelector('.boost-button'), panel=root.querySelector('.garage');
 // Synthetic touch dispatch cannot own a native active pointer. Only capture is stubbed.
@@ -76,7 +76,7 @@ try{
  if(Math.min(innerWidth,innerHeight)<=600)check(+host.dataset.carSize<=134,'mobile car is compact while preserving its touch target');
  check(root.querySelectorAll('button').length===6&&panel.hidden,'only car + boost visible; four contextual environment options');
  check(!root.querySelector('[data-pause],[data-kneel],[data-trick],.garage-toggle'),'retired controls removed');
- check(root.querySelectorAll('.shell .thruster').length===12&&!root.querySelector('.nozzle,.afterburner'),'twelve flush ports provide independent upper/lower front and rear thrust');
+ check(root.querySelectorAll('.shell .thruster').length===PORTS.length*2&&!root.querySelector('.nozzle,.afterburner'),'sixteen flush ports provide upper/lower/lateral front and rear thrust');
  check(portAlignmentError()<.8,'smoke anchors coincide with actual body port centers');
  key(boost,'ArrowDown');const before=position();await sleep(500);
  check(!panel.hidden&&changed(before,position())&&+host.dataset.speed>90,'environment panel and keyboard focus never stop cruising');

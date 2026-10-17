@@ -2,9 +2,9 @@
 <style>body{background:#dce5e5;color:#263e49;font:13px system-ui;margin:20px}h1{font-size:22px}h2{font-size:16px;margin-top:22px}.row{display:flex;gap:8px}figure{margin:0;padding:6px;background:#f8f8f1;border-radius:10px;width:210px;flex:none}canvas{width:198px;height:198px;display:block}figcaption{font-size:11px}.bars{height:4px;background:#e1e6e5;display:flex;margin-top:5px}.front{background:#625298}.rear{background:#218b9e}</style>
 <h1>킥플립 · 8구간 프레임 검수</h1><p>추진 도약 → 중력 체공 → 공중 보정 → 바닥 접지 · 전후륜 분사량 표시(전륜 보라 / 후륜 청록)</p><main id="grid"></main>
 <script type="module">
-import {geometry,trackPose,createFlight,stepFlight,stuntVelocity,tangent,roadPath} from '/scripts/car-dynamics.mjs?v=20261017-12';
-import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-12';
-import {thrusterCommands} from '/scripts/car-thrusters.mjs?v=20261017-12';
+import {geometry,trackPose,createFlight,stepFlight,stuntVelocity,tangent,roadPath} from '/scripts/car-dynamics.mjs?v=20261017-14';
+import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-14';
+import {thrusterCommands} from '/scripts/car-thrusters.mjs?v=20261017-14';
 const image=new Image();image.src='/images/widgets/veracruz-body.webp';await image.decode();
 const g=geometry({width:1280,height:720}),names=['바닥 직선','좌하 코너','왼쪽 벽','좌상 코너','천장 직선','우상 코너','오른쪽 벽','우하 코너'];let start=0;
 for(let section=0;section<8;section++){

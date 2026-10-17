@@ -1,6 +1,6 @@
 import { clamp, mod, contain as legacyContain } from './car-motion.mjs';
-import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-12';
-import { balanceJets } from './car-ride.mjs?v=20261017-12';
+import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-14';
+import { balanceJets } from './car-ride.mjs?v=20261017-14';
 export { geometry, trackPose, roadPath };
 export { clamp, mod } from './car-motion.mjs';
 export function contain(g,pose) {
@@ -160,6 +160,8 @@ export function stepFlight(g,state,seconds) {
     const flipDuration=1.18,t=clamp(f.elapsed/flipDuration,0,1);
     f.roll=f.kind==='kickflip'?360*t**3*(10-15*t+6*t*t):0;
     const rollAcceleration=f.kind==='kickflip'?360*60*t*(1-t)*(1-2*t)/flipDuration**2:0;
+    f.rollVelocity=f.kind==='kickflip'?360*30*t*t*(1-t)**2/flipDuration:0;
+    f.rollPhase=f.kind!=='kickflip'||t>=1?'settled':t<.08?'ignition':t<.47?'spin-up':t<.53?'coast':'counter-burn';
     const b=flightBounds(g,f),floor=g.bottom-(f.wheelOffset||0),remaining=Math.max(0,floor-f.y);
     b.bottom=Math.min(b.bottom,floor);
     const burning=elapsed<(f.burn||0),burnPart=burning?Math.min(dt,f.burn-elapsed)/dt:0;

@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring, stepDrive, boostSpeed, tangent, cornerCrossed, releaseVelocity, resizeFlight, roadPath, flightBounds } from '../public/scripts/car-dynamics.mjs';
 import { BOOST_CHARGE_MS, isCarHome, chargedBoost, shouldRamp } from '../public/scripts/car-controls.mjs';
-import { PORTS, projectPort, thrusterCommands } from '../public/scripts/car-thrusters.mjs';
+import { PORTS, projectPort, thrusterCommands, jetVector } from '../public/scripts/car-thrusters.mjs';
 import { stuntVelocity, cornerCrossing, mod } from '../public/scripts/car-dynamics.mjs';
 import { meshFaces, MESH_PADDING } from '../public/scripts/car-mesh.mjs';
 import { stepBoostDrive, cruiseSpeed } from '../public/scripts/car-dynamics.mjs';
 import { blendRide, balanceJets, landingResponse, FRONT_LOAD } from '../public/scripts/car-ride.mjs';
 import { projectPoint } from '../public/scripts/car-projection.mjs';
 import { AIR_EXTENSION, HEIGHTS, suspensionStep } from '../public/scripts/car-ride.mjs';
-import { plumeProfile, exhaustSurface, EXHAUST_PADDING } from '../public/scripts/car-exhaust.mjs';
+import { plumeProfile, exhaustSurface, EXHAUST_PADDING, exhaustVisibility } from '../public/scripts/car-exhaust.mjs';
 
 test('floor kickflip has a substantial ballistic arc without reaching the ceiling',()=>{
   for(const fps of[10,60,120]){
@@ -29,7 +29,7 @@ test('twice the mass needs twice the corrective force without changing gravity o
   assert(Math.abs(heavy.forceY-light.forceY*2)<1e-8);assert(Math.abs(heavy.forceX-light.forceX*2)<1e-8);
   assert(plumeProfile(heavy.jets.down,g.size).rate>plumeProfile(light.jets.down,g.size).rate);
   const spin=stepFlight(g,createFlight(g,trackPose(g,0),'kickflip'),.1);
-  const jets=thrusterCommands(g,spin,{},spin);assert(spin.rollThrust>0);assert(jets.some(j=>j.key.endsWith(':couple')));
+  const jets=thrusterCommands(g,spin,{},spin);assert(spin.rollThrust>0);assert(jets.some(j=>j.sources.includes('roll')));
 });
 
 test('air springs extend beyond mud ride height and visibly compress/rebound before settling',()=>{
@@ -55,6 +55,8 @@ test('air springs extend beyond mud ride height and visibly compress/rebound bef
 });
 
 test('exhaust force increases emission and overscan has no internal viewport crop',()=>{
+  assert.equal(exhaustVisibility(0),0);assert.equal(plumeProfile(0,104).opacity,0);
+  assert(exhaustVisibility(.001)<.005);assert(exhaustVisibility(1)>.98);
   for(const size of[104,160,176])for(const force of[.1,.5,1,2,5,10]){
     const a=plumeProfile(force,size),b=plumeProfile(force*2,size);assert(b.rate>a.rate&&b.radius>a.radius&&b.speed>a.speed);
   }
@@ -378,10 +380,10 @@ test('partial-charge boost has lower speed and retains coast-down momentum', () 
   assert(speeds.every((v, i) => !i || v > speeds[i - 1]));
 });
 
-test('the rendered road follows broad eased corners with continuous tangents', () => {
+test('the rendered road follows eased phone/desktop corners with continuous tangents', () => {
   for (const [width, height] of screens) {
     const g = geometry({ width, height });
-    assert(g.radius >= Math.min(g.size, (g.right - g.left) / 2, (g.bottom - g.top) / 2));
+    assert(g.radius >= Math.min(g.size*(Math.min(width,height)<=600?.9:1), (g.right - g.left) / 2, (g.bottom - g.top) / 2)-1e-7);
     assert((roadPath(g).match(/L/g) || []).length >= 256);
     assert(!roadPath(g).includes('NaN')); assert(roadPath(g).endsWith('Z'));
     let distance = 0;
@@ -541,4 +543,106 @@ test('air springs absorb a landing and settle across low and high frame rates', 
     assert(Math.abs(s.value + 5) < .01);
     assert(Math.abs(s.velocity) < .01);
   }
+});
+
+test('phone routes recover straight walls, extend the lap and move the road outward',()=>{
+  // Baselines are the previously deployed v13 home arena, including UI margins.
+  const cases=[[320,568,833.323,27.516],[360,800,1348.628,26.432],[390,844,1467.931,26.272],[430,932,1681.308,26.445],[844,390,1657.210,30.992]];
+  for(const[width,height,oldLap,oldEdge]of cases){
+    const header=height<=450?48:64,footer=height<=450?64:104;
+    const g=geometry({width,height:height-header-footer-4,top:header+2,compact:true,carSize:104});
+    assert(g.perimeter>oldLap*1.07);assert(g.edgeInset+g.carHeight*.07<oldEdge-2);
+    assert(g.lengths[0]>g.size*.65);assert(g.lengths[2]>g.size*.2);
+    assert(g.size<=104);assert(g.radius<g.size);
+    for(let i=0;i<2048;i++){
+      const p=trackPose(g,g.perimeter*i/2048),b=flightBounds(g,p),c=contain(g,p);
+      assert(p.x>=b.left-.001&&p.x<=b.right+.001&&p.y>=b.top-.001&&p.y<=b.bottom+.001);
+      assert(Math.hypot(c.x-p.x,c.y-p.y)<1e-7);
+    }
+  }
+});
+
+const exhaustSum=commands=>commands.reduce((s,c)=>({x:s.x+c.dx*c.power,y:s.y+c.dy*c.power,z:s.z+c.dz*c.power}),{x:0,y:0,z:0});
+function exhaustTorque(g,pose,suspension,commands){
+  return commands.reduce((s,c)=>{
+    const port=PORTS.find(p=>p.id===c.port),r=jetVector(pose,suspension,{x:(port.x-.5)*g.size,y:(port.y-.5)*g.carHeight,z:c.side*(g.size*.35/2+1)});
+    const f={x:-c.dx*c.power,y:-c.dy*c.power,z:-c.dz*c.power};
+    return{x:s.x+r.y*f.z-r.z*f.y,y:s.y+r.z*f.x-r.x*f.z,z:s.z+r.x*f.y-r.y*f.x};
+  },{x:0,y:0,z:0});
+}
+
+test('3D pitch and roll couples produce the requested torque and zero hidden lift',()=>{
+  const g=geometry({width:390,height:844});
+  for(let angle=0;angle<360;angle+=45)for(let roll=0;roll<=360;roll+=6)for(const pitch of[-8,0,8])for(const sign of[-1,1]){
+    const pose={x:200,y:300,angle,roll},s={pitch},heading=angle*Math.PI/180;
+    for(const kind of['pitch','roll']){
+      const f=kind==='pitch'?{torqueAcceleration:sign,torqueThrust:2}:{rollAcceleration:sign,rollThrust:2};
+      const commands=thrusterCommands(g,pose,s,f),net=exhaustSum(commands),torque=exhaustTorque(g,pose,s,commands);
+      assert(Math.hypot(net.x,net.y,net.z)<1e-8);
+      const actual=kind==='pitch'?torque.z:torque.x*Math.cos(heading)+torque.y*Math.sin(heading);
+      const desired=sign*2*g.size*(kind==='pitch'?.31:.35);
+      assert(Math.abs(actual-desired)<1e-6,JSON.stringify({angle,roll,pitch,kind,actual,desired}));
+      if(kind==='roll')assert.equal(commands.length,4);
+    }
+  }
+});
+
+test('17,568 mixed nozzle scenarios conserve force, point outward and never duplicate a valve',()=>{
+  const g=geometry({width:1280,height:720}),seen=new Set();let cases=0;
+  const profiles=[{jets:{down:8}},{jets:{up:7}},{jets:{left:5}},{jets:{right:5}},
+    ...[-1,1].flatMap(turn=>[-1,1].map(spin=>({jets:{left:2,down:5},torqueAcceleration:turn,torqueThrust:1.5,rollAcceleration:spin,rollThrust:1.8}))),
+    {jets:{up:4,right:3},torqueAcceleration:1,torqueThrust:2},
+    {jets:{down:12,left:7},rollAcceleration:-1,rollThrust:3},
+    {jets:{down:2},boost:2},{jets:{up:1},boost:.2}];
+  for(let angle=0;angle<360;angle+=45)for(let roll=0;roll<=360;roll+=6)for(const pitch of[-8,0,8])for(const f of profiles){
+    const pose={x:600,y:400,angle,roll},s={pitch,heave:-8},boost=f.boost||0;
+    const commands=thrusterCommands(g,pose,s,{...f,frontThrust:3,rearThrust:2},boost),net=exhaustSum(commands),a=angle*Math.PI/180;
+    assert.equal(new Set(commands.map(c=>c.key)).size,commands.length);
+    const expected={x:(f.jets?.right||0)-(f.jets?.left||0)+Math.cos(a)*boost*2,y:(f.jets?.down||0)-(f.jets?.up||0)+Math.sin(a)*boost*2};
+    assert(Math.hypot(net.x-expected.x,net.y-expected.y,net.z)<1e-6);
+    for(const c of commands){
+      const p=PORTS.find(p=>p.id===c.port),normal=jetVector(pose,s,{x:p.nx,y:p.ny,z:(p.nz||0)*c.side}),origin=projectPort(g,pose,s,p,c.side);
+      assert(c.dx*normal.x+c.dy*normal.y+c.dz*normal.z>=-1e-8,'no exhaust through body');
+      assert(Math.abs(Math.hypot(c.dx,c.dy,c.dz)-1)<1e-8);assert(c.power>0&&Number.isFinite(c.power));
+      assert(Math.hypot(origin.x-c.x,origin.y-c.y)<1e-8);seen.add(c.port);
+    }
+    cases++;
+  }
+  assert.equal(cases,17568);assert.equal(seen.size,PORTS.length);
+});
+
+test('kickflip spin-up and counter-burn switch diagonal ports with depth exhaust at quarter turns',()=>{
+  const g=geometry({width:1280,height:900});let f=createFlight(g,trackPose(g,0),'kickflip');
+  const phases=new Set(),directions=new Map();let depth=0;
+  for(let i=0;i<150;i++){
+    f=stepFlight(g,f,1/120);phases.add(f.rollPhase);
+    const commands=thrusterCommands(g,f,{},f),rollOnly=thrusterCommands(g,f,{}, {rollAcceleration:f.rollAcceleration,rollThrust:f.rollThrust});
+    if(f.rollPhase==='spin-up'||f.rollPhase==='counter-burn')directions.set(f.rollPhase,new Set(rollOnly.map(c=>c.key)));
+    if(Math.abs((f.roll%180)-90)<8)depth=Math.max(depth,commands.filter(c=>Math.abs(c.dz)>.8).length);
+    const net=exhaustSum(commands);assert(Math.abs(net.y-((f.jets.down||0)-(f.jets.up||0)))<1e-6);
+  }
+  for(const phase of['ignition','spin-up','coast','counter-burn','settled'])assert(phases.has(phase));
+  assert(depth>=4);assert([...directions.get('spin-up')].every(key=>!directions.get('counter-burn').has(key)));
+  const edge=thrusterCommands(g,{x:500,y:400,angle:0,roll:90},{},{jets:{down:2},frontThrust:1.2,rearThrust:.8});
+  assert(edge.every(c=>c.port.startsWith('side-')));assert.equal(edge.length,2);
+});
+
+test('all modes and eight departure sections emit force-linked air through launch, tricks, drops and contact',()=>{
+  const g=geometry({width:390,height:672,top:66,compact:true,carSize:104}),phases=new Set();let cases=0;
+  for(const ride of Object.values(ENVIRONMENTS))for(const kind of['kickflip','ramp','drop']){
+    let start=0;for(const length of g.lengths){
+      const p=trackPose(g,start+length*.5),speed=cruiseSpeed(g,ride),velocity=kind==='drop'?tangent(p,speed):stuntVelocity(g,p,speed,kind);
+      let f=createFlight(g,p,kind,velocity,{incoming:tangent(p,speed)});
+      for(let n=0;n<840&&!f.landed;n++){
+        f=stepFlight(g,f,1/60);const commands=thrusterCommands(g,f,{pitch:0,heave:AIR_EXTENSION*g.size},f),net=exhaustSum(commands);
+        assert(Math.hypot(net.x-(f.jets.right-f.jets.left),net.y-(f.jets.down-f.jets.up),net.z)<1e-6);
+        assert.equal(new Set(commands.map(c=>c.key)).size,commands.length);
+        if(!f.landed){assert(Math.abs(f.accelerationY-f.gravity-f.forceY/f.mass)<1e-6);phases.add(f.phase);}
+        if(Math.hypot(f.jets.right-f.jets.left,f.jets.down-f.jets.up)>.05)assert(commands.length>0);
+        for(const c of commands)assert(Number.isFinite(c.x+c.y+c.dx+c.dy+c.dz+c.power));
+      }
+      assert(f.landed);assert.equal(thrusterCommands(g,f,{},f).length,0);cases++;start+=length;
+    }
+  }
+  assert.equal(cases,96);for(const phase of['ascent','fall','braking','touchdown'])assert(phases.has(phase));
 });
