@@ -12,10 +12,10 @@ const nativeMatch = window.matchMedia.bind(window); let reduce = false; const li
 const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
 window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
 localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
-const { initialize } = await import('/scripts/roaming-car.js?v=20261017-6');
+const { initialize } = await import('/scripts/roaming-car.js?v=20261017-7');
 initialize(); // The shipped entry point intentionally does not mount on this QA URL.
-const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-6');
-const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-6');
+const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-7');
+const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-7');
 const host = document.getElementById('lucas-roaming-car'), root=host.shadowRoot;
 const car=root.querySelector('.car'), boost=root.querySelector('.boost-button'), panel=root.querySelector('.garage');
 // Synthetic touch dispatch cannot own a native active pointer. Only capture is stubbed.
@@ -37,7 +37,8 @@ function portAlignmentError(){
  const roll=Number(vehicle.style.transform.match(/rotateX\(([-+\deE.]+)deg\)/)?.[1]||0);
  const heave=Number(shell.style.transform.match(/translateY\(([-+\deE.]+)px\)/)?.[1]||0);
  const pose={x:+host.dataset.x,y:+host.dataset.y,angle:+host.dataset.edgeAngle,roll};
- const suspension={pitch:+host.dataset.pitch,heave};const g=geometry({width:innerWidth,height:innerHeight});
+ const suspension={pitch:+host.dataset.pitch,heave},v=window.visualViewport;
+ const g=geometry({width:v?.width||document.documentElement.clientWidth,height:v?.height||innerHeight,left:v?.offsetLeft||0,top:v?.offsetTop||0});
  return Math.max(...[...root.querySelectorAll('.thruster')].map(e=>{
   const port=PORTS.find(p=>p.id===e.dataset.port),p=projectPort(g,pose,suspension,port,e.dataset.side==='near'?1:-1),r=e.getBoundingClientRect();
   return Math.hypot(p.x-r.x-r.width/2,p.y-r.y-r.height/2);
@@ -61,6 +62,9 @@ run.disabled=true; results.textContent='Running';
 try{
  await sleep(1000);
  check(host.dataset.state==='cruising'&&!car.hidden,'old paused/hidden preferences migrate to moving visible car');
+ check(host.dataset.renderMode==='mesh'&&root.querySelector('.mesh').width>0,'closed mesh renderer loaded; CSS construction is invisible');
+ check(getComputedStyle(root.querySelector('.vehicle')).visibility==='hidden','no duplicate CSS planes over the mesh');
+ if(Math.min(innerWidth,innerHeight)<=600)check(+host.dataset.carSize<=134,'mobile car is compact while preserving its touch target');
  check(root.querySelectorAll('button').length===6&&panel.hidden,'only car + boost visible; four contextual environment options');
  check(!root.querySelector('[data-pause],[data-kneel],[data-trick],.garage-toggle'),'retired controls removed');
  check(root.querySelectorAll('.shell .thruster').length===10&&!root.querySelector('.nozzle,.afterburner'),'ten flush body-mounted ports replace detached thruster boxes');
@@ -80,6 +84,18 @@ try{
  check(alignment<.8,'ports and exhaust anchors remain aligned during pitch and 3D roll');
  await wait(()=>host.dataset.state==='cruising');await sleep(400);
  check(host.dataset.height===height&&!car.classList.contains('rolling'),'double-tap timer cleaned up and side view restored');
+ const idleColor=getComputedStyle(boost).backgroundColor;
+ boostPointer('pointerdown');boostPointer('pointerup');await sleep(80);
+ check(!boost.disabled&&host.dataset.boostKind==='','first short boost tap waits for a possible double tap');
+ boostPointer('pointerdown');boostPointer('pointerup');await sleep(50);
+ check(host.dataset.trick==='kickflip'&&root.querySelector('.boost-label').textContent==='킥플립','boost button double tap triggers named kickflip');
+ check(boost.dataset.skill==='kickflip'&&getComputedStyle(boost).backgroundColor!==idleColor,'kickflip has distinct persistent colour feedback');
+ await wait(()=>host.dataset.state==='cruising');
+ boostPointer('pointerdown');boostPointer('pointerup');await sleep(350);
+ check(host.dataset.boostKind==='normal'&&boost.dataset.skill==='boost','single quick boost tap fires only normal boost after the double-tap window');
+ await wait(()=>!boost.disabled);
+ boostPointer('pointerdown');boostPointer('pointerup');key(boost,'Escape');await sleep(350);
+ check(host.dataset.boostKind==='','Escape cancels a pending quick boost');
  check([...root.querySelectorAll('.volume')].every(e=>getComputedStyle(e).visibility==='hidden'),'no 3D edges during ordinary side view');
  let r=car.getBoundingClientRect(), x=r.x+r.width/2,y=r.y+r.height/2;
  pointer('pointerdown',x,y);pointer('pointermove',innerWidth*.5,120);await sleep(100);
@@ -92,10 +108,10 @@ try{
  await wait(()=>host.dataset.state==='cruising');
  for(const [dx,dy,name]of[[-1,0,'left'],[1,0,'right'],[0,-1,'up'],[0,1,'down']]){
   const sample=await throwToward(dx,dy);
-  check(sample.observed[name]&&sample.gap>0&&sample.error<.8,'real DOM '+name+' throw fires the matching jet while body and exhaust stay clear/aligned');
+  check(sample.observed[name]&&sample.gap>0&&sample.error<.8,'real DOM '+name+' throw fires the matching jet while body and exhaust stay clear/aligned · '+JSON.stringify(sample));
  }
  mode('normal');await sleep(1500);
- boostPointer('pointerdown');await sleep(580);
+ boostPointer('pointerdown');await sleep(230);
  check(panel.hidden&&+host.dataset.boostCharge>.4&&+host.dataset.boostCharge<1&&host.dataset.state==='cruising','partial hold charges visibly without opening settings or stopping');
  boostPointer('pointerup');await sleep(450);
  check(+host.dataset.acceleration>500&&+host.dataset.pitch>3&&+host.dataset.particles>0,'boost acceleration, nose-up and rear smoke');
@@ -106,19 +122,20 @@ try{
  check(+host.dataset.boostCharge===0&&host.dataset.boostKind==='','pointer cancellation clears charging without boosting');
  boostPointer('pointerdown');await sleep(120);boostPointer('pointermove',160,100);boostPointer('pointerup',160,100);
  check(host.dataset.boostKind===''&&+host.dataset.boostCharge===0,'dragging away cancels charge rather than firing');
- boostPointer('pointerdown');await sleep(1080);
+ boostPointer('pointerdown');await sleep(500);
  check(+host.dataset.boostCharge===1&&root.querySelector('.boost-label').textContent==='풀차지'&&panel.hidden,'full charge has explicit ready feedback and never opens modes');
  boostPointer('pointerup');await sleep(80);
  check(host.dataset.boostKind==='ramp'&&host.dataset.trick==='','only full charge arms a ramp after release');
  await wait(()=>host.dataset.trick==='ramp');
  check(host.dataset.trick==='ramp','full-charge boost becomes ramp jump at wall corner');
+ check(root.querySelector('.boost-label').textContent==='램프 점프'&&boost.dataset.skill==='ramp'&&getComputedStyle(boost).backgroundColor!==idleColor,'ramp jump shows its own name and colour throughout flight');
  let asymmetric=false;for(let i=0;i<20;i++){asymmetric||=Math.abs(+host.dataset.frontThrust-+host.dataset.rearThrust)>.15;await sleep(100)}
  check(asymmetric,'front/rear jets balance with different timing and power');
  await wait(()=>host.dataset.state==='cruising');check(!boost.disabled,'landing restores boost and continuous driving');
  key(boost,' ');await sleep(120);key(boost,'Escape');
  boost.dispatchEvent(new KeyboardEvent('keyup',{key:' ',bubbles:true}));
  check(host.dataset.boostKind===''&&+host.dataset.boostCharge===0,'Escape cancels keyboard charge without triggering a boost');
- key(boost,'Enter');await sleep(180);boost.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));
+ key(boost,'Enter');await sleep(230);boost.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));
  check(host.dataset.boostKind==='normal','keyboard hold/release selects normal boost');
  await wait(()=>!boost.disabled);
  for(const name of ['sport','offroad','mud','normal']){mode(name);await sleep(80);check(host.dataset.environment===name,'environment '+name+' selection and persistent driving')}

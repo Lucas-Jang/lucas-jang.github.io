@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Veracruz · 60 FPS frame review</title>
+<style>body{margin:24px;background:#dce5e5;color:#263e49;font:13px system-ui}h1{font-size:22px}#grid{display:grid;grid-template-columns:repeat(6,216px);gap:8px}.frame{background:#f8f8f1;border-radius:8px;padding:6px}canvas{display:block;width:204px;height:116px}.frame span{display:block}</style>
+<h1>킥플립 · 60 FPS 프레임 검수</h1><p>동일한 실제 렌더러 · 0–1초 전체 61프레임 · 측면 / 하부 / 반대 측면 / 루프 / 측면</p><div id="grid"></div>
+<script type="module">
+import {drawCarMesh} from '/scripts/car-mesh.mjs?v=20261017-7';
+const image=new Image();image.src='/images/widgets/veracruz-body.webp';await image.decode();
+const g={size:176,carHeight:176*.43};
+for(let frame=0;frame<=60;frame++){
+ const t=Math.min(1,frame/60/.96),roll=360*t*t*(3-2*t),el=document.createElement('div');el.className='frame';
+ const canvas=document.createElement('canvas');canvas.width=408;canvas.height=232;const ctx=canvas.getContext('2d');ctx.scale(2,2);
+ drawCarMesh(ctx,image,g,{roll},{heave:0,pitch:Math.sin(frame/60*6)*2},frame*14,14);
+ const label=document.createElement('span');label.textContent=`F${String(frame).padStart(2,'0')} · ${(frame/60).toFixed(3)}s · ${roll.toFixed(1)}°`;
+ el.append(canvas,label);grid.append(el);
+}
+document.title='READY · 61 frames';
+</script>
