@@ -1,5 +1,6 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, tangent, stepDrive, cornerCrossed, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-5';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, tangent, stepDrive, cornerCrossed, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-6';
 import { BOOST_CHARGE_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-5';
+import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-6';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
@@ -61,16 +62,13 @@ export function initialize() {
       .front { left: 20.7%; } .rear { left: 77.4%; }
       :host([data-environment="mud"]) .wheel { border-color: #65523e; box-shadow: inset 0 0 0 2px #827057; }
       :host([data-environment="mud"]) .underbody { border-color: #685440; }
-      .nozzle { position: absolute; top: 76%; width: 6%; height: 7%; border: 1px solid #6c7c85;
-        border-radius: 2px 2px 4px 4px; background: #334953; transform: translateZ(3px); }
-      .nozzle.a { left: 29%; } .nozzle.b { left: 67%; }
-      .nozzle::after { content: ''; position: absolute; inset: 60% -25% -350%; border-radius: 45%;
-        background: #efffff; box-shadow: 0 0 7px #d4fcff; opacity: min(1,var(--jet,0)); transform: scaleY(var(--jet,0)); transform-origin: top; }
-      .nozzle.a { --jet: var(--front-jet,0); } .nozzle.b { --jet: var(--rear-jet,0); }
-      .afterburner { position: absolute; left: 94%; top: 61%; width: 6%; height: 8%; border-radius: 3px;
-        border: 1px solid #87979d; background: #334953; transform: translateZ(5px); }
-      .afterburner::after { content: ''; position: absolute; inset: 12% -70% 12% 75%; border-radius: 50%;
-        background: #f6ffff; box-shadow: 0 0 8px #d8ffff; opacity: var(--boost,0); }
+      .thruster { position: absolute; width: 4.5%; height: 4%; min-height: 2px;
+        border: .5px solid #a0aeae; border-radius: 50%; background: #24333b;
+        box-shadow: inset 0 .6px 0 #c0c9c5, 0 0 3px rgb(210 254 255 / var(--lit,0));
+        transform: translate(-50%,-50%) translateZ(calc(var(--depth) / 2 + 1px)); }
+      .thruster[data-side="far"] { transform: translate(-50%,-50%) translateZ(calc(var(--depth) / -2 - 1px)); }
+      .thruster.fore, .thruster.aft { width: 2.2%; height: 7%; border-radius: 45%; }
+      .thruster.roof { width: 4%; height: 3%; border-radius: 3px; }
       .effects, .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
       .effects { z-index: 1; } .terrain { z-index: 0; overflow: visible; }
       .terrain path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -114,13 +112,13 @@ export function initialize() {
           <span class="side near"><picture><source srcset="/images/widgets/veracruz-body.webp" type="image/webp" /><img class="body" src="/images/widgets/veracruz-body.png" alt="" width="960" height="332" draggable="false" /></picture></span>
           <span class="side far"><picture><source srcset="/images/widgets/veracruz-body.webp" type="image/webp" /><img class="body" src="/images/widgets/veracruz-body.png" alt="" width="960" height="332" draggable="false" /></picture></span>
           <span class="roof volume"></span><span class="hood volume"></span><span class="underbody volume"></span><span class="cap nose volume"></span><span class="cap tail volume"></span>
+          ${['near', 'far'].map(side => PORTS.map(port => `<span class="thruster ${port.id}" data-port="${port.id}" data-side="${side}" style="left:${port.x * 100}%;top:${port.y * 100}%"></span>`).join('')).join('')}
         </span>
         <span class="bridge front volume"></span><span class="bridge rear volume"></span>
         <span class="strut front" data-side="near"></span><span class="strut rear" data-side="near"></span>
         <span class="strut front" data-side="far"></span><span class="strut rear" data-side="far"></span>
         <span class="wheel front" data-side="near"></span><span class="wheel rear" data-side="near"></span>
         <span class="wheel front" data-side="far"></span><span class="wheel rear" data-side="far"></span>
-        <span class="nozzle a"></span><span class="nozzle b"></span><span class="afterburner"></span>
       </span>
     </button>
     <span id="car-help" class="sr">차량을 한 번 탭하면 차고 높이 전환, 더블탭하면 킥플립. 공중으로 끌어 놓으면 중력 낙하 후 추진 착지. 부스트는 누르고 놓기. 1초 풀차지에서만 램프 점프. 부스트를 위로 쓸면 주행 환경 선택. 키보드 Enter는 차고 높이, K는 킥플립, B는 일반 부스트. 부스트에 포커스한 채 Space 또는 Enter를 누르고 놓으면 충전, 아래 방향키는 환경 선택.</span>
@@ -138,6 +136,7 @@ export function initialize() {
   const car = root.querySelector('.car'), vehicle = root.querySelector('.vehicle');
   const shell = root.querySelector('.shell'), wheels = root.querySelectorAll('.wheel');
   const struts = root.querySelectorAll('.strut'), boostButton = root.querySelector('.boost-button');
+  const ports = root.querySelectorAll('.thruster');
   const boostLabel = root.querySelector('.boost-label'), boostHint = root.querySelector('.boost-hint');
   const canvas = root.querySelector('.effects'), context = canvas.getContext('2d');
   const terrain = root.querySelector('.terrain'), terrainPath = terrain.querySelector('path');
@@ -152,7 +151,7 @@ export function initialize() {
   let g, distance = 0, pose, flight = null, press = null, frame = 0, lastTime = 0, wheelAngle = 0;
   let front = { value: 0, velocity: 0 }, rear = { ...front };
   let speed = 0, acceleration = 0, boostStarted = null, boostElapsed = 0, boostProfile = null, pageSuspended = false;
-  let particles = [], smokeCredit = [0, 0, 0], smokeDirty = false, viewportKey = '', lastPhase = '';
+  let particles = [], smokeCredit = new Map(), smokeDirty = false, viewportKey = '', lastPhase = '';
   let tapTimer = 0, lastTap = 0, boostPointer = null;
   const settings = () => ENVIRONMENTS[environment];
   const announce = message => { live.textContent = message; };
@@ -227,6 +226,10 @@ export function initialize() {
     if (active() && !frame) frame = requestAnimationFrame(tick);
     if (!active() && frame) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; }
   }
+  function suspensionPose() {
+    return { heave: (front.value + rear.value) / 2,
+      pitch: Math.atan2(rear.value - front.value, g.size * .567) * 180 / Math.PI };
+  }
   function paint() {
     const p = contain(g, pose), roll = pose.roll || 0;
     car.style.width = `${g.size}px`; car.style.height = `${g.carHeight}px`;
@@ -234,8 +237,8 @@ export function initialize() {
     car.style.transform = `translate3d(${p.x - g.size / 2}px,${p.y - g.carHeight / 2}px,0) rotate(${p.angle}deg)`;
     car.classList.toggle('rolling', !!flight && flight.kind === 'kickflip' && roll > 1 && roll < 359);
     vehicle.style.transform = `rotateX(${roll}deg) rotateY(${Math.sin(roll * Math.PI / 180) * 10}deg)`;
-    const pitch = Math.atan2(rear.value - front.value, g.size * .567) * 180 / Math.PI;
-    shell.style.transform = `translateY(${(front.value + rear.value) / 2}px) rotate(${pitch}deg)`;
+    const suspension = suspensionPose(), { pitch } = suspension;
+    shell.style.transform = `translateY(${suspension.heave}px) rotate(${pitch}deg)`;
     wheels.forEach(w => { w.style.transform = `translate(-50%,-50%) translateZ(${(w.dataset.side === 'near' ? 1 : -1) * (g.size * .09 + 1)}px) rotate(${wheelAngle}deg)`; });
     struts.forEach(s => {
       const anchor = g.size * .205 + (s.classList.contains('front') ? front.value : rear.value);
@@ -243,9 +246,9 @@ export function initialize() {
       s.style.transform = `translateX(-50%) translateZ(${(s.dataset.side === 'near' ? 1 : -1) * (g.size * .09 - 1)}px)`;
     });
     const boosting = boostStarted !== null && driveAllowed();
-    vehicle.style.setProperty('--front-jet', String(clamp(flight?.frontThrust || 0, 0, 2.2)));
-    vehicle.style.setProperty('--rear-jet', String(clamp(flight?.rearThrust || 0, 0, 2.2)));
-    vehicle.style.setProperty('--boost', boosting ? String(boostProfile?.power || 0) : '0');
+    const commands = thrusterCommands(g, { ...pose, ...p }, suspension, flight, boosting ? boostProfile?.power || 0 : 0);
+    const levels = new Map(commands.map(c => [c.key, Math.min(1, c.power)]));
+    ports.forEach(port => port.style.setProperty('--lit', String(levels.get(`${port.dataset.port}:${port.dataset.side === 'near' ? 1 : -1}`) || 0)));
     vehicle.style.setProperty('--adhesion', !flight && !press?.dragged && p.angle > 10 ? '.4' : '0');
     boostButton.disabled = !!flight || boostStarted !== null || !!press?.dragged;
     const charge = boostPointer && !boostPointer.cancelled ? clamp((performance.now() - boostPointer.time) / BOOST_CHARGE_MS, 0, 1) : 0;
@@ -263,7 +266,9 @@ export function initialize() {
       speed: String(speed), acceleration: String(acceleration), pitch: String(pitch),
       particles: String(particles.length), x: String(p.x), y: String(p.y),
       boostCharge: String(charge), boostKind: boosting ? boostProfile?.full ? 'ramp' : 'normal' : '',
-      boostPower: String(boosting ? boostProfile?.power || 0 : 0), cornerRadius: String(g.radius) });
+      boostPower: String(boosting ? boostProfile?.power || 0 : 0), cornerRadius: String(g.radius),
+      avoiding: String(flight?.avoiding || false),
+      jetLeft: String(flight?.jets?.left || 0), jetRight: String(flight?.jets?.right || 0), jetUp: String(flight?.jets?.up || 0), jetDown: String(flight?.jets?.down || 0) });
   }
   function drawTerrain() {
     terrain.setAttribute('width', String(innerWidth)); terrain.setAttribute('height', String(innerHeight));
@@ -275,27 +280,25 @@ export function initialize() {
   function smoke(dt) {
     if (!context) return;
     const boosting = boostStarted !== null && driveAllowed();
-    const powers = [flight?.frontThrust || 0, flight?.rearThrust || 0, boosting ? (boostProfile?.power || 0) * 2 : 0];
-    if (!particles.length && powers.every(p => p <= .03)) {
+    const commands = thrusterCommands(g, { ...pose, ...contain(g, pose) }, suspensionPose(), flight, boosting ? boostProfile?.power || 0 : 0);
+    if (!particles.length && !commands.length) {
       if (smokeDirty) context.clearRect(0, 0, innerWidth, innerHeight);
       smokeDirty = false; return;
     }
     smokeDirty = true;
-    const angle = pose.angle * Math.PI / 180;
-    for (let j = 0; j < 3; j++) {
-      smokeCredit[j] = Math.min(smokeCredit[j] + dt * powers[j] * 35, 5);
-      while (smokeCredit[j] >= 1 && particles.length < 96) {
-        smokeCredit[j]--;
-        const lx = g.size * (j === 2 ? .48 : j === 0 ? -.18 : .2);
-        const ly = g.carHeight * (j === 2 ? .1 : .32);
-        const ux = j === 2 ? Math.cos(angle) : -Math.sin(angle), uy = j === 2 ? Math.sin(angle) : Math.cos(angle);
-        const exhaust = 95 + powers[j] * 48;
-        particles.push({ x: pose.x + Math.cos(angle) * lx - Math.sin(angle) * ly,
-          y: pose.y + Math.sin(angle) * lx + Math.cos(angle) * ly,
-          vx: ux * exhaust + (flight?.vx || 0) * .25 + (Math.random() - .5) * 35,
-          vy: uy * exhaust + (flight?.vy || 0) * .25 + (Math.random() - .5) * 35,
+    const activePorts = new Set(commands.map(c => c.key));
+    for (const key of smokeCredit.keys()) if (!activePorts.has(key)) smokeCredit.delete(key);
+    for (const command of commands) {
+      let credit = Math.min((smokeCredit.get(command.key) || 0) + dt * command.power * 30, 4);
+      while (credit >= 1 && particles.length < 96) {
+        credit--;
+        const exhaust = 90 + command.power * 45;
+        particles.push({ x: command.x, y: command.y,
+          vx: command.dx * exhaust + (flight?.vx || 0) * .15 + (Math.random() - .5) * 25,
+          vy: command.dy * exhaust + (flight?.vy || 0) * .15 + (Math.random() - .5) * 25,
           age: 0, life: .5 + Math.random() * .4, radius: 2 + Math.random() * 3 });
       }
+      smokeCredit.set(command.key, Math.min(credit, 2));
     }
     context.clearRect(0, 0, innerWidth, innerHeight);
     particles = particles.filter(p => p.age < p.life);
@@ -308,6 +311,14 @@ export function initialize() {
       gradient.addColorStop(.5, `rgba(248,253,255,${alpha * .7})`);
       gradient.addColorStop(1, 'rgba(238,248,255,0)');
       context.fillStyle = gradient; context.beginPath(); context.arc(p.x, p.y, radius, 0, Math.PI * 2); context.fill();
+    }
+    for (const command of commands) {
+      const length = g.size * .13 * Math.sqrt(command.power);
+      const x = command.x + command.dx * length, y = command.y + command.dy * length;
+      const core = context.createLinearGradient(command.x, command.y, x, y);
+      core.addColorStop(0, 'rgba(247,255,255,.95)'); core.addColorStop(1, 'rgba(235,252,255,0)');
+      context.strokeStyle = core; context.lineWidth = Math.max(1, g.size * .016 * Math.sqrt(command.power));
+      context.lineCap = 'round'; context.beginPath(); context.moveTo(command.x, command.y); context.lineTo(x, y); context.stroke();
     }
   }
   function tick(now) {
@@ -468,7 +479,7 @@ export function initialize() {
   const suspend = () => {
     clearTimeout(tapTimer); tapTimer = 0; clearBoostCharge();
     if (press) finishGesture({ pointerId: press.id }, true);
-    particles = []; smokeCredit = [0, 0, 0];
+    particles = []; smokeCredit.clear();
     context?.clearRect(0, 0, innerWidth, innerHeight); lastTime = 0; schedule();
   };
   const motionChanged = () => {

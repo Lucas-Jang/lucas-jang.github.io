@@ -1,9 +1,75 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring, stepDrive, boostSpeed, tangent, cornerCrossed, releaseVelocity, resizeFlight, roadPath } from '../public/scripts/car-dynamics.mjs';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring, stepDrive, boostSpeed, tangent, cornerCrossed, releaseVelocity, resizeFlight, roadPath, flightBounds } from '../public/scripts/car-dynamics.mjs';
 import { BOOST_CHARGE_MS, isCarHome, chargedBoost, shouldRamp } from '../public/scripts/car-controls.mjs';
+import { PORTS, projectPort, thrusterCommands } from '../public/scripts/car-thrusters.mjs';
 
 const screens = [[240, 320], [320, 568], [390, 844], [844, 390], [768, 1024], [1280, 720], [2560, 1080], [3440, 1440], [500, 200], [200, 500]];
+
+test('each approaching wall receives outward exhaust before any body contact', () => {
+  const g = geometry({ width: 1280, height: 900 });
+  for (const [key, velocity] of [['left', { x: -1000 }], ['right', { x: 1000 }], ['up', { y: -800 }], ['down', { y: 800 }]]) {
+    let f = createFlight(g, { x: 640, y: 400, angle: 0 }, 'drop', velocity), fired = false;
+    for (let i = 0; i < 120; i++) {
+      f = stepFlight(g, f, 1 / 120);
+      const b = flightBounds(g, f);
+      if (f.jets[key] > .1) {
+        const gap = key === 'left' ? f.x - b.left : key === 'right' ? b.right - f.x : key === 'up' ? f.y - b.top : b.bottom - f.y;
+        assert(gap > 4, JSON.stringify({ key, gap, f })); fired = true; break;
+      }
+    }
+    assert(fired, key);
+  }
+});
+
+test('diagonal approach independently fires both relevant wall-control channels', () => {
+  const g = geometry({ width: 390, height: 844 });
+  for (const [x, y, velocity, a, b] of [[110, 110, { x: -500, y: -500 }, 'left', 'up'], [280, 700, { x: 500, y: 500 }, 'right', 'down']]) {
+    const f = stepFlight(g, createFlight(g, { x, y, angle: 0 }, 'drop', velocity), 1 / 120);
+    assert(f.jets[a] > 0 && f.jets[b] > 0, JSON.stringify(f));
+    assert(f.constraintError < 1e-8);
+  }
+});
+
+test('300 extreme releases remain clear of every wall without bounce or position correction', () => {
+  let seed = 17;
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  for (const [width, height] of [[240, 320], [390, 844], [844, 390], [1280, 720], [500, 200]]) {
+    const g = geometry({ width, height });
+    for (let i = 0; i < 60; i++) {
+      const dt = [1 / 120, 1 / 30, .1][i % 3];
+      let f = createFlight(g, contain(g, { x: random() * width, y: random() * height, angle: random() * 360 }), 'drop',
+        { x: (random() - .5) * g.size * 16, y: (random() - .5) * g.size * 14 });
+      for (let t = 0; t < 20 && !f.landed; t += dt) {
+        f = stepFlight(g, f, dt); const b = flightBounds(g, f);
+        assert(f.x >= b.left - 1e-7 && f.x <= b.right + 1e-7 && f.y >= b.top - 1e-7 && f.y <= b.bottom + 1e-7);
+        assert(f.constraintError < 1e-7);
+      }
+      assert(f.landed, JSON.stringify(f));
+      assert(f.impactSpeed < .8);
+    }
+  }
+});
+
+test('flush port allocation preserves exhaust direction through all walls and inverted rolls', () => {
+  const g = geometry({ width: 1280, height: 900 });
+  for (const angle of [0, 45, 90, 180, 270]) for (const roll of [0, 45, 90, 135, 180, 270, 360]) {
+    for (const [key, dx, dy] of [['left', -1, 0], ['right', 1, 0], ['up', 0, -1], ['down', 0, 1]]) {
+      const pose = { x: 600, y: 400, angle, roll }, suspension = { pitch: 8, heave: -5 };
+      const commands = thrusterCommands(g, pose, suspension, { jets: { [key]: 1 }, frontThrust: .7, rearThrust: .3 });
+      assert(commands.length && commands.every(c => PORTS.some(p => p.id === c.port)));
+      assert(Math.abs(commands.reduce((s, c) => s + c.power * c.dx, 0) - dx) < .02);
+      assert(Math.abs(commands.reduce((s, c) => s + c.power * c.dy, 0) - dy) < .02);
+      for (const c of commands) {
+        const origin = projectPort(g, pose, suspension, PORTS.find(p => p.id === c.port), c.side);
+        assert(Math.hypot(c.x - origin.x, c.y - origin.y) < 1e-9);
+      }
+    }
+  }
+  const down = thrusterCommands(g, { x: 600, y: 400, angle: 0 }, {}, { jets: { down: 2 }, frontThrust: 1.6, rearThrust: .4 });
+  assert.equal(down.find(c => c.port === 'lift-front').power, 1.6);
+  assert(Math.abs(down.find(c => c.port === 'lift-rear').power - .4) < 1e-9);
+});
 
 test('the car is available only on the unfiltered home feed, including explicit ALL', () => {
   for (const path of ['/', '/#main-content', '/?utm_source=test', '/?category=ALL']) assert(isCarHome(new URL(path, 'https://lucas-jang.github.io')));

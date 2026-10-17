@@ -12,8 +12,10 @@ const nativeMatch = window.matchMedia.bind(window); let reduce = false; const li
 const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
 window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
 localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
-const { initialize } = await import('/scripts/roaming-car.js?v=20261017-5');
+const { initialize } = await import('/scripts/roaming-car.js?v=20261017-6');
 initialize(); // The shipped entry point intentionally does not mount on this QA URL.
+const { geometry } = await import('/scripts/car-dynamics.mjs?v=20261017-6');
+const { PORTS, projectPort } = await import('/scripts/car-thrusters.mjs?v=20261017-6');
 const host = document.getElementById('lucas-roaming-car'), root=host.shadowRoot;
 const car=root.querySelector('.car'), boost=root.querySelector('.boost-button'), panel=root.querySelector('.garage');
 // Synthetic touch dispatch cannot own a native active pointer. Only capture is stubbed.
@@ -30,6 +32,30 @@ const key=(el,k)=>el.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:tr
 const mode=name=>{key(boost,'ArrowDown');root.querySelector(`[data-environment="${name}"]`).click()};
 const position=()=>({x:+host.dataset.x,y:+host.dataset.y});
 const changed=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y)>5;
+function portAlignmentError(){
+ const vehicle=root.querySelector('.vehicle'),shell=root.querySelector('.shell');
+ const roll=Number(vehicle.style.transform.match(/rotateX\(([-+\deE.]+)deg\)/)?.[1]||0);
+ const heave=Number(shell.style.transform.match(/translateY\(([-+\deE.]+)px\)/)?.[1]||0);
+ const pose={x:+host.dataset.x,y:+host.dataset.y,angle:+host.dataset.edgeAngle,roll};
+ const suspension={pitch:+host.dataset.pitch,heave};const g=geometry({width:innerWidth,height:innerHeight});
+ return Math.max(...[...root.querySelectorAll('.thruster')].map(e=>{
+  const port=PORTS.find(p=>p.id===e.dataset.port),p=projectPort(g,pose,suspension,port,e.dataset.side==='near'?1:-1),r=e.getBoundingClientRect();
+  return Math.hypot(p.x-r.x-r.width/2,p.y-r.y-r.height/2);
+ }));
+}
+async function throwToward(dx,dy){
+ const r=car.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
+ const cx=innerWidth*.5,cy=innerHeight*.4;
+ pointer('pointerdown',x,y);pointer('pointermove',cx,cy);await sleep(130);
+ pointer('pointermove',cx,cy);await sleep(20);pointer('pointermove',cx+dx*32,cy+dy*32);pointer('pointerup',cx+dx*32,cy+dy*32);
+ const observed={left:false,right:false,up:false,down:false};let gap=Infinity,error=0;
+ for(let i=0;i<150&&host.dataset.trick==='drop';i++){
+  for(const side of Object.keys(observed))observed[side]||=+host.dataset['jet'+side[0].toUpperCase()+side.slice(1)]>.1;
+  const box=car.getBoundingClientRect();gap=Math.min(gap,box.left,box.top,innerWidth-box.right,innerHeight-box.bottom);
+  error=Math.max(error,portAlignmentError());await sleep(20);
+ }
+ await wait(()=>host.dataset.state==='cruising');return{observed,gap,error};
+}
 run.onclick=async()=>{
 run.disabled=true; results.textContent='Running';
 try{
@@ -37,6 +63,8 @@ try{
  check(host.dataset.state==='cruising'&&!car.hidden,'old paused/hidden preferences migrate to moving visible car');
  check(root.querySelectorAll('button').length===6&&panel.hidden,'only car + boost visible; four contextual environment options');
  check(!root.querySelector('[data-pause],[data-kneel],[data-trick],.garage-toggle'),'retired controls removed');
+ check(root.querySelectorAll('.shell .thruster').length===10&&!root.querySelector('.nozzle,.afterburner'),'ten flush body-mounted ports replace detached thruster boxes');
+ check(portAlignmentError()<.8,'smoke anchors coincide with actual body port centers');
  key(boost,'ArrowDown');const before=position();await sleep(500);
  check(!panel.hidden&&changed(before,position())&&+host.dataset.speed>90,'environment panel and keyboard focus never stop cruising');
  key(boost,'Escape');check(panel.hidden,'Escape closes settings without stopping');
@@ -48,6 +76,8 @@ try{
  const height=host.dataset.height;tap();await sleep(90);tap();await sleep(80);
  check(host.dataset.trick==='kickflip'&&host.dataset.height===height,'double touch triggers flip without a single-tap side effect');
  check(car.classList.contains('rolling'),'volume surfaces shown only during 3D roll');
+ let alignment=0;for(let i=0;i<10;i++){alignment=Math.max(alignment,portAlignmentError());await sleep(50)}
+ check(alignment<.8,'ports and exhaust anchors remain aligned during pitch and 3D roll');
  await wait(()=>host.dataset.state==='cruising');await sleep(400);
  check(host.dataset.height===height&&!car.classList.contains('rolling'),'double-tap timer cleaned up and side view restored');
  check([...root.querySelectorAll('.volume')].every(e=>getComputedStyle(e).visibility==='hidden'),'no 3D edges during ordinary side view');
@@ -60,6 +90,10 @@ try{
  pointer('pointerdown',x,y);pointer('pointermove',x+20,y+20);await sleep(80);pointer('pointercancel',x+20,y+20);
  check(host.dataset.trick==='drop','regrab and touch cancel recover as a gravity drop');
  await wait(()=>host.dataset.state==='cruising');
+ for(const [dx,dy,name]of[[-1,0,'left'],[1,0,'right'],[0,-1,'up'],[0,1,'down']]){
+  const sample=await throwToward(dx,dy);
+  check(sample.observed[name]&&sample.gap>0&&sample.error<.8,'real DOM '+name+' throw fires the matching jet while body and exhaust stay clear/aligned');
+ }
  mode('normal');await sleep(1500);
  boostPointer('pointerdown');await sleep(580);
  check(panel.hidden&&+host.dataset.boostCharge>.4&&+host.dataset.boostCharge<1&&host.dataset.state==='cruising','partial hold charges visibly without opening settings or stopping');
