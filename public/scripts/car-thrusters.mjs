@@ -6,9 +6,10 @@ import { BODY_DEPTH, projectWorldPoint } from './car-projection.mjs?v=20261017-7
 export const PORTS = Object.freeze([
   { id: 'fore', x: .035, y: .67, nx: -1, ny: 0 },
   { id: 'aft', x: .963, y: .65, nx: 1, ny: 0 },
-  { id: 'lift-front', x: .34, y: .735, nx: 0, ny: 1 },
-  { id: 'lift-rear', x: .65, y: .735, nx: 0, ny: 1 },
-  { id: 'roof', x: .51, y: .115, nx: 0, ny: -1 },
+  { id: 'lift-front', x: .34, y: .735, nx: 0, ny: 1, axle: 'front' },
+  { id: 'lift-rear', x: .65, y: .735, nx: 0, ny: 1, axle: 'rear' },
+  { id: 'roof', x: .40, y: .19, nx: 0, ny: -1, axle: 'front' },
+  { id: 'roof-rear', x: .78, y: .115, nx: 0, ny: -1, axle: 'rear' },
 ]);
 
 export function projectPort(g, pose, suspension, port, side = 1) {
@@ -49,8 +50,8 @@ export function thrusterCommands(g, pose, suspension, flight, boost = 0) {
     const sum = (flight?.frontThrust || 0) + (flight?.rearThrust || 0);
     const frontShare = sum ? flight.frontThrust / sum : .5;
     for (const { port } of selected) {
-      const share = selected.length === 2 && selected.every(p => p.port.id.startsWith('lift-'))
-        ? port.id === 'lift-front' ? frontShare : 1 - frontShare : 1 / selected.length;
+      const share = selected.length === 2 && selected.every(p => p.port.axle)
+        ? port.axle === 'front' ? frontShare : 1 - frontShare : 1 / selected.length;
       add(port, channel.dx, channel.dy, channel.power * share);
     }
   }

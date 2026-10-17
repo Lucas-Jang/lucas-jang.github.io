@@ -1,6 +1,6 @@
 import { CAR_PROFILE } from './car-body-shape.mjs?v=20261017-7';
 import { BODY_DEPTH, projectPoint } from './car-projection.mjs?v=20261017-7';
-import { PORTS } from './car-thrusters.mjs?v=20261017-7';
+import { PORTS } from './car-thrusters.mjs?v=20261017-9';
 
 const IMAGE_RATIO = 332 / 960;
 export const MESH_PADDING = 40;
@@ -27,7 +27,8 @@ function shade(color, points) {
 // floating CSS planes; every body edge connects identical near/far vertices.
 export function meshFaces(g, pose, suspension, wheelAngle = 0) {
   const faces = [], depth = g.size * BODY_DEPTH / 2;
-  const muddy = pose.environment === 'mud';
+  const mud = Math.max(0,Math.min(1,pose.mudMix ?? (pose.environment === 'mud' ? 1 : 0)));
+  const surface = (clean,dirty) => clean.map((v,i)=>v+(dirty[i]-v)*mud);
   const bodyPoint = (u, v, z) => ({ x: (u - .5) * g.size, y: (.0465 - .5) * g.carHeight + v * g.size * IMAGE_RATIO, z });
   function add(points, color, body = true, texture = false, cull = true) {
     const projected = points.map(p => projectPoint(g, pose, suspension, p, p.body ?? body));
@@ -40,7 +41,7 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
     const p = CAR_PROFILE[i], q = CAR_PROFILE[(i + 1) % CAR_PROFILE.length];
     const x = (p[0] + q[0]) / 2, y = (p[1] + q[1]) / 2;
     const windshield = x > .24 && x < .43 && y < .36;
-    const color = windshield ? [77, 96, 104] : y > .58 ? muddy ? [91, 74, 55] : [49, 60, 65] : [242, 241, 229];
+    const color = windshield ? [77, 96, 104] : y > .58 ? surface([49,60,65],[91,74,55]) : [242, 241, 229];
     const section = (v, t) => {
       const point = bodyPoint(...v, depth * t);
       // A gently crowned roof/bonnet closes the volume without flat side slabs.
@@ -66,7 +67,7 @@ export function meshFaces(g, pose, suspension, wheelAngle = 0) {
     const ring = (angle, zz, r = radius) => ({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r, z: zz });
     for (let i = 0; i < 20; i++) {
       const a = i * Math.PI / 10, b = (i + 1) * Math.PI / 10;
-      add([ring(a, z + width / 2), ring(a, z - width / 2), ring(b, z - width / 2), ring(b, z + width / 2)], muddy ? [101, 82, 62] : [37, 44, 49], false);
+      add([ring(a, z + width / 2), ring(a, z - width / 2), ring(b, z - width / 2), ring(b, z + width / 2)], surface([37,44,49],[101,82,62]), false);
     }
     for (const faceSide of [1, -1]) {
       const zz = z + faceSide * width / 2;

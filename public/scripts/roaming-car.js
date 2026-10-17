@@ -1,7 +1,9 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, stepDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-7';
-import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-7';
-import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-7';
-import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-7';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, stuntVelocity, tangent, stepDrive, stepBoostDrive, cornerCrossing, releaseVelocity, resizeFlight, roadPath } from './car-dynamics.mjs?v=20261017-9';
+import { BOOST_CHARGE_MS, BOOST_DOUBLE_MS, BOOST_TAP_MS, isCarHome, chargedBoost, shouldRamp } from './car-controls.mjs?v=20261017-9';
+import { PORTS, thrusterCommands } from './car-thrusters.mjs?v=20261017-9';
+import { drawCarMesh, MESH_PADDING } from './car-mesh.mjs?v=20261017-9';
+
+import { HEIGHTS, blendRide, landingResponse } from './car-ride.mjs?v=20261017-9';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
@@ -74,7 +76,11 @@ export function initialize() {
       .thruster.roof { width: 4%; height: 3%; border-radius: 3px; }
       .effects, .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
       .effects { z-index: 1; } .terrain { z-index: 0; overflow: visible; }
-      .terrain path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .mode-banner { position: fixed; right: max(12px,env(safe-area-inset-right)); bottom: max(86px,calc(env(safe-area-inset-bottom) + 76px)); max-width: calc(100% - 24px); padding: 10px 14px; border: 1px solid var(--mode-color,#a4bac4); border-radius: 16px; background: #f8f8f1; color: #203a48; font-weight: 600; opacity: 0; transform: translateY(6px); transition: opacity .2s,transform .25s; box-shadow: 0 4px 18px #19354322; }
+      .mode-banner[data-visible="true"] { opacity: 1; transform: translateY(0); }
+      .mode-changing .mesh { filter: drop-shadow(0 0 calc(var(--mode-pulse,0) * 7px) var(--mode-color,#a4bac4)); }
+      @media (prefers-reduced-motion:reduce) { .mode-banner,.terrain path { transition: none !important; } }
+      .terrain path { transition: stroke .8s,stroke-width .8s,opacity .8s; fill: none; stroke-linecap: round; stroke-linejoin: round; }
       .sr { position: absolute; width: 1px; height: 1px; overflow: hidden;
         clip-path: inset(50%); white-space: nowrap; }
       .safe { visibility: hidden; position: absolute;
@@ -129,9 +135,10 @@ export function initialize() {
       </span>
       <canvas class="mesh" aria-hidden="true"></canvas>
     </button>
-    <span id="car-help" class="sr">차량을 한 번 탭하면 차고 높이 전환, 더블탭하면 킥플립. 공중으로 끌어 놓으면 중력 낙하 후 추진 착지. 부스트는 누르고 놓기, 부스트 버튼 더블탭도 킥플립. 0.45초 풀차지에서만 램프 점프. 부스트를 위로 쓸면 주행 환경 선택. 키보드 Enter는 차고 높이, K는 킥플립, B는 일반 부스트. 부스트에 포커스한 채 Space 또는 Enter를 누르고 놓으면 충전, 아래 방향키는 환경 선택.</span>
+    <span id="car-help" class="sr">차량을 한 번 탭하면 차고 높이 전환, 더블탭하면 킥플립. 공중으로 끌어 놓으면 중력 낙하 후 추진 착지. 부스트는 누르고 놓기, 부스트 버튼 더블탭도 킥플립. 0.2초 풀차지에서만 램프 점프. 부스트를 위로 쓸면 주행 환경 선택. 키보드 Enter는 차고 높이, K는 킥플립, B는 일반 부스트. 부스트에 포커스한 채 Space 또는 Enter를 누르고 놓으면 충전, 아래 방향키는 환경 선택.</span>
     <span class="sr" role="status" aria-live="polite" aria-atomic="true"></span>
-    <div class="launcher"><button class="boost-button" type="button" aria-label="부스트 · 더블탭은 킥플립 · 0.45초 풀차지 후 놓으면 램프 점프" title="두 번 탭 · 킥플립 / 누르고 놓기 · 풀차지는 램프 점프 · 위로 쓸면 환경 선택" aria-describedby="car-help" aria-expanded="false" aria-controls="car-environments"><span class="boost-label">부스트</span><span class="boost-hint" aria-hidden="true">2탭 킥플립 · 꾹 램프 · ↑ 환경</span></button></div>
+    <div class="launcher"><button class="boost-button" type="button" aria-label="부스트 · 더블탭은 킥플립 · 0.2초 풀차지 후 놓으면 램프 점프" title="두 번 탭 · 킥플립 / 누르고 놓기 · 풀차지는 램프 점프 · 위로 쓸면 환경 선택" aria-describedby="car-help" aria-expanded="false" aria-controls="car-environments"><span class="boost-label">부스트</span><span class="boost-hint" aria-hidden="true">2탭 킥플립 · 꾹 램프 · ↑ 환경</span></button></div>
+    <div class="mode-banner" aria-hidden="true" data-visible="false"></div>
     <section id="car-environments" class="garage" aria-label="주행 환경" hidden>
       <div class="environments" role="group" aria-label="주행 환경">
         <button type="button" data-environment="normal" aria-pressed="true">노말<small>균형 잡힌 주행</small></button>
@@ -147,23 +154,26 @@ export function initialize() {
   const ports = root.querySelectorAll('.thruster');
   const mesh = root.querySelector('.mesh'), meshContext = mesh.getContext('2d'), bodyImage = root.querySelector('img');
   let meshKey = '';
+  const modeBanner = root.querySelector('.mode-banner');
   const boostLabel = root.querySelector('.boost-label'), boostHint = root.querySelector('.boost-hint');
   const canvas = root.querySelector('.effects'), context = canvas.getContext('2d');
   const terrain = root.querySelector('.terrain'), terrainPath = terrain.querySelector('path');
   const panel = root.querySelector('.garage'), live = root.querySelector('[role="status"]');
   const media = matchMedia('(prefers-reduced-motion: reduce)');
-  const heights = { low: .028, ride: 0, high: -.034 };
+  const heights = HEIGHTS;
   const names = { low: '낮은 차고', ride: '기본 차고', high: '높은 차고' };
   let stored = {};
   try { stored = JSON.parse(localStorage.getItem('lj-veracruz-v1') || '{}') || {}; } catch { /* Optional storage. */ }
   let environment = Object.hasOwn(ENVIRONMENTS, stored.environment) ? stored.environment : 'normal';
   let heightMode = Object.hasOwn(heights, stored.height) ? stored.height : 'ride';
+  let ride = { ...ENVIRONMENTS[environment] }, rideFrom = { ...ride }, modeElapsed = 1, modeNoticeTimer = 0, landing = null;
+  let boostTravel = 0, boostOutput = 0;
   let g, distance = 0, pose, flight = null, press = null, frame = 0, lastTime = 0, wheelAngle = 0;
   let front = { value: 0, velocity: 0 }, rear = { ...front };
   let speed = 0, acceleration = 0, boostStarted = null, boostElapsed = 0, boostProfile = null, pageSuspended = false;
   let particles = [], smokeCredit = new Map(), smokeDirty = false, viewportKey = '', lastPhase = '';
   let tapTimer = 0, lastTap = 0, boostPointer = null, pendingBoost = 0, pendingBoostAt = 0;
-  const settings = () => ENVIRONMENTS[environment];
+  const settings = () => ride;
   const announce = message => { live.textContent = message; };
   function save() {
     // Retired pause/visibility preferences must not strand returning clients.
@@ -196,13 +206,13 @@ export function initialize() {
     }
   }
   function cancelPendingBoost() { clearTimeout(pendingBoost); pendingBoost = 0; pendingBoostAt = 0; }
-  function queueBoostTap() {
+  function queueBoostTap(duration = 0) {
     if (media.matches) { boost(); return; }
     if (pendingBoost && performance.now() - pendingBoostAt < BOOST_DOUBLE_MS) {
       cancelPendingBoost(); launch('kickflip'); return;
     }
     cancelPendingBoost(); pendingBoostAt = performance.now();
-    pendingBoost = setTimeout(() => { pendingBoost = 0; boost(0); }, BOOST_DOUBLE_MS);
+    pendingBoost = setTimeout(() => { pendingBoost = 0; boost(duration); }, BOOST_DOUBLE_MS);
     schedule();
   }
   function boost(heldMs = 0) {
@@ -211,7 +221,7 @@ export function initialize() {
     if (media.matches) { announce('동작 줄이기 설정에 따라 급가속과 점프를 생략해요'); return; }
     if (flight || press?.dragged || boostStarted !== null) return;
     boostProfile = chargedBoost(heldMs);
-    boostStarted = performance.now(); boostElapsed = 0;
+    boostStarted = performance.now(); boostElapsed = 0; boostTravel = 0; boostOutput = boostProfile.power;
     announce(boostProfile.full ? '풀차지 · 급가속 후 다음 코너에서 램프 점프' : '일반 부스트 · 점프 없이 가속해요'); schedule();
   }
   function clearBoostCharge() {
@@ -224,14 +234,14 @@ export function initialize() {
     cancelPendingBoost(); setPanel(false);
     boostPointer = { repeatTap, id, x, y, time: performance.now(), cancelled: false, environment: false, notified: false };
     if (id !== null) boostButton.setPointerCapture(id);
-    announce(media.matches ? '동작 줄이기 · 위로 쓸면 환경 선택' : '부스트 충전 · 0.45초를 채우고 놓으면 램프 점프'); schedule();
+    announce(media.matches ? '동작 줄이기 · 위로 쓸면 환경 선택' : '부스트 충전 · 0.2초를 채우고 놓으면 램프 점프'); schedule();
   }
   function finishBoostCharge(cancelled = false) {
     if (!boostPointer) return;
     const held = boostPointer, duration = performance.now() - held.time;
     clearBoostCharge();
     if (!cancelled && !held.cancelled) {
-      if (duration <= BOOST_TAP_MS) { if (held.repeatTap) launch('kickflip'); else queueBoostTap(); }
+      if (duration <= BOOST_TAP_MS) { if (held.repeatTap) launch('kickflip'); else queueBoostTap(duration); }
       else boost(duration);
     }
     schedule();
@@ -239,11 +249,11 @@ export function initialize() {
   function driveAllowed() { return !media.matches && !flight && !press?.dragged; }
   function targets() {
     const base = heights[heightMode] * g.size;
-    const rough = driveAllowed() ? settings().bump : 0;
+    const rough = driveAllowed() ? settings().bump * g.size / 176 : 0;
     const nose = clamp(acceleration / (9.81 * g.size / 4.84), -.6, 2.8) * g.size * .018;
     const balance = flight ? clamp((flight.frontThrust - flight.rearThrust) * g.size * .007, -4, 4) : 0;
-    return { front: base - nose - balance + Math.sin(distance / 12) * rough,
-      rear: base + nose * .65 + balance + Math.sin(distance / 12 - 2) * rough };
+    return { front: base - nose - balance + (Math.sin(distance / 17) + .35 * Math.sin(distance / 7.3)) * rough,
+      rear: base + nose * .65 + balance + (Math.sin(distance / 17 - 2) + .35 * Math.sin(distance / 7.3 - 1)) * rough };
   }
   function active() { return !document.hidden && !pageSuspended && !media.matches; }
   function schedule() {
@@ -256,6 +266,9 @@ export function initialize() {
       pitch: Math.atan2(rear.value - front.value, g.size * .567) * 180 / Math.PI };
   }
   function paint() {
+    const modePulse = Math.max(0, 1 - modeElapsed);
+    car.classList.toggle('mode-changing', modePulse > 0 && !media.matches);
+    car.style.setProperty('--mode-pulse', String(Math.sin(Math.PI * modePulse)));
     const p = contain(g, pose), roll = pose.roll || 0;
     car.style.width = `${g.size}px`; car.style.height = `${g.carHeight}px`;
     car.style.setProperty('--depth', `${g.size * .35}px`);
@@ -278,10 +291,10 @@ export function initialize() {
         mesh.style.cssText = `left:-${MESH_PADDING}px;top:-${MESH_PADDING}px;width:${w}px;height:${h}px`;
         meshContext.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
-      car.classList.toggle('mesh-ready', drawCarMesh(meshContext, bodyImage, g, { ...pose, environment }, suspension, wheelAngle));
+      car.classList.toggle('mesh-ready', drawCarMesh(meshContext, bodyImage, g, { ...pose, environment, mudMix: settings().mud }, suspension, wheelAngle));
     }
     const boosting = boostStarted !== null && driveAllowed();
-    const commands = thrusterCommands(g, { ...pose, ...p }, suspension, flight, boosting ? boostProfile?.power || 0 : 0);
+    const commands = thrusterCommands(g, { ...pose, ...p }, suspension, flight, boosting ? boostOutput : 0);
     const levels = new Map(commands.map(c => [c.key, Math.min(1, c.power)]));
     ports.forEach(port => port.style.setProperty('--lit', String(levels.get(`${port.dataset.port}:${port.dataset.side === 'near' ? 1 : -1}`) || 0)));
     vehicle.style.setProperty('--adhesion', !flight && !press?.dragged && p.angle > 10 ? '.4' : '0');
@@ -293,7 +306,7 @@ export function initialize() {
     const skill = flight?.kind === 'kickflip' ? 'kickflip' : flight?.kind === 'ramp' || boosting && boostProfile?.full ? 'ramp' : boosting ? 'boost' : '';
     boostButton.dataset.skill = skill; host.dataset.skill = skill;
     const label = flight ? flight.kind === 'kickflip' ? '킥플립' : flight.kind === 'ramp' ? '램프 점프' : '착지 보정' : boosting ? boostProfile?.full ? '램프 추진' : '부스트 중' : charge === 1 ? '풀차지' : charge > 0 ? `${Math.floor(charge * 100)}%` : '부스트';
-    const hint = flight ? flight.lit ? '균형 잡으며 착지 중' : '도약 · 자세 보정 중' : boosting ? boostProfile?.full ? '다음 코너에서 도약' : '급가속 · 추진 중' : pendingBoost ? '한 번 더 · 킥플립' : charge === 1 ? '놓으면 램프 점프' : charge > 0 ? '계속 누르면 램프' : '2탭 킥플립 · 꾹 램프 · ↑ 환경';
+    const hint = flight ? flight.lit ? '균형 잡으며 착지 중' : '도약 · 자세 보정 중' : boosting ? boostProfile?.full ? '다음 코너에서 도약' : boostOutput < boostProfile.power * .5 ? '관성 유지 · 감속 중' : '급가속 · 추진 중' : landing ? '착지 · 에어서스 안정화' : pendingBoost ? '한 번 더 · 킥플립' : charge === 1 ? '놓으면 램프 점프' : charge > 0 ? '계속 누르면 램프' : '2탭 킥플립 · 꾹 램프 · ↑ 환경';
     if (boostLabel.textContent !== label) boostLabel.textContent = label;
     if (boostHint.textContent !== hint) boostHint.textContent = hint;
     host.dataset.state = flight ? flight.phase : press?.dragged ? 'dragging' : media.matches ? 'reduced-motion' : 'cruising';
@@ -303,22 +316,23 @@ export function initialize() {
       speed: String(speed), acceleration: String(acceleration), pitch: String(pitch),
       particles: String(particles.length), x: String(p.x), y: String(p.y),
       boostCharge: String(charge), boostKind: boosting ? boostProfile?.full ? 'ramp' : 'normal' : '',
-      boostPower: String(boosting ? boostProfile?.power || 0 : 0), cornerRadius: String(g.radius),
+      boostPower: String(boosting ? boostOutput : 0), cornerRadius: String(g.radius),
+      modeTransition: String(modeElapsed < 1), rideStiffness: String(ride.stiffness), heave: String(suspension.heave), frontTravel: String(front.value), rearTravel: String(rear.value), landingPhase: landing ? 'absorbing' : '', landingImpact: String(landing?.impactSpeed || 0), boostTravel: String(boostTravel), lapLength: String(g.perimeter),
       renderMode: car.classList.contains('mesh-ready') ? 'mesh' : 'fallback', roll: String(roll), carSize: String(g.size),
       avoiding: String(flight?.avoiding || false),
       jetLeft: String(flight?.jets?.left || 0), jetRight: String(flight?.jets?.right || 0), jetUp: String(flight?.jets?.up || 0), jetDown: String(flight?.jets?.down || 0) });
   }
   function drawTerrain() {
     terrain.setAttribute('width', String(innerWidth)); terrain.setAttribute('height', String(innerHeight));
-    terrainPath.setAttribute('d', roadPath(g)); terrainPath.setAttribute('stroke', settings().color);
-    terrainPath.setAttribute('stroke-width', String(settings().track));
-    terrainPath.setAttribute('stroke-dasharray', settings().dash);
-    terrainPath.setAttribute('opacity', environment === 'normal' ? '.1' : '.35');
+    terrainPath.setAttribute('d', roadPath(g)); terrainPath.setAttribute('stroke', ENVIRONMENTS[environment].color);
+    terrainPath.setAttribute('stroke-width', String(ENVIRONMENTS[environment].track));
+    terrainPath.setAttribute('stroke-dasharray', ENVIRONMENTS[environment].dash);
+    terrainPath.setAttribute('opacity', environment === 'normal' ? '.14' : environment === 'sport' ? '.75' : '.55');
   }
   function smoke(dt) {
     if (!context) return;
     const boosting = boostStarted !== null && driveAllowed();
-    const commands = thrusterCommands(g, { ...pose, ...contain(g, pose) }, suspensionPose(), flight, boosting ? boostProfile?.power || 0 : 0);
+    const commands = thrusterCommands(g, { ...pose, ...contain(g, pose) }, suspensionPose(), flight, boosting ? boostOutput : 0);
     if (!particles.length && !commands.length) {
       if (smokeDirty) context.clearRect(0, 0, innerWidth, innerHeight);
       smokeDirty = false; return;
@@ -363,6 +377,16 @@ export function initialize() {
     frame = 0;
     const dt = lastTime ? clamp((now - lastTime) / 1000, 0, .1) : 0;
     lastTime = now;
+    modeElapsed = Math.min(1, modeElapsed + dt / 1.05);
+    ride = blendRide(rideFrom, ENVIRONMENTS[environment], modeElapsed);
+    if (landing) {
+      landing.elapsed += dt;
+      for (const axle of ['front', 'rear']) if (!landing[axle + 'Applied'] && landing.elapsed >= landing[axle + 'Delay']) {
+        if (axle === 'front') front.velocity += landing.front; else rear.velocity += landing.rear;
+        landing[axle + 'Applied'] = true;
+      }
+      if (landing.elapsed > 1.25) landing = null;
+    }
     if (flight) {
       acceleration = 0; flight = stepFlight(g, flight, dt); pose = { ...flight };
       wheelAngle -= Math.hypot(flight.vx, flight.vy) * dt / (g.size * .075) * 180 / Math.PI;
@@ -371,27 +395,30 @@ export function initialize() {
         announce(flight.lit ? '전후륜 추진체로 균형을 잡으며 착지해요' : flight.phase === 'ascent' ? '도약 · 중력이 속도를 줄여요' : '중력 낙하');
       }
       if (flight.landed) {
-        distance = bottomDistance(g, flight.x); speed = Math.max(0, -flight.vx); flight = null;
-        front.velocity += g.size * .45; rear.velocity += g.size * .34;
+        distance = flight.localFlip ? flight.attachDistance : bottomDistance(g, flight.x);
+        speed = flight.localFlip ? flight.landingSpeed : Math.max(0, -flight.vx);
+        landing = { ...landingResponse(g, flight, settings()), impactSpeed: flight.impactSpeed, elapsed: 0 }; flight = null;
         announce('착지 완료 · 에어서스펜션으로 충격을 흡수했어요');
       }
     } else if (press?.dragged) {
       acceleration = 0;
       pose = contain(g, { ...press.pose, x: press.pose.x + press.dx, y: press.pose.y + press.dy });
     } else if (driveAllowed()) {
-      const before = distance, previousSpeed = speed, next = stepDrive(g, { distance, speed }, dt, settings(), boostStarted !== null ? boostProfile.power : false);
+      const before = distance, previousSpeed = speed, next = boostStarted !== null && !boostProfile.full
+        ? stepBoostDrive(g, { distance, speed, boostTravel }, boostProfile, dt, settings())
+        : stepDrive(g, { distance, speed }, dt, settings(), boostStarted !== null ? boostProfile.power : false);
       distance = next.distance; speed = next.speed; acceleration = next.acceleration;
       wheelAngle -= next.travel / (g.size * .075) * 180 / Math.PI * (environment === 'mud' ? 1.35 : 1);
       pose = trackPose(g, distance);
       if (boostStarted !== null) {
-        boostElapsed += dt;
+        boostElapsed += dt; boostTravel = next.boostTravel ?? boostTravel + next.travel; boostOutput = next.boostOutput ?? boostProfile.power;
         const crossing = cornerCrossing(g, before, next.travel), fraction = crossing ? crossing.offset / next.travel : 1;
         if (shouldRamp(boostProfile, boostElapsed - dt * (1 - fraction), !!crossing)) {
           distance = crossing.distance; pose = trackPose(g, distance);
           speed = previousSpeed + (next.speed - previousSpeed) * fraction;
           launch('ramp'); flight = stepFlight(g, flight, dt * (1 - fraction)); pose = { ...flight };
         }
-        else if (!boostProfile.full && boostElapsed >= boostProfile.duration) { boostStarted = null; boostProfile = null; }
+        else if (!boostProfile.full && next.complete) { boostStarted = null; boostProfile = null; }
       }
     }
     const t = targets();
@@ -403,8 +430,16 @@ export function initialize() {
     clearBoostCharge();
     cancelPendingBoost();
     if (media.matches) { announce('동작 줄이기 설정에 따라 회전과 점프를 생략해요'); return; }
-    if (!velocity) velocity = flight ? { x: flight.vx, y: flight.vy } : stuntVelocity(g, pose, speed, kind);
-    flight = createFlight(g, pose, kind, velocity); lastPhase = '';
+    const attachment = kind === 'kickflip' && !flight && !press?.dragged ? { distance, speed: Math.min(speed, settings().speed) } : null;
+    if (!velocity) {
+      velocity = flight ? { x: clamp(flight.vx, -g.size * 1.5, g.size * 1.5), y: clamp(flight.vy, -g.size * 1.5, g.size * 1.5) } : stuntVelocity(g, pose, speed, kind);
+      if (attachment) {
+        const forward = tangent(pose, attachment.speed), hop = velocity.x * pose.nx + velocity.y * pose.ny;
+        velocity = { x: forward.x + pose.nx * hop, y: forward.y + pose.ny * hop };
+      }
+    }
+    landing = null;
+    flight = createFlight(g, pose, kind, velocity, attachment); lastPhase = '';
     boostStarted = null; boostProfile = null; acceleration = 0;
     announce(kind === 'kickflip' ? '킥플립 · 입체 회전 후 균형 착지' : kind === 'ramp' ? '램프 점프 · 관성 도약 후 추진 착지' : '중력 낙하 · 추진 착지');
     schedule();
@@ -430,6 +465,7 @@ export function initialize() {
     if (key === viewportKey) return;
     if (press?.dragged && oldG) flight = createFlight(oldG, pose, 'drop');
     viewportKey = key; g = geometry(viewport, safeArea); distance = progress * g.perimeter;
+    if (oldG && boostStarted !== null) boostTravel *= g.perimeter / oldG.perimeter;
     if (press) { const held = press; press = null; releaseCapture(held.id); }
     if (flight && oldG) {
       flight = resizeFlight(g, oldG, flight);
@@ -504,8 +540,13 @@ export function initialize() {
   });
   boostButton.addEventListener('blur', () => { if (boostPointer?.id === null) { finishBoostCharge(true); } });
   root.querySelectorAll('[data-environment]').forEach(b => b.addEventListener('click', () => {
-    environment = b.dataset.environment; setHeight(settings().height); drawTerrain(); setPanel(false); boostButton.focus({ preventScroll: true });
-    announce(`${settings().label} · ${names[heightMode]} · 계속 주행해요`);
+    rideFrom = { ...ride }; modeElapsed = media.matches ? 1 : 0;
+    environment = b.dataset.environment; if (media.matches) ride = { ...ENVIRONMENTS[environment] };
+    modeBanner.textContent = `${ENVIRONMENTS[environment].label} · ${environment === 'sport' ? '차고 ↓ · 단단한 댐핑' : environment === 'offroad' ? '차고 ↑ · 긴 스트로크' : environment === 'mud' ? '접지 · 유연한 차체' : '수평 복원 · 균형 주행'}`;
+    modeBanner.dataset.visible = 'true'; host.style.setProperty('--mode-color', ENVIRONMENTS[environment].color);
+    clearTimeout(modeNoticeTimer); modeNoticeTimer = setTimeout(() => { modeBanner.dataset.visible = 'false'; }, 2100);
+    setHeight(ENVIRONMENTS[environment].height); drawTerrain(); setPanel(false); boostButton.focus({ preventScroll: true });
+    announce(`${ENVIRONMENTS[environment].label} · ${names[heightMode]} · 계속 주행해요`);
   }));
   root.addEventListener('keydown', e => {
     if (e.key === 'Escape' && pendingBoost) { cancelPendingBoost(); schedule(); }
@@ -528,7 +569,7 @@ export function initialize() {
   const motionChanged = () => {
     if (media.matches) {
       if (press) { const held = press; press = null; releaseCapture(held.id); }
-      flight = null; boostStarted = null; boostProfile = null; speed = 0; acceleration = 0; pose = trackPose(g, distance); suspend();
+      landing = null; modeElapsed = 1; ride = { ...ENVIRONMENTS[environment] }; flight = null; boostStarted = null; boostProfile = null; speed = 0; acceleration = 0; pose = trackPose(g, distance); suspend();
     }
     schedule();
   };

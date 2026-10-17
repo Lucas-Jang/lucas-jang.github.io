@@ -5,6 +5,113 @@ import { BOOST_CHARGE_MS, isCarHome, chargedBoost, shouldRamp } from '../public/
 import { PORTS, projectPort, thrusterCommands } from '../public/scripts/car-thrusters.mjs';
 import { stuntVelocity, cornerCrossing, mod } from '../public/scripts/car-dynamics.mjs';
 import { meshFaces, MESH_PADDING } from '../public/scripts/car-mesh.mjs';
+import { stepBoostDrive, cruiseSpeed } from '../public/scripts/car-dynamics.mjs';
+import { blendRide, balanceJets, landingResponse, FRONT_LOAD } from '../public/scripts/car-ride.mjs';
+
+test('local kickflip stays within half a car of its moving track anchor in every section',()=>{
+  let cases=0;
+  for(const [width,height]of screens)for(const fps of [10,60,120])for(const speed of [58,78,100,155]){
+    const g=geometry({width,height});let start=0;
+    for(const length of g.lengths){for(const fraction of [.01,.5,.99]){
+      const distance=start+length*fraction,p=trackPose(g,distance),v=tangent(p,speed),hop=stuntVelocity(g,p,speed,'kickflip');
+      const inward=hop.x*p.nx+hop.y*p.ny;
+      let f=createFlight(g,p,'kickflip',{x:v.x+p.nx*inward,y:v.y+p.ny*inward},{distance,speed});
+      for(let n=0;n<fps*5&&!f.landed;n++){
+        f=stepFlight(g,f,1/fps);const base=trackPose(g,f.anchorDistance);
+        assert(Math.hypot(f.x-base.x,f.y-base.y)<g.size*.55,JSON.stringify({width,height,fps,distance,f}));
+        assert(f.constraintError<.001);inside(g,f);
+      }
+      assert(f.landed,JSON.stringify({width,height,fps,distance,f}));
+      const attached=trackPose(g,f.attachDistance);assert(Math.hypot(attached.x-f.x,attached.y-f.y)<.001);cases++;
+    }start+=length;}
+  }
+  assert.equal(cases,2880);
+});
+
+test('90 percent boost covers exactly one perimeter and lowers the peak speed',()=>{
+  for(const [width,height]of screens)for(const dt of [1/120,1/30,.1]){
+    const g=geometry({width,height}),profile=chargedBoost(BOOST_CHARGE_MS*.9);let s={distance:g.perimeter*.93,speed:100,boostTravel:0};
+    for(let t=0;t<25&&!s.complete;t+=dt)s=stepBoostDrive(g,s,profile,dt);
+    assert(s.complete);assert(Math.abs(s.boostTravel-g.perimeter)<1e-7);
+    assert(boostSpeed(g)<=70/3.6*g.size/4.84);
+  }
+});
+
+test('small square screens retain a real acceleration range in every mode',()=>{
+  for(const size of[200,240,320])for(const ride of Object.values(ENVIRONMENTS)){
+    const g=geometry({width:size,height:size}),speed=cruiseSpeed(g,ride);
+    assert(boostSpeed(g)>speed);assert(stepDrive(g,{speed,distance:0},1/60,ride,.5).speed>speed);
+  }
+});
+
+test('resizing an attached-surface flip preserves roll and returns to the remapped surface',()=>{
+  const previous=geometry({width:1280,height:720}),distance=previous.perimeter*.37,p=trackPose(previous,distance),forward=tangent(p,100),v=stuntVelocity(previous,p,100,'kickflip'),hop=v.x*p.nx+v.y*p.ny;
+  const original=stepFlight(previous,createFlight(previous,p,'kickflip',{x:forward.x+p.nx*hop,y:forward.y+p.ny*hop},{distance,speed:100}),.1);
+  for(const [width,height]of screens){const g=geometry({width,height});let f=resizeFlight(g,previous,original);
+    assert.equal(f.roll,original.roll);assert.equal(f.elapsed,original.elapsed);
+    for(let t=0;t<5&&!f.landed;t+=1/60)f=stepFlight(g,f,1/60);
+    assert(f.landed);const target=trackPose(g,f.attachDistance);assert(Math.hypot(f.x-target.x,f.y-target.y)<.001);
+  }
+});
+
+test('route joins have continuous position, heading and curvature without containment jumps',()=>{
+  for(const [width,height]of screens){const g=geometry({width,height});let end=0;
+    for(const length of g.lengths){end+=length;
+      const a=trackPose(g,end-.01),b=trackPose(g,end),c=trackPose(g,end+.01);
+      const turn=(p,q)=>mod(q.angle-p.angle+180,360)-180;
+      assert(Math.abs(turn(a,b)-turn(b,c))<.01);
+      for(const p of[a,b,c]){const q=contain(g,p);assert(Math.hypot(q.x-p.x,q.y-p.y)<1e-6);}
+    }
+  }
+});
+
+test('all perimeter positions and 20,480 corner-crossing drive frames need no position correction',()=>{
+  let frames=0;
+  for(const [width,height]of screens){const g=geometry({width,height});
+    for(let i=0;i<1000;i++){
+      const p=trackPose(g,g.perimeter*i/1000),q=contain(g,p),b=flightBounds(g,p);
+      assert(Math.hypot(p.x-q.x,p.y-q.y)<1e-6);
+      assert(p.x>=b.left-.001&&p.x<=b.right+.001&&p.y>=b.top-.001&&p.y<=b.bottom+.001);
+    }
+    for(const fps of[10,30,60,120])for(const ride of Object.values(ENVIRONMENTS))for(const boosted of[false,true]){
+      let end=0;for(const length of g.lengths){end+=length;
+        const speed=boosted?boostSpeed(g):ride.speed;let s={speed,distance:mod(end-speed*4/fps,g.perimeter)};
+        for(let i=0;i<8;i++){
+          const before=trackPose(g,s.distance),next=stepDrive(g,s,1/fps,ride,boosted),after=trackPose(g,next.distance),visible=contain(g,after);
+          assert(Math.hypot(after.x-visible.x,after.y-visible.y)<1e-6);
+          assert(Math.hypot(after.x-before.x,after.y-before.y)<=next.travel+1e-3);
+          s=next;frames++;
+        }
+      }
+    }
+  }
+  assert.equal(frames,20480);
+});
+
+test('mode changes blend mechanical settings; front-heavy lift conserves total force',()=>{
+  for(const from of Object.values(ENVIRONMENTS))for(const to of Object.values(ENVIRONMENTS)){
+    assert.equal(blendRide(from,to,0).stiffness,from.stiffness);assert.equal(blendRide(from,to,1).stiffness,to.stiffness);
+    const mid=blendRide(from,to,.5);assert(mid.stiffness>=Math.min(from.stiffness,to.stiffness)&&mid.stiffness<=Math.max(from.stiffness,to.stiffness));
+  }
+  const g=geometry({width:1280,height:720}),f={gravity:9.81*g.size/4.84,elapsed:.3,angularVelocity:30,vy:120,x:500,initialAngle:20};
+  const front=balanceJets(g,f,100,2,1/60),rear=balanceJets(g,f,-100,2,1/60);
+  assert(FRONT_LOAD>.55&&FRONT_LOAD<.6);assert(front.frontThrust>rear.frontThrust);
+  assert(Math.abs(front.frontThrust+front.rearThrust-2)<1e-10);
+  const ceiling=balanceJets(g,{...f,angle:180},0,1,1/60),floor=balanceJets(g,{...f,angle:0},0,1,1/60);
+  assert(ceiling.frontThrust>floor.frontThrust);
+  for(const angle of[0,180]){
+    const pose={x:500,y:300,angle,roll:0},commands=thrusterCommands(g,pose,{heave:0,pitch:0},{jets:{down:1},frontThrust:.8,rearThrust:.2});
+    const frontId=angle===0?'lift-front':'roof',rearId=angle===0?'lift-rear':'roof-rear';
+    assert(commands.find(c=>c.port===frontId).power>commands.find(c=>c.port===rearId).power);
+  }
+  for(const ride of Object.values(ENVIRONMENTS)){
+    assert.equal(landingResponse(g,{impactSpeed:0},ride).front,0);
+    const soft=landingResponse(g,{impactSpeed:.2,touchdownAngle:2},ride),hard=landingResponse(g,{impactSpeed:.6,touchdownAngle:-2},ride);
+    assert(hard.front>soft.front);assert(soft.frontDelay>soft.rearDelay);assert(hard.frontDelay<hard.rearDelay);
+    let s={value:0,velocity:hard.front};for(let t=0;t<3;t+=1/120)s=spring(s,0,1/120,ride);
+    assert(Math.abs(s.value)<.02&&Math.abs(s.velocity)<.02);
+  }
+});
 
 test('every straight and curved section launches inward and lands gently at low/high FPS', () => {
   let cases = 0;
@@ -149,11 +256,11 @@ test('partial-charge boost has lower speed and retains coast-down momentum', () 
   assert(speeds.every((v, i) => !i || v > speeds[i - 1]));
 });
 
-test('the rendered road has exact broad circular arcs and continuous corner tangents', () => {
+test('the rendered road follows broad eased corners with continuous tangents', () => {
   for (const [width, height] of screens) {
     const g = geometry({ width, height });
     assert(g.radius >= Math.min(g.size, (g.right - g.left) / 2, (g.bottom - g.top) / 2));
-    assert.equal((roadPath(g).match(/A/g) || []).length, 4);
+    assert((roadPath(g).match(/L/g) || []).length >= 256);
     assert(!roadPath(g).includes('NaN')); assert(roadPath(g).endsWith('Z'));
     let distance = 0;
     for (const length of g.lengths) {
@@ -175,10 +282,11 @@ function inside(g, pose) {
   const a = pose.angle * Math.PI / 180;
   const x = (Math.abs(Math.cos(a)) * g.size + Math.abs(Math.sin(a)) * g.carHeight) / 2;
   const y = (Math.abs(Math.sin(a)) * g.size + Math.abs(Math.cos(a)) * g.carHeight) / 2;
-  const left = (g.left - g.carHeight / 2 - 12), top = (g.top - g.carHeight / 2 - 12);
-  const right = g.right + g.carHeight / 2 + 12, bottom = g.bottom + g.carHeight / 2 + 12;
-  assert(pose.x - x >= left - .001 && pose.x + x <= right + .001, JSON.stringify({ g, pose }));
-  assert(pose.y - y >= top - .001 && pose.y + y <= bottom + .001, JSON.stringify({ g, pose }));
+  const edge=g.edgeInset||12;
+  const left = (g.left - g.carHeight / 2 - edge), top = (g.top - g.carHeight / 2 - edge);
+  const right = g.right + g.carHeight / 2 + edge, bottom = g.bottom + g.carHeight / 2 + edge;
+  if(!(pose.x-x>=left-.001&&pose.x+x<=right+.001&&pose.y-y>=top-.001&&pose.y+y<=bottom+.001))
+    assert.fail(JSON.stringify({width:g.width,height:g.height,pose}));
 }
 
 test('the full rounded perimeter fits portrait, landscape, ultrawide, and zoomed viewports', () => {
@@ -223,7 +331,7 @@ test('ballistic release preserves horizontal inertia and exact gravity before ig
   }
 });
 
-test('boost reaches 100 km/h at one second and coasts down without a velocity reset', () => {
+test('boost reaches its reduced peak at one second and coasts down without a velocity reset', () => {
   for (const [width, height] of screens) for (const dt of [1 / 120, 1 / 60, 1 / 30, .1]) {
     const g = geometry({ width, height });
     let s = { speed: 0, distance: g.perimeter - 1 };
