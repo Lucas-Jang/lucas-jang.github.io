@@ -5,7 +5,7 @@
 <button id="run" disabled>Record landing sequence</button><pre id="results">Loading</pre><div id="frames"></div>
 <script type="module">
 localStorage.setItem('lj-veracruz-v1',JSON.stringify({height:'ride',environment:'normal'}));
-const{initialize}=await import('/scripts/roaming-car.js?v=20261017-12');initialize();
+const{initialize}=await import('/scripts/roaming-car.js?v=20261017-13');initialize();
 const host=document.querySelector('#lucas-roaming-car'),root=host.shadowRoot,car=root.querySelector('.car');
 const frameGrid=document.getElementById('frames');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
