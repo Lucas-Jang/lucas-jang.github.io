@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clean exhaust · flash regression</title>
+<style>body{margin:20px;background:#66879b;color:#fff;font:14px system-ui}button{min-height:44px}pre{white-space:pre-wrap;max-width:650px}#metrics{font-variant-numeric:tabular-nums}</style>
+<h1>Clean exhaust · frame brightness regression</h1><p>실제 위젯: 네 주행 모드의 킥플립, 착지 직후 다시 잡기, 일반 부스트, 풀차지 램프.</p>
+<button id="run" disabled>Run exhaust suite</button><pre id="results">Loading</pre><pre id="metrics"></pre>
+<script type="module">
+localStorage.setItem('lj-veracruz-v1',JSON.stringify({height:'ride',environment:'normal'}));
+const {initialize}=await import('/scripts/roaming-car.js?v=20261017-15');initialize();
+const host=document.querySelector('#lucas-roaming-car'),root=host.shadowRoot,car=root.querySelector('.car'),boost=root.querySelector('.boost-button'),fx=root.querySelector('.effects');
+car.setPointerCapture=()=>{};car.hasPointerCapture=()=>false;boost.setPointerCapture=()=>{};boost.hasPointerCapture=()=>false;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms)),check=(ok,label)=>{if(!ok)throw Error(label);results.textContent+='\nPASS '+label};
+const key=(el,k)=>el.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true}));
+const pointer=(type,x,y)=>car.dispatchEvent(new PointerEvent(type,{pointerId:7,isPrimary:true,pointerType:'touch',button:0,clientX:x,clientY:y,bubbles:true}));
+const charge=type=>boost.dispatchEvent(new PointerEvent(type,{pointerId:11,isPrimary:true,pointerType:'touch',button:0,clientX:100,clientY:100,bubbles:true}));
+const wait=async fn=>{for(let n=0;n<400;n++){if(fn())return;await sleep(30)}throw Error('timeout '+host.dataset.state)};
+const tile=document.createElement('canvas');tile.width=32;tile.height=16;const ctx=tile.getContext('2d',{willReadFrequently:true});
+let recording=false,raf=0,last=null,frames=0,maxMean=0,maxJump=0,maxPeak=0,maxParticles=0,current='',rows=[];
+function sample(now){
+ if(!recording)return;
+ const size=+host.dataset.carSize,h=size*.43,x=+host.dataset.x,y=+host.dataset.y,opacity=Number(getComputedStyle(fx).opacity),scale=fx.width/parseFloat(fx.style.width);
+ ctx.clearRect(0,0,32,16);ctx.globalAlpha=opacity;
+ ctx.drawImage(fx,(x-size*.7-parseFloat(fx.style.left))*scale,(y-h-parseFloat(fx.style.top))*scale,size*1.4*scale,h*2*scale,0,0,32,16);
+ const bytes=ctx.getImageData(0,0,32,16).data;let sum=0,peak=0;
+ for(let i=3;i<bytes.length;i+=4){sum+=bytes[i]/255;peak=Math.max(peak,bytes[i]/255)}
+ const mean=sum/512,dt=last?(now-last.time)/1000:0,jump=last&&dt<=.045?Math.max(0,mean-last.mean):0;
+ maxMean=Math.max(maxMean,mean);maxPeak=Math.max(maxPeak,peak);maxJump=Math.max(maxJump,jump);maxParticles=Math.max(maxParticles,+host.dataset.particles);frames++;
+ rows.push({time:now,scenario:current,state:host.dataset.state,roll:+host.dataset.roll,mean,peak,jump,power:+host.dataset.smokePower,particles:+host.dataset.particles});
+ last={time:now,mean};metrics.textContent=JSON.stringify({frames,maxMean,maxJump,maxPeak,maxParticles,scenario:current},null,2);raf=requestAnimationFrame(sample);
+}
+run.onclick=async()=>{run.disabled=true;results.textContent='Running';recording=true;raf=requestAnimationFrame(sample);try{
+ for(const mode of['normal','sport','offroad','mud']){
+  current=mode+' kickflip';key(boost,'ArrowDown');root.querySelector(`[data-environment="${mode}"]`).click();await sleep(1150);
+  key(car,'k');await wait(()=>host.dataset.trick==='kickflip');await wait(()=>host.dataset.state==='cruising');
+  check(host.dataset.landingPhase==='absorbing',mode+' kickflip lands with visible air-spring recovery');
+  if(mode==='normal'){
+   await sleep(90);current='regrab during mist fade';const r=car.getBoundingClientRect();pointer('pointerdown',r.x+r.width/2,r.y+r.height/2);pointer('pointermove',innerWidth*.5,innerHeight*.4);
+   await sleep(100);pointer('pointerup',innerWidth*.5,innerHeight*.4);await wait(()=>host.dataset.state==='cruising');check(host.dataset.landingPhase==='absorbing','regrabbed landing recovers without resurrecting old fog');
+  }
+  await sleep(750);
+ }
+ key(boost,'ArrowDown');root.querySelector('[data-environment="normal"]').click();await sleep(1150);
+ current='ordinary boost';key(car,'b');await wait(()=>host.dataset.boostKind==='normal');await wait(()=>!boost.disabled);check(host.dataset.trick==='','ordinary boost finishes without a jump');
+ current='full-charge ramp';charge('pointerdown');await sleep(260);charge('pointerup');await wait(()=>host.dataset.trick==='ramp');await wait(()=>host.dataset.state==='cruising');check(host.dataset.landingPhase==='absorbing','full-charge ramp and landing complete');
+ await sleep(2200);check(+host.dataset.particles===0&&+host.dataset.smokeEmitters===0,'mist and valve afterglow clear completely');
+ check(maxParticles>10&&maxParticles<=(innerWidth<=600?112:160),'small bounded particle population stays visible');
+ check(maxMean<.20,'vehicle-centred mean smoke opacity stays below 20%: '+maxMean.toFixed(4));
+ check(maxJump<.08,'no >8 percentage-point frame flash at normal cadence: '+maxJump.toFixed(4));
+ check(maxPeak<=.67,'overlapping emissions respect layer opacity cap');
+ check(frames>300,'frame sampling covers all scenarios');
+ const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Frame telemetry';pre.id='timeline';pre.textContent=JSON.stringify(rows);details.append(summary,pre);document.body.append(details);
+ results.textContent+='\nALL PASSED';document.title='PASS · Clean exhaust';
+}catch(e){results.textContent+='\nFAIL '+e.message;document.title='FAIL · Clean exhaust'}finally{recording=false;cancelAnimationFrame(raf);run.disabled=false}};
+results.textContent='Ready';run.disabled=false;
+</script>

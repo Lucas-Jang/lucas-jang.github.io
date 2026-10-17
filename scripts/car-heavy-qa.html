@@ -5,7 +5,7 @@
 <button id="run" disabled>Record landing sequence</button><pre id="results">Loading</pre><div id="frames"></div>
 <script type="module">
 localStorage.setItem('lj-veracruz-v1',JSON.stringify({height:'ride',environment:'normal'}));
-const{initialize}=await import('/scripts/roaming-car.js?v=20261017-14');initialize();
+const{initialize}=await import('/scripts/roaming-car.js?v=20261017-15');initialize();
 const host=document.querySelector('#lucas-roaming-car'),root=host.shadowRoot,car=root.querySelector('.car');
 const frameGrid=document.getElementById('frames');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -17,7 +17,7 @@ const capture=label=>{
  const terrain=root.querySelector('.terrain path');ctx.strokeStyle='#b2c8d0';ctx.lineWidth=2;ctx.stroke(new Path2D(terrain.getAttribute('d')));
  const mesh=root.querySelector('.mesh'),effects=root.querySelector('.effects'),w=parseFloat(mesh.style.width),h=parseFloat(mesh.style.height);
  ctx.save();ctx.translate(+d.x,+d.y);ctx.rotate(+d.edgeAngle*Math.PI/180);ctx.drawImage(mesh,-Number(d.carSize)/2+parseFloat(mesh.style.left),-Math.max(44,Number(d.carSize)*.43)/2+parseFloat(mesh.style.top),w,h);ctx.restore();
- ctx.drawImage(effects,parseFloat(effects.style.left),parseFloat(effects.style.top),parseFloat(effects.style.width),parseFloat(effects.style.height));
+ ctx.globalAlpha=Number(getComputedStyle(effects).opacity);ctx.drawImage(effects,parseFloat(effects.style.left),parseFloat(effects.style.top),parseFloat(effects.style.width),parseFloat(effects.style.height));ctx.globalAlpha=1;
  caption.textContent=label+' · heave '+Number(d.heave).toFixed(1)+'px · F '+Number(d.frontThrust).toFixed(1)+' / R '+Number(d.rearThrust).toFixed(1)+' · '+d.particles+' puffs · '+d.rollPhase+' · '+d.activeJets+' valves';
  figure.append(canvas,caption);frameGrid.append(figure);
 };
@@ -42,7 +42,7 @@ run.onclick=async()=>{run.disabled=true;results.textContent='Running';try{
   if(landed&&d.landingPhase==='')break;
   await sleep(16);
  }
- check(landed&&host.dataset.state==='cruising','gravity contact returns to driving');check(maxCloud>120,'dense corrective exhaust remains visible');
+ check(landed&&host.dataset.state==='cruising','gravity contact returns to driving');check(maxCloud>10&&maxCloud<=(innerWidth<=600?112:160),'clean corrective exhaust stays visible within the reduced particle budget');
  check(maxExtension<-Number(host.dataset.carSize)*.07,'air extension clearly exceeds mud height');
  check(selected.has('brake')&&selected.has('drop')&&selected.has('rebound')&&selected.has('damp'),'all landing stages recorded');
  const fx=root.querySelector('.effects').getBoundingClientRect();check(fx.left< -100&&fx.right>innerWidth+100,'overscan canvas extends beyond both viewport edges');

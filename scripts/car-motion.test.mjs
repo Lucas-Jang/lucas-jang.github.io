@@ -9,7 +9,7 @@ import { stepBoostDrive, cruiseSpeed } from '../public/scripts/car-dynamics.mjs'
 import { blendRide, balanceJets, landingResponse, FRONT_LOAD } from '../public/scripts/car-ride.mjs';
 import { projectPoint } from '../public/scripts/car-projection.mjs';
 import { AIR_EXTENSION, HEIGHTS, suspensionStep } from '../public/scripts/car-ride.mjs';
-import { plumeProfile, exhaustSurface, EXHAUST_PADDING, exhaustVisibility } from '../public/scripts/car-exhaust.mjs';
+import { plumeProfile, exhaustSurface, EXHAUST_PADDING, exhaustVisibility, stepExhaustEmitters, depthMistOpacity, particleOpacity, EXHAUST_LAYER_OPACITY } from '../public/scripts/car-exhaust.mjs';
 
 test('floor kickflip has a substantial ballistic arc without reaching the ceiling',()=>{
   for(const fps of[10,60,120]){
@@ -603,6 +603,8 @@ test('17,568 mixed nozzle scenarios conserve force, point outward and never dupl
     for(const c of commands){
       const p=PORTS.find(p=>p.id===c.port),normal=jetVector(pose,s,{x:p.nx,y:p.ny,z:(p.nz||0)*c.side}),origin=projectPort(g,pose,s,p,c.side);
       assert(c.dx*normal.x+c.dy*normal.y+c.dz*normal.z>=-1e-8,'no exhaust through body');
+      const restored=jetVector(pose,s,c.localDirection);
+      assert(Math.hypot(restored.x-c.dx,restored.y-c.dy,restored.z-c.dz)<1e-8,'fading valves stay attached to the current 3D orientation');
       assert(Math.abs(Math.hypot(c.dx,c.dy,c.dz)-1)<1e-8);assert(c.power>0&&Number.isFinite(c.power));
       assert(Math.hypot(origin.x-c.x,origin.y-c.y)<1e-8);seen.add(c.port);
     }
@@ -645,4 +647,50 @@ test('all modes and eight departure sections emit force-linked air through launc
     }
   }
   assert.equal(cases,96);for(const phase of['ascent','fall','braking','touchdown'])assert(phases.has(phase));
+});
+
+test('clean exhaust is smaller, shorter lived and translucent even under heavy pressure',()=>{
+  assert(EXHAUST_LAYER_OPACITY<=.66);
+  for(const force of[.1,.5,1,2,5,10])for(const size of[96,104,160]){
+    const p=plumeProfile(force,size),oldRoot=Math.sqrt(force);
+    assert(p.rate<90*force**.82*.45);assert(p.radius<size*(.025+.032*oldRoot)*.5);
+    assert(p.life<.76);assert(p.opacity<=.28);assert(p.growth<size*(.22+.10*oldRoot)*.5);
+  }
+});
+
+test('visual valve handoffs crossfade without a brightness spike at 10–120 FPS',()=>{
+  const command=(key,power)=>({key,power,port:key,side:1,localDirection:{x:0,y:1,z:0}});
+  const final=[];
+  for(const fps of[10,30,60,120]){
+    const emitters=new Map();let output;
+    for(let i=0;i<fps;i++)output=stepExhaustEmitters(emitters,[command('a',4)],1/fps);
+    const before=output.reduce((s,c)=>s+c.power,0);
+    for(let i=0;i<fps;i++){
+      output=stepExhaustEmitters(emitters,[command('b',4)],1/fps);
+      const total=output.reduce((s,c)=>s+c.power,0);
+      assert(total<=before+.00001&&Math.abs(total-before)<.0011,'handoff cannot brighten; pruning an invisible valve stays below 0.0011');
+      assert.equal(new Set(output.map(c=>c.key)).size,output.length);
+    }
+    final.push(output.reduce((s,c)=>s+c.power,0));
+    for(let i=0;i<fps;i++)stepExhaustEmitters(emitters,[],1/fps);
+    assert.equal(emitters.size,0,'closed valves have no persistent glow');
+  }
+  assert(Math.max(...final)-Math.min(...final)<1e-8);
+  const emitters=new Map(),spike=stepExhaustEmitters(emitters,[command('a',1000)],1/60)[0];
+  assert(spike.power<1.3,'a one-frame force spike cannot create an opaque blast');
+  for(let i=0;i<120;i++)stepExhaustEmitters(emitters,[command('a',1000)],1/120);
+  assert(emitters.get('a').power<=6);
+});
+
+test('depth mist has no angle threshold flash and cleared landing particles never brighten again',()=>{
+  let previous=0;
+  for(let i=0;i<=1000;i++){
+    const v=depthMistOpacity(i/1000);assert(v>=previous&&v-previous<.001);previous=v;
+    assert.equal(v,depthMistOpacity(-i/1000));
+  }
+  assert(depthMistOpacity(.301)-depthMistOpacity(.299)<.001);
+  const p={age:.1,life:.7,opacity:.25};let last=particleOpacity(p,0,false);
+  for(let i=0;i<5;i++){p.age+=1/60;const next=particleOpacity(p,1/60,true);assert(next<last);last=next;}
+  p.age+=1/60;assert(particleOpacity(p,1/60,false)<last,'regrab cannot restore cleared fog');
+  assert.equal(particleOpacity({age:0,life:.7,opacity:.25},0,false),0,'particles fade in at birth');
 });

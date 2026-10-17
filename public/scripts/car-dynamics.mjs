@@ -1,6 +1,6 @@
 import { clamp, mod, contain as legacyContain } from './car-motion.mjs';
-import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-14';
-import { balanceJets } from './car-ride.mjs?v=20261017-14';
+import { geometry, trackPose, roadPath } from './car-route.mjs?v=20261017-15';
+import { balanceJets } from './car-ride.mjs?v=20261017-15';
 export { geometry, trackPose, roadPath };
 export { clamp, mod } from './car-motion.mjs';
 export function contain(g,pose) {

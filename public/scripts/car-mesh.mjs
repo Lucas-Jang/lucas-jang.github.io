@@ -1,6 +1,6 @@
 import { CAR_PROFILE } from './car-body-shape.mjs?v=20261017-7';
-import { BODY_DEPTH, projectPoint } from './car-projection.mjs?v=20261017-14';
-import { PORTS } from './car-thrusters.mjs?v=20261017-14';
+import { BODY_DEPTH, projectPoint } from './car-projection.mjs?v=20261017-15';
+import { PORTS } from './car-thrusters.mjs?v=20261017-15';
 
 const IMAGE_RATIO = 332 / 960;
 export const MESH_PADDING = 40;
