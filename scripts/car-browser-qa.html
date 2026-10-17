@@ -1,0 +1,87 @@
+<!doctype html>
+<!-- Local-only interaction regression. Copy to public/__car-qa.html, run npm run dev,
+     open /__car-qa.html and click Run. Remove the public copy before building.
+     Pointer capture and reduced-motion preference are controlled test doubles;
+     the widget, animation loop, events, physics and DOM run in the real browser. -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Veracruz interaction regression</title>
+<style>body{font:15px system-ui;background:#648596;color:#fff;margin:24px}button{min-height:44px;padding:10px}pre{white-space:pre-wrap;max-width:650px}</style>
+<h1>Veracruz interaction regression</h1><button id="run">Run interaction suite</button><pre id="results">Ready</pre>
+<script type="module">
+const nativeMatch = window.matchMedia.bind(window); let reduce = false; const listeners = new Set();
+const motion = { get matches(){return reduce}, addEventListener(_,fn){listeners.add(fn)},addListener(fn){listeners.add(fn)} };
+window.matchMedia = q => q.includes('prefers-reduced-motion') ? motion : nativeMatch(q);
+localStorage.setItem('lj-veracruz-v1', JSON.stringify({paused:true,visible:false,height:'ride',environment:'normal'}));
+await import('/scripts/roaming-car.js?v=20261017-4');
+const host = document.getElementById('lucas-roaming-car'), root=host.shadowRoot;
+const car=root.querySelector('.car'), boost=root.querySelector('.boost-button'), panel=root.querySelector('.garage');
+// Synthetic touch dispatch cannot own a native active pointer. Only capture is stubbed.
+car.setPointerCapture=()=>{}; car.hasPointerCapture=()=>false;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const check=(ok,label)=>{if(!ok)throw Error(label);results.textContent+='\nPASS '+label};
+const data=()=>({...host.dataset});
+const wait=async fn=>{for(let i=0;i<240;i++){if(fn())return;await sleep(50)}throw Error('Timed out: '+JSON.stringify(data()))};
+function pointer(type,x,y){car.dispatchEvent(new PointerEvent(type,{pointerId:7,isPrimary:true,pointerType:'touch',button:0,clientX:x,clientY:y,bubbles:true}));}
+function tap(){const r=car.getBoundingClientRect();pointer('pointerdown',r.x+r.width/2,r.y+r.height/2);pointer('pointerup',r.x+r.width/2,r.y+r.height/2)}
+const key=(el,k)=>el.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true}));
+const mode=name=>{key(boost,'ArrowDown');root.querySelector(`[data-environment="${name}"]`).click()};
+const position=()=>({x:+host.dataset.x,y:+host.dataset.y});
+const changed=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y)>5;
+run.onclick=async()=>{
+run.disabled=true; results.textContent='Running';
+try{
+ await sleep(1000);
+ check(host.dataset.state==='cruising'&&!car.hidden,'old paused/hidden preferences migrate to moving visible car');
+ check(root.querySelectorAll('button').length===6&&panel.hidden,'only car + boost visible; four contextual environment options');
+ check(!root.querySelector('[data-pause],[data-kneel],[data-trick],.garage-toggle'),'retired controls removed');
+ key(boost,'ArrowDown');const before=position();await sleep(500);
+ check(!panel.hidden&&changed(before,position())&&+host.dataset.speed>90,'environment panel and keyboard focus never stop cruising');
+ key(boost,'Escape');check(panel.hidden,'Escape closes settings without stopping');
+ boost.dispatchEvent(new PointerEvent('pointerdown',{pointerId:11,isPrimary:true,button:0,clientX:100,clientY:100}));
+ await sleep(580);boost.dispatchEvent(new PointerEvent('pointerup',{pointerId:11,isPrimary:true,button:0}));boost.click();
+ check(!panel.hidden&&!boost.disabled&&host.dataset.trick==='','long touch opens modes without accidentally boosting');
+ key(boost,'Escape');
+ const initial=host.dataset.height;tap();await sleep(370);
+ check(host.dataset.height!==initial&&host.dataset.trick==='','single touch changes height once');
+ const height=host.dataset.height;tap();await sleep(90);tap();await sleep(80);
+ check(host.dataset.trick==='kickflip'&&host.dataset.height===height,'double touch triggers flip without a single-tap side effect');
+ check(car.classList.contains('rolling'),'volume surfaces shown only during 3D roll');
+ await wait(()=>host.dataset.state==='cruising');await sleep(400);
+ check(host.dataset.height===height&&!car.classList.contains('rolling'),'double-tap timer cleaned up and side view restored');
+ check([...root.querySelectorAll('.volume')].every(e=>getComputedStyle(e).visibility==='hidden'),'no 3D edges during ordinary side view');
+ let r=car.getBoundingClientRect(), x=r.x+r.width/2,y=r.y+r.height/2;
+ pointer('pointerdown',x,y);pointer('pointermove',innerWidth*.5,120);await sleep(100);
+ pointer('pointermove',innerWidth*.5,120);await sleep(100);
+ pointer('pointerup',innerWidth*.5,120);await sleep(150);
+ check(host.dataset.trick==='drop'&&+host.dataset.verticalVelocity>0&&host.dataset.state==='fall','release from air falls down with accelerating gravity');
+ r=car.getBoundingClientRect();x=r.x+r.width/2;y=r.y+r.height/2;
+ pointer('pointerdown',x,y);pointer('pointermove',x+20,y+20);await sleep(80);pointer('pointercancel',x+20,y+20);
+ check(host.dataset.trick==='drop','regrab and touch cancel recover as a gravity drop');
+ await wait(()=>host.dataset.state==='cruising');
+ mode('normal');await sleep(1500);boost.click();await sleep(450);
+ check(+host.dataset.acceleration>500&&+host.dataset.pitch>3&&+host.dataset.particles>0,'boost acceleration, nose-up and rear smoke');
+ check(boost.disabled,'repeated boost prevented during launch');
+ await wait(()=>host.dataset.trick==='ramp');
+ check(host.dataset.trick==='ramp','boost automatically becomes ramp jump at wall corner');
+ let asymmetric=false;for(let i=0;i<20;i++){asymmetric||=Math.abs(+host.dataset.frontThrust-+host.dataset.rearThrust)>.15;await sleep(100)}
+ check(asymmetric,'front/rear jets balance with different timing and power');
+ await wait(()=>host.dataset.state==='cruising');check(!boost.disabled,'landing restores boost and continuous driving');
+ for(const name of ['sport','offroad','mud','normal']){mode(name);await sleep(80);check(host.dataset.environment===name,'environment '+name+' selection and persistent driving')}
+ reduce=true;listeners.forEach(fn=>fn(motion));await sleep(200);const stationary=position();await sleep(250);
+ check(!changed(stationary,position())&&host.dataset.state==='reduced-motion'&&+host.dataset.particles===0,'reduced motion stops animation and clears particles');
+ const low=host.dataset.height;car.click();check(host.dataset.height!==low,'accessible click still adjusts suspension with reduced motion');
+ boost.click();check(host.dataset.trick==='','reduced motion skips boost stunt');
+ reduce=false;listeners.forEach(fn=>fn(motion));await sleep(250);
+ check(host.dataset.state==='cruising','motion preference change restores driving');
+ r=car.getBoundingClientRect();x=r.x+r.width/2;y=r.y+r.height/2;
+ pointer('pointerdown',x,y);pointer('pointermove',innerWidth*.5,innerHeight*.4);await sleep(50);
+ reduce=true;listeners.forEach(fn=>fn(motion));await sleep(80);
+ check(host.dataset.state==='reduced-motion'&&host.dataset.trick==='','reduced motion during active drag clears capture and recovers');
+ reduce=false;listeners.forEach(fn=>fn(motion));await sleep(80);
+ const buttons=[car,boost,...root.querySelectorAll('[data-environment]')];key(boost,'ArrowDown');
+ check(buttons.every(b=>{const r=b.getBoundingClientRect();return r.width>=44&&r.height>=44}),'all interactive targets at least 44 px');
+ check(!document.documentElement.scrollWidth||document.documentElement.scrollWidth<=innerWidth,'no horizontal overflow');
+ key(boost,'Escape');results.textContent+='\nALL PASSED';document.title='PASS · Veracruz interaction regression';
+}catch(e){results.textContent+='\nFAIL '+e.stack;document.title='FAIL · Veracruz regression'}finally{run.disabled=false}
+};
+</script>

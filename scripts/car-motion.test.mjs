@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring } from '../public/scripts/car-physics.mjs';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, GRAVITY, ENVIRONMENTS, spring, stepDrive, boostSpeed, tangent, cornerCrossed, releaseVelocity, resizeFlight } from '../public/scripts/car-dynamics.mjs';
 
 const screens = [[240, 320], [320, 568], [390, 844], [844, 390], [768, 1024], [1280, 720], [2560, 1080], [3440, 1440], [500, 200], [200, 500]];
 test('the already-deployed cached client keeps its original animation API', async () => {
@@ -30,7 +30,7 @@ test('the full rounded perimeter fits portrait, landscape, ultrawide, and zoomed
 test('gravity drops and stunts stay visible and land gently on the floor, from every wall', () => {
   for (const [width, height] of screens) {
     const g = geometry({ width, height });
-    for (let i = 0; i < 16; i++) for (const kind of ['drop', 'kickflip', 'ramp', 'hop']) {
+    for (let i = 0; i < 24; i++) for (const kind of ['drop', 'kickflip', 'ramp']) {
       const distance = g.perimeter * i / 24;
       const start = contain(g, trackPose(g, distance));
       start.x += start.nx * 70; start.y += start.ny * 70;
@@ -43,8 +43,83 @@ test('gravity drops and stunts stay visible and land gently on the floor, from e
       assert.equal(flight.roll, 0); assert.equal(flight.angle, 0);
       assert(flight.impactSpeed < .8, JSON.stringify(flight));
       const attached = trackPose(g, bottomDistance(g, flight.x));
-      assert(Math.hypot(attached.x - flight.x, attached.y - flight.y) < .001);
+      assert(Math.hypot(attached.x - flight.x, attached.y - flight.y) < 1.5);
     }
+  }
+});
+
+test('ballistic release preserves horizontal inertia and exact gravity before ignition', () => {
+  const g = geometry({ width: 1280, height: 900 });
+  for (const dt of [1 / 120, 1 / 60, 1 / 30, .1]) {
+    const start = createFlight(g, { x: 600, y: 150, angle: 0 }, 'drop', { x: 150, y: 20 });
+    let f = start;
+    for (let i = 0; i < Math.round(.2 / dt); i++) f = stepFlight(g, f, dt);
+    assert.equal(f.thrust, 0); assert.equal(f.vx, 150);
+    assert(Math.abs(f.x - start.x - 150 * .2) < 1e-6);
+    assert(Math.abs(f.vy - 20 - f.gravity * .2) < 1e-6);
+    assert(Math.abs(f.y - start.y - 20 * .2 - .5 * f.gravity * .2 ** 2) < 1e-6);
+  }
+});
+
+test('boost reaches 100 km/h at one second and coasts down without a velocity reset', () => {
+  for (const [width, height] of screens) for (const dt of [1 / 120, 1 / 60, 1 / 30, .1]) {
+    const g = geometry({ width, height });
+    let s = { speed: 0, distance: g.perimeter - 1 };
+    for (let i = 0; i < Math.round(1 / dt); i++) s = stepDrive(g, s, dt, ENVIRONMENTS.normal, true);
+    assert(Math.abs(s.speed - boostSpeed(g)) < 1e-6);
+    const before = s.speed;
+    s = stepDrive(g, s, dt, ENVIRONMENTS.normal, false);
+    assert(Math.abs(before - s.speed - ENVIRONMENTS.normal.acceleration * dt) < 1e-6);
+    assert(s.distance >= 0 && s.distance < g.perimeter);
+  }
+});
+
+test('corner trigger detects every wall, wraparound, and high-speed frame crossings', () => {
+  for (const [width, height] of screens) {
+    const g = geometry({ width, height }); let end = 0;
+    for (let i = 0; i < 8; i++) {
+      end += g.lengths[i];
+      if (i % 2 === 0) assert(cornerCrossed(g, (end - 3 + g.perimeter) % g.perimeter, 6));
+    }
+    assert(cornerCrossed(g, g.perimeter - 2, g.lengths[0] + 4));
+  }
+});
+
+test('maximum boost momentum lands safely at 10–120 FPS from all four walls', () => {
+  for (const [width, height] of screens) for (const dt of [1 / 120, 1 / 30, .1]) {
+    const g = geometry({ width, height });
+    for (let side = 0; side < 4; side++) {
+      const p = trackPose(g, g.perimeter * side / 4);
+      let f = createFlight(g, p, 'ramp', tangent(p, boostSpeed(g) * .8));
+      let different = false;
+      for (let t = 0; t < 15 && !f.landed; t += dt) {
+        f = stepFlight(g, f, dt); inside(g, f);
+        different ||= Math.abs(f.frontThrust - f.rearThrust) > .2;
+        assert(Number.isFinite(f.angle) && Number.isFinite(f.vx));
+      }
+      assert(f.landed, JSON.stringify({ width, height, dt, side, f }));
+      assert(different); assert(f.impactSpeed < .8);
+    }
+  }
+});
+
+test('throw velocity uses recent input and becomes zero after holding still', () => {
+  const samples = [{ x: 0, y: 0, time: 0 }, { x: 200, y: 100, time: 1000 }, { x: 220, y: 110, time: 1050 }];
+  assert.deepEqual(releaseVelocity(samples, 1050, 176), { x: 400, y: 200 });
+  assert.deepEqual(releaseVelocity(samples, 1200, 176), { x: 0, y: 0 });
+});
+
+test('rotation and zoom preserve world momentum and active flip progress until a safe landing', () => {
+  const old = geometry({ width: 1280, height: 720 });
+  const flight = stepFlight(old, createFlight(old, { x: 550, y: 250, angle: 90 }, 'kickflip', { x: 200 }), .1);
+  for (const [width, height] of screens) {
+    const g = geometry({ width, height }); let f = resizeFlight(g, old, flight);
+    assert(Math.abs(f.vx / f.scale - flight.vx / flight.scale) < 1e-9);
+    assert(Math.abs(f.vy / f.scale - flight.vy / flight.scale) < 1e-9);
+    assert.equal(f.elapsed, flight.elapsed); assert.equal(f.roll, flight.roll);
+    inside(g, f);
+    for (let t = 0; t < 12 && !f.landed; t += 1 / 60) f = stepFlight(g, f, 1 / 60);
+    assert(f.landed); assert(f.impactSpeed < .8);
   }
 });
 

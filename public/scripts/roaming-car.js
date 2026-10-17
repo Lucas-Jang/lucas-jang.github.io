@@ -1,4 +1,4 @@
-import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod } from './car-physics.mjs?v=20261017-3';
+import { geometry, trackPose, contain, createFlight, stepFlight, bottomDistance, ENVIRONMENTS, spring, clamp, mod, tangent, stepDrive, cornerCrossed, releaseVelocity, resizeFlight } from './car-dynamics.mjs?v=20261017-4';
 
 // Wall adhesion → release under gravity → stopping-distance landing jets.
 const id = 'lucas-roaming-car';
@@ -30,8 +30,10 @@ function initialize() {
       .side.near { transform: translateZ(calc(var(--depth) / 2)); }
       .side.far { transform: translateZ(calc(var(--depth) / -2)) rotateY(180deg); }
       .side.far .body { transform: scaleX(-1); }
+      .volume, [data-side="far"], .side.far { visibility: hidden; }
+      .car.rolling .volume, .car.rolling [data-side="far"], .car.rolling .side.far { visibility: visible; }
       .roof, .hood, .underbody { position: absolute; height: var(--depth); transform: translateY(-50%) rotateX(90deg);
-        border: 1px solid #7c8589; border-radius: 5px; background: linear-gradient(90deg,#d4d8d6,#f8f5e9 30%,#e1e2d9); }
+        border: 0; border-radius: 5px; background: linear-gradient(90deg,#d4d8d6,#f8f5e9 30%,#e1e2d9); }
       .roof { left: 29%; width: 54%; top: 11%; background: linear-gradient(90deg,#dedfd6 8%,#40545e 9% 40%,#eeeee3 41%); }
       .hood { left: 4%; width: 29%; top: 43%; }
       .underbody { left: 10%; width: 81%; top: 73%; border-radius: 9px; border: 2px solid #202c34;
@@ -61,7 +63,8 @@ function initialize() {
         border-radius: 2px 2px 4px 4px; background: #334953; transform: translateZ(3px); }
       .nozzle.a { left: 29%; } .nozzle.b { left: 67%; }
       .nozzle::after { content: ''; position: absolute; inset: 60% -25% -350%; border-radius: 45%;
-        background: #efffff; box-shadow: 0 0 7px #d4fcff; opacity: var(--jet,0); }
+        background: #efffff; box-shadow: 0 0 7px #d4fcff; opacity: min(1,var(--jet,0)); transform: scaleY(var(--jet,0)); transform-origin: top; }
+      .nozzle.a { --jet: var(--front-jet,0); } .nozzle.b { --jet: var(--rear-jet,0); }
       .afterburner { position: absolute; left: 94%; top: 61%; width: 6%; height: 8%; border-radius: 3px;
         border: 1px solid #87979d; background: #334953; transform: translateZ(5px); }
       .afterburner::after { content: ''; position: absolute; inset: 12% -70% 12% 75%; border-radius: 50%;
@@ -69,8 +72,6 @@ function initialize() {
       .effects, .terrain { position: absolute; left: 0; top: 0; pointer-events: none; }
       .effects { z-index: 1; } .terrain { z-index: 0; overflow: visible; }
       .terrain path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-      .air { position: absolute; inset: auto 16% 7%; height: 5px; border-bottom: 2px solid #dce7e9;
-        border-radius: 50%; opacity: 0; pointer-events: none; }
       .sr { position: absolute; width: 1px; height: 1px; overflow: hidden;
         clip-path: inset(50%); white-space: nowrap; }
       .safe { visibility: hidden; position: absolute;
@@ -78,210 +79,155 @@ function initialize() {
           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
       .launcher { position: fixed; right: max(12px, env(safe-area-inset-right));
         bottom: max(10px, env(safe-area-inset-bottom)); display: flex; gap: 6px; z-index: 4; }
-      .garage-toggle, .boost-button { position: relative;
+      .boost-button { position: relative;
         pointer-events: auto;
         min-width: 54px; min-height: 44px; padding: 8px 13px; border: 1px solid #a4b7be;
         border-radius: 24px; background: #f8f8f1; box-shadow: 0 2px 12px #19354316; font-weight: 500; }
       .boost-button { background: #284d61; color: #fff; border-color: #284d61; min-width: 76px; }
-      .boost-button[aria-pressed="true"] { background: #16718a; }
       .boost-button:disabled { opacity: .65; cursor: default; }
       .garage { position: fixed; right: max(12px, env(safe-area-inset-right));
         bottom: max(64px, calc(env(safe-area-inset-bottom) + 54px)); pointer-events: auto;
         width: min(296px, calc(100% - 24px)); max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px);
-        overflow-y: auto; overscroll-behavior: contain; padding: 16px; border: 1px solid #c0cdd0; border-radius: 18px; z-index: 4;
+        overflow-y: auto; overscroll-behavior: contain; padding: 12px; border: 1px solid #c0cdd0; border-radius: 18px; z-index: 4;
         background: #f8f8f1; box-shadow: 0 8px 32px #19354324; }
-      .garage h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: .08em; }
-      .garage p { margin: 5px 0 12px; font-size: 12px; }
-      .heading { display: flex; justify-content: space-between; align-items: center; gap: 8px;
-        position: sticky; top: -16px; background: #f8f8f1; z-index: 1; }
-      .close { min-width: 44px; min-height: 44px; border: 0; background: transparent; font-size: 20px; }
-      .modes, .tricks, .utilities { display: flex; gap: 6px; }
-      .modes button, .tricks button, .utilities button { flex: 1; min-width: 0; min-height: 44px;
-        border: 1px solid #bccbd0; border-radius: 9px; background: transparent; padding: 7px 5px; }
-      .modes [aria-pressed="true"] { background: #355c70; color: #fff; border-color: #355c70; }
-      .tricks { flex-wrap: wrap; margin: 10px 0; }
-      .tricks button { flex-basis: calc(50% - 6px); }
-      .utilities button { border: 0; color: #426170; }
-      .hint { margin-bottom: 0 !important; color: #426170; }
-      .environments { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 14px; }
+      .environments { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0; }
       .environments button { min-height: 44px; border: 1px solid #bdcbd0; border-radius: 9px; background: transparent; text-align: left; padding: 6px 10px; }
       .environments small { display: block; font-size: 11px; color: #526c79; }
       .environments [aria-pressed="true"] { background: #e1ecee; border-color: #406c7e; }
-      .physics { padding: 8px 0; border-top: 1px solid #d9e0de; color: #496472; }
-      .state { min-height: 36px; }
+      .boost-button { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
       @media (max-height: 360px) { .garage { bottom: 58px; max-height: calc(100dvh - 72px); padding: 10px; } }
       @media print { :host { display: none; } }
     </style>
     <span class="safe" aria-hidden="true"></span>
     <svg class="terrain" aria-hidden="true"><path /></svg><canvas class="effects" aria-hidden="true"></canvas>
-    <button class="car" type="button" aria-label="흰색 베라크루즈, 누르면 차고 전환" aria-describedby="car-help">
+    <button class="car" type="button" aria-label="흰색 베라크루즈, 탭은 높이 전환, 더블탭은 킥플립" aria-describedby="car-help">
       <span class="vehicle" aria-hidden="true">
         <span class="shell">
           <span class="side near"><picture><source srcset="/images/widgets/veracruz-body.webp" type="image/webp" /><img class="body" src="/images/widgets/veracruz-body.png" alt="" width="960" height="332" draggable="false" /></picture></span>
           <span class="side far"><picture><source srcset="/images/widgets/veracruz-body.webp" type="image/webp" /><img class="body" src="/images/widgets/veracruz-body.png" alt="" width="960" height="332" draggable="false" /></picture></span>
-          <span class="roof"></span><span class="hood"></span><span class="underbody"></span><span class="cap nose"></span><span class="cap tail"></span>
+          <span class="roof volume"></span><span class="hood volume"></span><span class="underbody volume"></span><span class="cap nose volume"></span><span class="cap tail volume"></span>
         </span>
-        <span class="bridge front"></span><span class="bridge rear"></span>
+        <span class="bridge front volume"></span><span class="bridge rear volume"></span>
         <span class="strut front" data-side="near"></span><span class="strut rear" data-side="near"></span>
         <span class="strut front" data-side="far"></span><span class="strut rear" data-side="far"></span>
         <span class="wheel front" data-side="near"></span><span class="wheel rear" data-side="near"></span>
         <span class="wheel front" data-side="far"></span><span class="wheel rear" data-side="far"></span>
         <span class="nozzle a"></span><span class="nozzle b"></span><span class="afterburner"></span>
-        <span class="air"></span>
       </span>
     </button>
-    <span id="car-help" class="sr">탭하면 차고 전환. 공중으로 끌어 놓으면 중력 낙하 후 추진 착지. 길게 눌렀다 놓으면 에어 홉. K는 킥플립, R은 램프, H는 홉, B는 부스트, 위아래 방향키는 차고, Escape는 정차.</span>
+    <span id="car-help" class="sr">한 번 탭하면 차고 높이 전환, 더블탭하면 킥플립. 공중으로 끌어 놓으면 중력 낙하 후 추진 착지. 키보드 Enter는 차고 높이, K는 킥플립, B는 부스트. 부스트를 길게 누르거나 아래 방향키를 누르면 주행 환경 선택.</span>
     <span class="sr" role="status" aria-live="polite" aria-atomic="true"></span>
-    <div class="launcher"><button class="boost-button" type="button" aria-label="자동차 급가속" aria-pressed="false">부스트</button><button class="garage-toggle" type="button" aria-expanded="false" aria-controls="car-garage" aria-label="자동차 차고 열기">차고</button></div>
-    <section id="car-garage" class="garage" aria-label="베라크루즈 에어서스펜션" hidden>
-      <div class="heading"><h2>VERACRUZ · AIR</h2><button class="close" type="button" aria-label="자동차 차고 닫기">×</button></div>
-      <p class="state">가장자리를 달리는 중</p>
+    <div class="launcher"><button class="boost-button" type="button" aria-label="부스트 · 길게 누르면 주행 환경" aria-describedby="car-help" aria-expanded="false" aria-controls="car-environments">부스트</button></div>
+    <section id="car-environments" class="garage" aria-label="주행 환경" hidden>
       <div class="environments" role="group" aria-label="주행 환경">
         <button type="button" data-environment="normal" aria-pressed="true">노말<small>균형 잡힌 주행</small></button>
         <button type="button" data-environment="sport" aria-pressed="false">스포츠<small>낮은 차고 · 빠른 응답</small></button>
         <button type="button" data-environment="offroad" aria-pressed="false">오프로드<small>높은 차고 · 부드러운 댐핑</small></button>
         <button type="button" data-environment="mud" aria-pressed="false">머드<small>낮은 접지 · 신중한 가속</small></button>
       </div>
-      <div class="modes" role="group" aria-label="차체 높이">
-        <button type="button" data-height="low" aria-pressed="false">낮게</button>
-        <button type="button" data-height="ride" aria-pressed="true">기본</button>
-        <button type="button" data-height="high" aria-pressed="false">높게</button>
-      </div>
-      <div class="tricks" role="group" aria-label="자동차 기믹">
-        <button type="button" data-trick="kickflip">킥플립</button>
-        <button type="button" data-trick="ramp">램프 점프</button>
-        <button type="button" data-trick="hop">에어 홉</button>
-        <button type="button" data-kneel>앞쪽 낮추기</button>
-      </div>
-      <div class="utilities"><button type="button" data-pause>주행 멈추기</button><button type="button" data-hide>자동차 숨기기</button></div>
-      <p class="physics">중력 9.81 m/s² · 벽에서는 흡착</p>
-      <p class="hint">탭 · 차고 전환<br>길게 누르기 · 에어 홉<br>공중으로 끌어 놓기 · 낙하 후 추진 착지</p>
     </section>`;
   document.body.append(host);
   const car = root.querySelector('.car'), vehicle = root.querySelector('.vehicle');
-  const shell = root.querySelector('.shell'), wheels = root.querySelectorAll('.wheel'), air = root.querySelector('.air');
+  const shell = root.querySelector('.shell'), wheels = root.querySelectorAll('.wheel');
   const struts = root.querySelectorAll('.strut'), boostButton = root.querySelector('.boost-button');
   const canvas = root.querySelector('.effects'), context = canvas.getContext('2d');
   const terrain = root.querySelector('.terrain'), terrainPath = terrain.querySelector('path');
-  const panel = root.querySelector('.garage'), toggle = root.querySelector('.garage-toggle');
-  const stateLabel = root.querySelector('.state'), live = root.querySelector('[role="status"]');
-  const pauseButton = root.querySelector('[data-pause]');
+  const panel = root.querySelector('.garage'), live = root.querySelector('[role="status"]');
   const media = matchMedia('(prefers-reduced-motion: reduce)');
   const heights = { low: .028, ride: 0, high: -.034 };
   const names = { low: '낮은 차고', ride: '기본 차고', high: '높은 차고' };
   let stored = {};
-  try { stored = JSON.parse(localStorage.getItem('lj-veracruz-v1') || '{}') || {}; } catch { /* Storage is optional. */ }
-  let environment = Object.prototype.hasOwnProperty.call(ENVIRONMENTS, stored.environment) ? stored.environment : 'normal';
-  let heightMode = Object.prototype.hasOwnProperty.call(heights, stored.height) ? stored.height : 'ride';
-  let userPaused = stored.paused === true;
-  let paused = media.matches || userPaused, visible = stored.visible !== false;
-  let focusHeld = false, g, distance = 0, pose, flight = null, press = null;
-  let kneelUntil = 0, puffUntil = 0, frame = 0, lastTime = 0, wheelAngle = 0, pageSuspended = false;
-  let front = { value: 0, velocity: 0 }, rear = { value: 0, velocity: 0 };
-  let speed = 0, boostUntil = 0, particles = [], smokeCredit = 0, smokeDirty = false, lastPhase = '', viewportKey = '';
+  try { stored = JSON.parse(localStorage.getItem('lj-veracruz-v1') || '{}') || {}; } catch { /* Optional storage. */ }
+  let environment = Object.hasOwn(ENVIRONMENTS, stored.environment) ? stored.environment : 'normal';
+  let heightMode = Object.hasOwn(heights, stored.height) ? stored.height : 'ride';
+  let g, distance = 0, pose, flight = null, press = null, frame = 0, lastTime = 0, wheelAngle = 0;
+  let front = { value: 0, velocity: 0 }, rear = { ...front };
+  let speed = 0, acceleration = 0, boostStarted = null, boostElapsed = 0, pageSuspended = false;
+  let particles = [], smokeCredit = [0, 0, 0], smokeDirty = false, viewportKey = '', lastPhase = '';
+  let tapTimer = 0, lastTap = 0, boostHold = 0, boostPointer = null, longBoost = false;
   const settings = () => ENVIRONMENTS[environment];
-
+  const announce = message => { live.textContent = message; };
   function save() {
-    try { localStorage.setItem('lj-veracruz-v1', JSON.stringify({ height: heightMode, environment, paused: userPaused, visible })); } catch { /* Private mode/storage disabled. */ }
+    // Retired pause/visibility preferences must not strand returning clients.
+    try { localStorage.setItem('lj-veracruz-v1', JSON.stringify({ height: heightMode, environment })); } catch { /* Optional storage. */ }
   }
-  function announce(message) { live.textContent = message; stateLabel.textContent = message; }
   function controls() {
-    root.querySelectorAll('[data-height]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.height === heightMode)));
-    pauseButton.textContent = paused ? '주행 다시 시작' : '주행 멈추기';
-    pauseButton.setAttribute('aria-pressed', String(paused));
-    car.hidden = !visible;
-    toggle.textContent = visible ? '차고' : '자동차';
-    toggle.setAttribute('aria-label', visible ? panel.hidden ? '자동차 차고 열기' : '자동차 차고 접기' : '자동차 다시 보이기');
-    car.setAttribute('aria-label', `흰색 베라크루즈, ${names[heightMode]}, 누르면 차고 전환`);
-    host.dataset.height = heightMode;
-    host.dataset.environment = environment;
+    car.setAttribute('aria-label', `흰색 베라크루즈, ${names[heightMode]}, 탭은 높이 전환, 더블탭은 킥플립`);
+    host.dataset.height = heightMode; host.dataset.environment = environment;
     root.querySelectorAll('[data-environment]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.environment === environment)));
   }
-  function setPanel(open) {
+  function setPanel(open, keyboard = false) {
     panel.hidden = !open;
-    toggle.setAttribute('aria-expanded', String(open));
-    toggle.setAttribute('aria-label', open ? '자동차 차고 접기' : '자동차 차고 열기');
-    if (open) announce(`${names[heightMode]} · 차고를 닫으면 ${paused ? '정차 유지' : '주행 재개'}`);
-    schedule();
+    boostButton.setAttribute('aria-expanded', String(open));
+    if (open && keyboard) root.querySelector(`[data-environment="${environment}"]`).focus();
+    if (open) announce('주행 환경 선택 · 자동차는 계속 달려요');
   }
   function setHeight(mode) {
-    heightMode = mode; kneelUntil = 0; puffUntil = performance.now() + 400;
-    controls(); save(); announce(`${names[mode]}로 조절했어요`);
-    if (media.matches) { front = { value: heights[mode] * g.size, velocity: 0 }; rear = { ...front }; paint(); }
+    heightMode = mode; controls(); save(); announce(`${names[mode]}로 조절했어요`);
+    if (media.matches) { front = { value: heights[mode] * g.size, velocity: 0 }; rear = { ...front }; }
     schedule();
   }
-  function cycleHeight() { const list = ['ride', 'low', 'high']; setHeight(list[(list.indexOf(heightMode) + 1) % list.length]); }
-  function setEnvironment(mode) {
-    environment = mode;
-    setHeight(settings().height);
-    drawTerrain();
-    announce(`${settings().label} · ${names[heightMode]} · 중력은 그대로 유지돼요`);
+  function cycleHeight() { const list = ['ride', 'low', 'high']; setHeight(list[(list.indexOf(heightMode) + 1) % 3]); }
+  function tap() {
+    const now = performance.now();
+    if (tapTimer && now - lastTap < 320) {
+      clearTimeout(tapTimer); tapTimer = 0; lastTap = 0; launch('kickflip');
+    } else {
+      clearTimeout(tapTimer); lastTap = now;
+      tapTimer = setTimeout(() => { tapTimer = 0; cycleHeight(); }, 320);
+    }
   }
   function boost() {
-    if (!visible || flight) return;
-    if (media.matches) { announce('동작 줄이기 설정에서는 급가속 연출을 생략해요'); return; }
-    paused = userPaused = false; focusHeld = false;
-    boostUntil = performance.now() + 2000;
-    setPanel(false); controls(); save();
-    announce('부스트 · 후방 추진체로 급가속해요'); schedule();
+    setPanel(false);
+    if (media.matches) { announce('동작 줄이기 설정에 따라 급가속과 점프를 생략해요'); return; }
+    if (flight || press?.dragged || boostStarted !== null) return;
+    boostStarted = performance.now(); boostElapsed = 0;
+    announce('부스트 · 1초 급가속 후 다음 코너에서 램프 점프'); schedule();
   }
-  function targets(now) {
+  function driveAllowed() { return !media.matches && !flight && !press?.dragged; }
+  function targets() {
     const base = heights[heightMode] * g.size;
-    const compressed = !media.matches && press && !press.dragged && now - press.time > 420;
     const rough = driveAllowed() ? settings().bump : 0;
-    return { front: base + (compressed ? g.size * .027 : 0) + (now < kneelUntil ? g.size * .035 : 0) + Math.sin(distance / 12) * rough,
-      rear: base + (compressed ? g.size * .027 : 0) + Math.sin(distance / 12 - 2) * rough };
+    const nose = clamp(acceleration / (9.81 * g.size / 4.84), -.6, 2.8) * g.size * .018;
+    const balance = flight ? clamp((flight.frontThrust - flight.rearThrust) * g.size * .007, -4, 4) : 0;
+    return { front: base - nose - balance + Math.sin(distance / 12) * rough,
+      rear: base + nose * .65 + balance + Math.sin(distance / 12 - 2) * rough };
   }
-  function driveAllowed() { return !paused && !focusHeld && panel.hidden && !press && !flight; }
-  function active() {
-    if (!visible || document.hidden || pageSuspended) return false;
-    const t = targets(performance.now());
-    const unsettled = Math.abs(front.value - t.front) + Math.abs(rear.value - t.rear) + Math.abs(front.velocity) + Math.abs(rear.velocity) > .03;
-    return driveAllowed() || !!flight || !!press || (!media.matches && (unsettled || particles.length > 0 || performance.now() < kneelUntil || performance.now() < puffUntil));
-  }
+  function active() { return !document.hidden && !pageSuspended && !media.matches; }
   function schedule() {
     if (g && pose) paint();
     if (active() && !frame) frame = requestAnimationFrame(tick);
     if (!active() && frame) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; }
   }
   function paint() {
-    const p = contain(g, pose);
+    const p = contain(g, pose), roll = pose.roll || 0;
     car.style.width = `${g.size}px`; car.style.height = `${g.carHeight}px`;
     car.style.setProperty('--depth', `${g.size * .18}px`);
-    car.style.transform = `translate3d(${p.x - g.size / 2}px, ${p.y - g.carHeight / 2}px, 0) rotate(${p.angle}deg)`;
-    const roll = pose.roll || 0;
-    vehicle.style.transform = `rotateX(${roll}deg) rotateY(${Math.sin(roll * Math.PI / 180) * 12}deg)`;
-    const heave = (front.value + rear.value) / 2;
+    car.style.transform = `translate3d(${p.x - g.size / 2}px,${p.y - g.carHeight / 2}px,0) rotate(${p.angle}deg)`;
+    car.classList.toggle('rolling', !!flight && flight.kind === 'kickflip' && roll > 1 && roll < 359);
+    vehicle.style.transform = `rotateX(${roll}deg) rotateY(${Math.sin(roll * Math.PI / 180) * 10}deg)`;
     const pitch = Math.atan2(rear.value - front.value, g.size * .567) * 180 / Math.PI;
-    shell.style.transform = `translateY(${heave}px) rotate(${pitch}deg)`;
-    wheels.forEach(w => { w.style.transform = `translate(-50%, -50%) translateZ(${(w.dataset.side === 'near' ? 1 : -1) * (g.size * .09 + 1)}px) rotate(${wheelAngle}deg)`; });
+    shell.style.transform = `translateY(${(front.value + rear.value) / 2}px) rotate(${pitch}deg)`;
+    wheels.forEach(w => { w.style.transform = `translate(-50%,-50%) translateZ(${(w.dataset.side === 'near' ? 1 : -1) * (g.size * .09 + 1)}px) rotate(${wheelAngle}deg)`; });
     struts.forEach(s => {
-      const displacement = s.classList.contains('front') ? front.value : rear.value;
-      const anchor = g.size * .205 + displacement;
+      const anchor = g.size * .205 + (s.classList.contains('front') ? front.value : rear.value);
       s.style.top = `${anchor}px`; s.style.height = `${Math.max(5, g.size * .3 - anchor)}px`;
       s.style.transform = `translateX(-50%) translateZ(${(s.dataset.side === 'near' ? 1 : -1) * (g.size * .09 - 1)}px)`;
     });
-    const boosting = performance.now() < boostUntil && driveAllowed();
-    const launchJet = flight && flight.kind !== 'drop' && flight.elapsed < .18;
-    vehicle.style.setProperty('--jet', String(media.matches ? 0 : flight ? Math.max(launchJet ? 1 : 0, clamp(flight.thrust / flight.gravity, 0, 1)) : 0));
+    const boosting = boostStarted !== null && driveAllowed();
+    vehicle.style.setProperty('--front-jet', String(clamp(flight?.frontThrust || 0, 0, 2.2)));
+    vehicle.style.setProperty('--rear-jet', String(clamp(flight?.rearThrust || 0, 0, 2.2)));
     vehicle.style.setProperty('--boost', boosting ? '1' : '0');
-    vehicle.style.setProperty('--adhesion', !flight && !press && Math.abs(Math.sin(p.angle * Math.PI / 360)) > .1 ? '.55' : '0');
-    if (boostButton.getAttribute('aria-pressed') !== String(boosting)) boostButton.setAttribute('aria-pressed', String(boosting));
-    const disabled = !visible || !!flight || media.matches;
-    if (boostButton.disabled !== disabled) boostButton.disabled = disabled;
-    const boostLabel = media.matches ? '모션 줄임' : flight ? '착지 중' : boosting ? '추진 중' : '부스트';
-    if (boostButton.textContent !== boostLabel) boostButton.textContent = boostLabel;
-    air.style.opacity = media.matches ? '0' : String(clamp((puffUntil - performance.now()) / 400, 0, .7));
-    host.dataset.state = !visible ? 'hidden' : flight ? flight.phase : press ? press.dragged ? 'dragging' : 'charging' : driveAllowed() ? 'cruising' : 'parked';
-    host.dataset.edgeAngle = String(Math.round(pose.angle));
-    host.dataset.paused = String(paused);
-    host.dataset.trick = flight?.kind || '';
-    host.dataset.verticalVelocity = String(flight?.vy || 0);
-    host.dataset.thrust = String(flight?.thrust || 0);
-    host.dataset.speed = String(speed);
-    host.dataset.particles = String(particles.length);
+    vehicle.style.setProperty('--adhesion', !flight && !press?.dragged && p.angle > 10 ? '.4' : '0');
+    boostButton.disabled = !!flight || boostStarted !== null || !!press?.dragged;
+    boostButton.textContent = flight ? '착지 중' : boosting ? '추진 중' : '부스트';
+    host.dataset.state = flight ? flight.phase : press?.dragged ? 'dragging' : media.matches ? 'reduced-motion' : 'cruising';
+    Object.assign(host.dataset, { edgeAngle: String(pose.angle), trick: flight?.kind || '',
+      verticalVelocity: String(flight?.vy || 0), thrust: String(flight?.thrust || 0),
+      frontThrust: String(flight?.frontThrust || 0), rearThrust: String(flight?.rearThrust || 0),
+      speed: String(speed), acceleration: String(acceleration), pitch: String(pitch),
+      particles: String(particles.length), x: String(p.x), y: String(p.y) });
   }
-
   function drawTerrain() {
     terrain.setAttribute('width', String(innerWidth)); terrain.setAttribute('height', String(innerHeight));
     let path = '';
@@ -289,47 +235,42 @@ function initialize() {
       const p = contain(g, trackPose(g, g.perimeter * i / 240));
       path += `${i ? 'L' : 'M'}${p.x - p.nx * g.carHeight * .43},${p.y - p.ny * g.carHeight * .43}`;
     }
-    terrainPath.setAttribute('d', `${path}Z`);
-    terrainPath.setAttribute('stroke', settings().color);
+    terrainPath.setAttribute('d', `${path}Z`); terrainPath.setAttribute('stroke', settings().color);
     terrainPath.setAttribute('stroke-width', String(settings().track));
     terrainPath.setAttribute('stroke-dasharray', settings().dash);
-    terrainPath.setAttribute('opacity', environment === 'normal' ? '.12' : '.4');
+    terrainPath.setAttribute('opacity', environment === 'normal' ? '.1' : '.35');
   }
-  function smoke(dt, now) {
+  function smoke(dt) {
     if (!context) return;
-    const boosting = now < boostUntil && driveAllowed();
-    const launchJet = flight && flight.kind !== 'drop' && flight.elapsed < .18;
-    const power = flight ? Math.max(launchJet ? 2 : 0, clamp(flight.thrust / flight.gravity, 0, 3)) : boosting ? 1.7 : 0;
-    if (!particles.length && power <= .1) {
+    const boosting = boostStarted !== null && driveAllowed();
+    const powers = [flight?.frontThrust || 0, flight?.rearThrust || 0, boosting ? 2 : 0];
+    if (!particles.length && powers.every(p => p <= .03)) {
       if (smokeDirty) context.clearRect(0, 0, innerWidth, innerHeight);
       smokeDirty = false; return;
     }
     smokeDirty = true;
-    if (!media.matches && power > .1) {
-      smokeCredit += dt * power * 36;
-      const angle = pose.angle * Math.PI / 180;
-      while (smokeCredit >= 1 && particles.length < 96) {
-        smokeCredit--;
-        const side = Math.random() < .5 ? -.23 : .23;
-        const lx = boosting ? g.size * .48 : side * g.size;
-        const ly = boosting ? g.carHeight * .1 : g.carHeight * .32;
+    const angle = pose.angle * Math.PI / 180;
+    for (let j = 0; j < 3; j++) {
+      smokeCredit[j] = Math.min(smokeCredit[j] + dt * powers[j] * 35, 5);
+      while (smokeCredit[j] >= 1 && particles.length < 96) {
+        smokeCredit[j]--;
+        const lx = g.size * (j === 2 ? .48 : j === 0 ? -.18 : .2);
+        const ly = g.carHeight * (j === 2 ? .1 : .32);
+        const ux = j === 2 ? Math.cos(angle) : -Math.sin(angle), uy = j === 2 ? Math.sin(angle) : Math.cos(angle);
+        const exhaust = 95 + powers[j] * 48;
         particles.push({ x: pose.x + Math.cos(angle) * lx - Math.sin(angle) * ly,
           y: pose.y + Math.sin(angle) * lx + Math.cos(angle) * ly,
-          vx: (boosting ? Math.cos(angle) * 140 : (Math.random() - .5) * 55),
-          vy: (boosting ? Math.sin(angle) * 140 : 110 + Math.random() * 80),
-          age: 0, life: .65 + Math.random() * .6, radius: 3 + Math.random() * 4 });
+          vx: ux * exhaust + (flight?.vx || 0) * .25 + (Math.random() - .5) * 35,
+          vy: uy * exhaust + (flight?.vy || 0) * .25 + (Math.random() - .5) * 35,
+          age: 0, life: .5 + Math.random() * .4, radius: 2 + Math.random() * 3 });
       }
-      smokeCredit = Math.min(smokeCredit, 2);
-    } else smokeCredit = 0;
+    }
     context.clearRect(0, 0, innerWidth, innerHeight);
     particles = particles.filter(p => p.age < p.life);
     for (const p of particles) {
       p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt;
-      p.vx *= Math.exp(-dt * 1.7); p.vy -= 28 * dt;
-      const floor = g.bottom + g.carHeight * .4;
-      if (p.y > floor) { p.y = floor; p.vy = -8; p.vx += (p.x < pose.x ? -1 : 1) * 80 * dt; }
-      const alpha = Math.max(0, (1 - p.age / p.life) * .8);
-      const radius = p.radius + p.age * 22;
+      p.vx *= Math.exp(-dt * 1.7); p.vy -= 20 * dt;
+      const alpha = Math.max(0, (1 - p.age / p.life) * .8), radius = p.radius + p.age * 20;
       const gradient = context.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
       gradient.addColorStop(0, `rgba(255,255,255,${alpha})`);
       gradient.addColorStop(.5, `rgba(248,253,255,${alpha * .7})`);
@@ -342,184 +283,166 @@ function initialize() {
     const dt = lastTime ? clamp((now - lastTime) / 1000, 0, .1) : 0;
     lastTime = now;
     if (flight) {
-      flight = stepFlight(g, flight, dt);
-      pose = { ...flight };
+      acceleration = 0; flight = stepFlight(g, flight, dt); pose = { ...flight };
+      wheelAngle -= Math.hypot(flight.vx, flight.vy) * dt / (g.size * .075) * 180 / Math.PI;
       if (flight.phase !== lastPhase) {
         lastPhase = flight.phase;
-        announce(flight.lit ? '추진 착지 · 흰 연기와 함께 감속해요' : flight.phase === 'ascent' ? '추진 도약 · 중력이 속도를 줄여요' : '흡착 해제 · 중력으로 낙하해요');
+        announce(flight.lit ? '전후륜 추진체로 균형을 잡으며 착지해요' : flight.phase === 'ascent' ? '도약 · 중력이 속도를 줄여요' : '중력 낙하');
       }
       if (flight.landed) {
-        distance = bottomDistance(g, flight.x); flight = null; speed = 0;
-        front.velocity = g.size * .52; rear.velocity = g.size * .4;
-        puffUntil = now + 450;
-        announce('착지 완료 · 에어서스가 충격을 흡수했어요');
+        distance = bottomDistance(g, flight.x); speed = Math.max(0, -flight.vx); flight = null;
+        front.velocity += g.size * .45; rear.velocity += g.size * .34;
+        announce('착지 완료 · 에어서스펜션으로 충격을 흡수했어요');
       }
-    } else if (press) {
+    } else if (press?.dragged) {
+      acceleration = 0;
       pose = contain(g, { ...press.pose, x: press.pose.x + press.dx, y: press.pose.y + press.dy });
-    } else {
-      if (driveAllowed()) {
-        const desired = settings().speed * (now < boostUntil ? 3.5 : 1);
-        const acceleration = settings().acceleration * (now < boostUntil ? 4 : 1);
-        speed += clamp(desired - speed, -acceleration * dt, acceleration * dt);
-        const travel = speed * dt;
-        distance = mod(distance + travel, g.perimeter);
-        wheelAngle -= travel / (g.size * .075) * 180 / Math.PI * (environment === 'mud' ? 1.4 : 1);
-      } else speed = 0;
+    } else if (driveAllowed()) {
+      const before = distance, next = stepDrive(g, { distance, speed }, dt, settings(), boostStarted !== null);
+      distance = next.distance; speed = next.speed; acceleration = next.acceleration;
+      wheelAngle -= next.travel / (g.size * .075) * 180 / Math.PI * (environment === 'mud' ? 1.35 : 1);
       pose = trackPose(g, distance);
+      if (boostStarted !== null) {
+        boostElapsed += dt;
+        if (boostElapsed >= 1 && cornerCrossed(g, before, next.travel)) launch('ramp');
+      }
     }
-    const t = targets(now);
+    const t = targets();
     front = spring(front, t.front, dt, settings()); rear = spring(rear, t.rear, dt, settings());
-    smoke(dt, now);
-    paint();
+    smoke(dt); paint();
     if (active()) frame = requestAnimationFrame(tick); else lastTime = 0;
   }
-  function launch(kind, velocity = {}) {
-    if (flight || !visible) return;
-    if (media.matches) { pose = trackPose(g, distance); paint(); announce('동작 줄이기 설정에 따라 회전과 점프를 생략했어요'); return; }
-    flight = createFlight(g, pose, kind, velocity); lastPhase = ''; boostUntil = 0;
-    kneelUntil = 0;
-    announce(kind === 'kickflip' ? '킥플립 · 입체 회전 후 추진 착지해요' : kind === 'hop' ? '에어 홉 · 가볍게 튀어 올라요' : '흡착 해제 · 낙하 후 추진 착지해요');
+  function launch(kind, velocity) {
+    if (media.matches) { announce('동작 줄이기 설정에 따라 회전과 점프를 생략해요'); return; }
+    if (!velocity) {
+      velocity = flight ? { x: flight.vx, y: flight.vy } : tangent(pose, speed * (kind === 'ramp' ? .8 : .6));
+      velocity.x += (pose.nx || 0) * g.size * .8;
+      velocity.y += (pose.ny || 0) * g.size * .8;
+    }
+    flight = createFlight(g, pose, kind, velocity); lastPhase = '';
+    boostStarted = null; acceleration = 0;
+    announce(kind === 'kickflip' ? '킥플립 · 입체 회전 후 균형 착지' : kind === 'ramp' ? '램프 점프 · 관성 도약 후 추진 착지' : '중력 낙하 · 추진 착지');
     schedule();
   }
   function releaseCapture(pointerId) { if (car.hasPointerCapture?.(pointerId)) car.releasePointerCapture(pointerId); }
-  function cancelGesture(recover = true) {
-    if (!press) return;
+  function finishGesture(e, cancelled = false) {
+    if (!press || press.id !== e.pointerId) return;
     const held = press; press = null; releaseCapture(held.id);
-    if (recover !== false && held.dragged && !document.hidden && !pageSuspended) {
+    if (held.dragged) {
       pose = contain(g, { ...held.pose, x: held.pose.x + held.dx, y: held.pose.y + held.dy });
-      launch('drop');
-    } else pose = trackPose(g, distance);
-    paint(); schedule();
-  }
-  function settle() {
-    cancelGesture(false);
-    if (flight) distance = bottomDistance(g, pose.x);
-    flight = null; kneelUntil = 0; boostUntil = 0; particles = []; speed = 0;
-    if (context) context.clearRect(0, 0, innerWidth, innerHeight);
-    smokeDirty = false;
-    front = { value: heights[heightMode] * g.size, velocity: 0 }; rear = { ...front };
-    pose = trackPose(g, distance); paint(); lastTime = 0;
+      launch('drop', cancelled ? { x: 0, y: 0 } : releaseVelocity(held.samples, performance.now(), g.size));
+    } else if (!cancelled) tap();
+    schedule();
   }
   function resize() {
-    const progress = g ? distance / (g.perimeter || 1) : 0;
-    const airborne = flight;
-    const oldG = g;
+    const oldG = g, progress = g ? distance / (g.perimeter || 1) : 0;
     const safe = getComputedStyle(root.querySelector('.safe')), v = window.visualViewport;
     const viewport = { width: v?.width || document.documentElement.clientWidth, height: v?.height || innerHeight,
       left: v?.offsetLeft || 0, top: v?.offsetTop || 0 };
-    const safeArea = {
-      top: parseFloat(safe.paddingTop) || 0, right: parseFloat(safe.paddingRight) || 0,
-      bottom: parseFloat(safe.paddingBottom) || 0, left: parseFloat(safe.paddingLeft) || 0,
-    };
-    const nextKey = JSON.stringify({ viewport, safeArea });
-    if (nextKey === viewportKey) return;
-    viewportKey = nextKey;
-    g = geometry(viewport, safeArea);
-    distance = progress * g.perimeter;
-    settle();
-    if (airborne && oldG && !media.matches) {
-      const resizedPose = contain(g, { ...airborne, x: g.left + (airborne.x - oldG.left) * (g.right - g.left) / Math.max(1, oldG.right - oldG.left),
-        y: g.top + (airborne.y - oldG.top) * (g.bottom - g.top) / Math.max(1, oldG.bottom - oldG.top) });
-      flight = createFlight(g, resizedPose, 'drop', { x: airborne.vx, y: airborne.vy }); pose = { ...flight };
-    }
+    const safeArea = { top: parseFloat(safe.paddingTop) || 0, right: parseFloat(safe.paddingRight) || 0,
+      bottom: parseFloat(safe.paddingBottom) || 0, left: parseFloat(safe.paddingLeft) || 0 };
+    const key = JSON.stringify({ viewport, safeArea });
+    if (key === viewportKey) return;
+    if (press?.dragged && oldG) flight = createFlight(oldG, pose, 'drop');
+    viewportKey = key; g = geometry(viewport, safeArea); distance = progress * g.perimeter;
+    if (press) { const held = press; press = null; releaseCapture(held.id); }
+    if (flight && oldG) {
+      flight = resizeFlight(g, oldG, flight);
+      pose = { ...flight };
+    } else pose = trackPose(g, distance);
     if (context) {
       const dpr = Math.min(devicePixelRatio || 1, 2, Math.sqrt(4000000 / (innerWidth * innerHeight)));
       canvas.width = Math.ceil(innerWidth * dpr); canvas.height = Math.ceil(innerHeight * dpr);
-      canvas.style.width = `${innerWidth}px`; canvas.style.height = `${innerHeight}px`;
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvas.style.width = `${innerWidth}px`; canvas.style.height = `${innerHeight}px`; context.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    drawTerrain(); schedule();
+    drawTerrain(); lastTime = 0; schedule();
   }
   car.addEventListener('pointerdown', e => {
-    if (!e.isPrimary || e.button !== 0 || press) return;
-    flight = null; boostUntil = 0; speed = 0;
-    pose = { ...pose, roll: 0 };
-    focusHeld = false;
-    press = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, dragged: false, pose: { ...pose }, time: performance.now() };
-    car.setPointerCapture(e.pointerId); schedule();
+    if (!e.isPrimary || e.button !== 0 || press || media.matches) return;
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, dragged: false,
+      pose: { ...pose }, samples: [{ x: e.clientX, y: e.clientY, time: performance.now() }] };
+    car.setPointerCapture(e.pointerId);
   });
   car.addEventListener('pointermove', e => {
     if (!press || press.id !== e.pointerId) return;
     press.dx = e.clientX - press.x; press.dy = e.clientY - press.y;
-    press.dragged ||= Math.hypot(press.dx, press.dy) > 9;
-    if (press.dragged) {
-      stateLabel.textContent = '놓으면 중력 낙하 · 바닥에서 추진 착지';
+    if (!press.dragged && Math.hypot(press.dx, press.dy) > 9) {
+      clearTimeout(tapTimer); tapTimer = 0;
+      press.dragged = true; press.pose = { ...pose, roll: 0 }; flight = null; boostStarted = null;
     }
+    press.samples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
+    press.samples = press.samples.slice(-12); schedule();
   });
-  car.addEventListener('pointerup', e => {
-    if (!press || press.id !== e.pointerId) return;
-    const held = press;
-    held.dx = e.clientX - held.x; held.dy = e.clientY - held.y;
-    held.dragged ||= Math.hypot(held.dx, held.dy) > 9;
-    const charged = performance.now() - held.time >= 420;
-    pose = contain(g, { ...held.pose, x: held.pose.x + held.dx, y: held.pose.y + held.dy });
-    press = null; releaseCapture(e.pointerId);
-    if (held.dragged) launch('drop');
-    else if (!held.dragged && charged) launch('hop');
-    else { pose = trackPose(g, distance); if (!held.dragged) cycleHeight(); paint(); schedule(); }
-  });
-  car.addEventListener('pointercancel', cancelGesture);
-  car.addEventListener('lostpointercapture', cancelGesture);
+  car.addEventListener('pointerup', e => finishGesture(e));
+  car.addEventListener('pointercancel', e => finishGesture(e, true));
+  car.addEventListener('lostpointercapture', e => finishGesture(e, true));
   car.addEventListener('contextmenu', e => e.preventDefault());
-  car.addEventListener('click', e => { if (e.detail === 0 || !window.PointerEvent) cycleHeight(); });
-  car.addEventListener('focus', () => { focusHeld = car.matches(':focus-visible'); schedule(); });
-  car.addEventListener('blur', () => { focusHeld = false; schedule(); });
+  car.addEventListener('dblclick', e => e.preventDefault());
+  car.addEventListener('click', e => { if (e.detail === 0 || !window.PointerEvent || media.matches) cycleHeight(); });
   car.addEventListener('keydown', e => {
+    if (e.repeat) return;
     const key = e.key.toLowerCase();
-    if (key === 'escape' && !panel.hidden) { e.preventDefault(); setPanel(false); toggle.focus(); return; }
-    if (['k', 'r', 'h', 'b', 'arrowup', 'arrowdown', 'escape'].includes(key)) e.preventDefault();
-    if (key === 'k') launch('kickflip'); if (key === 'r') launch('ramp'); if (key === 'h') launch('hop');
-    if (key === 'b') boost();
+    if (['k', 'b', 'arrowup', 'arrowdown'].includes(key)) e.preventDefault();
+    if (key === 'k') launch('kickflip'); if (key === 'b') boost();
     if (key === 'arrowup') setHeight('high'); if (key === 'arrowdown') setHeight('low');
-    if (key === 'escape') {
-      paused = userPaused = true;
-      if (flight || press?.dragged) {
-        if (press) { const pointerId = press.id; press = null; releaseCapture(pointerId); }
-        flight = createFlight(g, pose, 'drop', { y: Math.max(0, flight?.vy || 0) });
-        announce('비상 착지 · 추진체가 안전하게 감속해요');
-      } else { settle(); announce('자동차를 정차했어요'); }
-      controls(); save(); schedule();
+  });
+  boostButton.addEventListener('pointerdown', e => {
+    if (!e.isPrimary || e.button !== 0) return;
+    boostPointer = { id: e.pointerId, x: e.clientX, y: e.clientY }; longBoost = false;
+    boostHold = setTimeout(() => { longBoost = true; setPanel(true); }, 520);
+  });
+  boostButton.addEventListener('pointermove', e => {
+    if (boostPointer?.id === e.pointerId && Math.hypot(e.clientX - boostPointer.x, e.clientY - boostPointer.y) > 12) {
+      longBoost = true; clearTimeout(boostHold);
     }
   });
-  toggle.addEventListener('click', () => {
-    if (!visible) { visible = true; controls(); save(); paint(); schedule(); announce('자동차가 돌아왔어요'); }
-    else setPanel(panel.hidden);
+  const clearBoostHold = () => { clearTimeout(boostHold); boostPointer = null; };
+  boostButton.addEventListener('pointerup', clearBoostHold);
+  boostButton.addEventListener('pointercancel', () => { longBoost = true; clearBoostHold(); });
+  boostButton.addEventListener('pointerleave', clearBoostHold);
+  boostButton.addEventListener('click', () => { if (!longBoost) boost(); longBoost = false; });
+  boostButton.addEventListener('contextmenu', e => { e.preventDefault(); clearBoostHold(); longBoost = true; setPanel(true); });
+  boostButton.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') longBoost = false;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setPanel(true, true); }
   });
-  root.querySelector('.close').addEventListener('click', () => { setPanel(false); toggle.focus(); });
-  root.addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) { setPanel(false); toggle.focus(); } });
-  root.querySelectorAll('[data-height]').forEach(b => b.addEventListener('click', () => setHeight(b.dataset.height)));
-  root.querySelectorAll('[data-environment]').forEach(b => b.addEventListener('click', () => setEnvironment(b.dataset.environment)));
-  boostButton.addEventListener('click', boost);
-  root.querySelectorAll('[data-trick]').forEach(b => b.addEventListener('click', () => {
-    setPanel(false); car.focus({ preventScroll: true }); launch(b.dataset.trick);
+  root.querySelectorAll('[data-environment]').forEach(b => b.addEventListener('click', () => {
+    environment = b.dataset.environment; setHeight(settings().height); drawTerrain(); setPanel(false); boostButton.focus({ preventScroll: true });
+    announce(`${settings().label} · ${names[heightMode]} · 계속 주행해요`);
   }));
-  root.querySelector('[data-kneel]').addEventListener('click', () => {
-    if (flight) return;
-    if (media.matches) { announce('동작 줄이기 설정에 따라 차체 기울이기를 생략했어요'); return; }
-    kneelUntil = performance.now() + 1000; puffUntil = kneelUntil + 400;
-    announce('앞쪽을 낮췄다가 자동으로 수평을 맞춰요'); schedule();
+  root.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !panel.hidden) { e.preventDefault(); setPanel(false); boostButton.focus({ preventScroll: true }); }
+    if (!panel.hidden && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.target.matches('[data-environment]')) {
+      e.preventDefault(); const buttons = [...root.querySelectorAll('[data-environment]')];
+      buttons[mod(buttons.indexOf(e.target) + (['ArrowLeft', 'ArrowUp'].includes(e.key) ? -1 : 1), 4)].focus();
+    }
   });
-  pauseButton.addEventListener('click', () => {
-    paused = userPaused = !paused; controls(); save(); announce(paused ? '주행을 멈췄어요' : '차고를 닫으면 주행을 시작해요'); schedule();
-  });
-  root.querySelector('[data-hide]').addEventListener('click', () => {
-    visible = false; settle(); setPanel(false); controls(); save(); schedule(); toggle.focus();
-  });
-  const motionChanged = () => {
-    paused = media.matches || userPaused; settle(); controls(); save(); schedule();
-    announce(media.matches ? '동작 줄이기 · 정차했어요' : paused ? '정차 상태를 유지해요' : '가장자리 주행을 시작해요');
+  document.addEventListener('pointerdown', e => {
+    if (!panel.hidden && !e.composedPath().includes(panel) && !e.composedPath().includes(boostButton)) setPanel(false);
+  }, { passive: true });
+  const suspend = () => {
+    clearTimeout(tapTimer); tapTimer = 0; clearBoostHold();
+    if (press) finishGesture({ pointerId: press.id }, true);
+    particles = []; smokeCredit = [0, 0, 0];
+    context?.clearRect(0, 0, innerWidth, innerHeight); lastTime = 0; schedule();
   };
-  if (media.addEventListener) media.addEventListener('change', motionChanged);
-  else media.addListener(motionChanged);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) settle(); schedule(); });
+  const motionChanged = () => {
+    if (media.matches) {
+      if (press) { const held = press; press = null; releaseCapture(held.id); }
+      flight = null; boostStarted = null; speed = 0; acceleration = 0; pose = trackPose(g, distance); suspend();
+    }
+    schedule();
+  };
+  if (media.addEventListener) media.addEventListener('change', motionChanged); else media.addListener(motionChanged);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) suspend(); else { lastTime = 0; schedule(); } });
   window.addEventListener('resize', resize, { passive: true });
   window.visualViewport?.addEventListener('resize', resize, { passive: true });
   window.visualViewport?.addEventListener('scroll', resize, { passive: true });
-  window.addEventListener('pagehide', () => { pageSuspended = true; settle(); schedule(); });
+  window.addEventListener('pagehide', () => { pageSuspended = true; suspend(); });
   window.addEventListener('pageshow', () => { pageSuspended = false; lastTime = 0; schedule(); });
   root.querySelector('img').addEventListener('error', () => {
-    paused = true; visible = false; controls(); schedule();
-    announce('자동차 그림을 불러오지 못했어요. 잠시 후 다시 열어 주세요.');
+    pageSuspended = true; car.hidden = true; boostButton.hidden = true; suspend();
+    announce('자동차 그림을 불러오지 못했어요');
   });
-  resize(); controls(); paint(); schedule();
+  resize(); controls(); save(); paint(); schedule();
 }
