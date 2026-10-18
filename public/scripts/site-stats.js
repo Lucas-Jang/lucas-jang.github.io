@@ -2,7 +2,7 @@
   const counterOrigin = 'https://lucasjang.goatcounter.com';
   const totalPath = 'TOTAL';
   const formatter = new Intl.NumberFormat('ko-KR');
-  const priorities = new Map();
+  const observed = new Map();
   const utcDate = () => new Date().toISOString().slice(0, 10);
   const trackingPath = () => {
     const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -100,16 +100,31 @@
     return parseCount(data.count);
   };
 
+  const renderStats = () => {
+    const total = observed.get('visitors')?.count;
+    observed.forEach(({ count, updatedAt }, name) => {
+      // Each public counter has its own cache. Never invent a larger cumulative
+      // count just to reconcile an independently refreshed daily/page counter.
+      const inconsistent = name !== 'visitors' && total !== undefined && count > total;
+      document.querySelectorAll(`[data-stat="${name}"]`).forEach((element) => {
+        element.textContent = inconsistent ? '—' : formatter.format(count);
+        element.title = inconsistent
+          ? '통계별 갱신 시점이 달라 확인 중입니다. 누적 방문이 갱신되면 다시 표시합니다.'
+          : updatedAt
+            ? `저장값 조회 시점 · ${new Date(updatedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST · 원본 캐시와 배포 지연으로 수시간 이상 늦을 수 있습니다.`
+            : 'GoatCounter 공개 카운터 · 원본 캐시로 수시간 이상 지연될 수 있습니다.';
+      });
+    });
+  };
+
   const setStat = (name, count, priority = 2, updatedAt) => {
     if (count === null) return;
-    if ((priorities.get(name) ?? 0) > priority) return;
-    priorities.set(name, priority);
-    document.querySelectorAll(`[data-stat="${name}"]`).forEach((element) => {
-      element.textContent = formatter.format(count);
-      element.title = updatedAt
-        ? `저장된 집계 · ${new Date(updatedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST · 4시간 이상 지연될 수 있습니다.`
-        : 'GoatCounter 방문 집계 · 최대 4시간 지연될 수 있습니다.';
-    });
+    const prior = observed.get(name);
+    // Counts grow within the same period. A direct request may hit an older
+    // server cache than the saved snapshot, so source priority alone is unsafe.
+    if (prior && (count < prior.count || (count === prior.count && priority < prior.priority))) return;
+    observed.set(name, { count, priority, updatedAt });
+    renderStats();
   };
 
   const readSnapshot = async (today, path) => {
@@ -130,7 +145,6 @@
 
   const refreshStats = async () => {
     const today = utcDate();
-    priorities.clear();
     const pageviewElement = document.querySelector('[data-stat="pageviews"][data-path]');
     const path = pageviewElement?.dataset.path?.replace(/\/+$/, '') || null;
     const tasks = [
@@ -160,7 +174,8 @@
       }
       if (date !== utcDate()) {
         date = utcDate();
-        document.querySelectorAll('[data-stat="today"]').forEach((element) => { element.textContent = '—'; });
+        observed.delete('today');
+        document.querySelectorAll('[data-stat="today"]').forEach((element) => { element.textContent = '—'; element.title = ''; });
         lastRefresh = 0;
       }
       if (!lastRefresh || Date.now() - lastRefresh >= 5 * 60 * 1000) {
