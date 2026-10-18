@@ -84,10 +84,9 @@ const gaMeasurementId = import.meta.env.PROD
           </div>
           <div class="home-menu-meta">
             <span>© {new Date().getFullYear()} LucasJang</span>
-            <p class="site-stats" aria-label="페이지별 방문 합계. 오늘은 UTC 기준으로 한국 시간 오전 9시에 바뀌며 집계가 지연될 수 있습니다." title="순사용자 수가 아닌 페이지별 방문 합계입니다. 오늘은 UTC 기준(한국 시간 오전 9시 초기화)이며, 공개 카운터와 저장값은 원본 캐시·배포 지연으로 수시간 이상 늦을 수 있습니다.">
+            <p class="site-stats" aria-label="방문 통계">
               <span>누적 방문 <span data-stat="visitors">—</span></span><span aria-hidden="true">·</span>
-              <span>오늘(UTC) <span data-stat="today">—</span></span>
-              <span aria-hidden="true">지연 집계</span>
+              <span>오늘 <span data-stat="today">—</span></span>
             </p>
           </div>
         </div>
@@ -101,14 +100,13 @@ const gaMeasurementId = import.meta.env.PROD
         <a href="/search/">검색</a>
         <a href="https://github.com/Lucas-Jang">GITHUB</a>
       </div>
-      <p class="site-stats" aria-label="페이지별 방문 합계. 오늘은 UTC 기준으로 한국 시간 오전 9시에 바뀌며 집계가 지연될 수 있습니다." title="순사용자 수가 아닌 페이지별 방문 합계입니다. 오늘은 UTC 기준(한국 시간 오전 9시 초기화)이며, 공개 카운터와 저장값은 원본 캐시·배포 지연으로 수시간 이상 늦을 수 있습니다.">
+      <p class="site-stats" aria-label="방문 통계">
         <span>누적 방문 <span data-stat="visitors">—</span></span>
         <span aria-hidden="true">·</span>
-        <span>오늘(UTC) <span data-stat="today">—</span></span>
-        <span aria-hidden="true">지연 집계</span>
+        <span>오늘 <span data-stat="today">—</span></span>
       </p>
     </footer>
-    <script src="/scripts/site-stats.js?v=20261018-1" defer></script>
+    <script src="/scripts/site-stats.js?v=20261018-2" defer></script>
     {Astro.url.pathname === '/' && <script is:inline type="module" src="/scripts/roaming-car.js?v=20261017-16"></script>}
     <script is:inline>
       (() => {

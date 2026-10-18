@@ -105,7 +105,7 @@ test('a late smaller snapshot does not overwrite a counter that has already fini
   assert.equal(app.spans.today[0].textContent, '99');
 });
 
-test('blocked third-party counters use same-origin saved counts and expose their saved timestamp', async () => {
+test('blocked third-party counters use same-origin saved counts without technical tooltips', async () => {
   const app = browser({ post: true, fetch: (url) => {
     if (String(url).startsWith('/data/')) return json(snapshot);
     throw new Error('blocked');
@@ -113,7 +113,7 @@ test('blocked third-party counters use same-origin saved counts and expose their
   assert.equal(app.spans.visitors[0].textContent, '280');
   assert.equal(app.spans.today[0].textContent, '37');
   assert.equal(app.spans.pageviews[0].textContent, '4');
-  assert.match(app.spans.today[0].title, /저장값 조회 시점/);
+  assert.equal(app.spans.today[0].title, '');
 });
 
 test('yesterday snapshot is never displayed as today and failures never fabricate zero', async () => {
@@ -275,7 +275,7 @@ test('temporarily conflicting counters reappear when the cumulative cache catche
   const app = browser({ post: true, fetch: (url) => String(url).startsWith('/data/') ? json({})
     : json({ count: new URL(url).pathname.includes('TOTAL') && !new URL(url).searchParams.has('start') ? refreshed ? '5' : '3' : '4' }) });
   await settle(); assert.equal(app.spans.today[0].textContent, '—');
-  assert.match(app.spans.today[0].title, /갱신 시점/);
+  assert.equal(app.spans.today[0].title, '방문 통계 확인 중');
   refreshed = true;
   app.advance('2026-10-17T11:06:00Z'); app.timers[0](); await settle();
   assert.equal(app.spans.today[0].textContent, '4');
