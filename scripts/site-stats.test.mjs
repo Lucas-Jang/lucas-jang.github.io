@@ -55,10 +55,14 @@ function browser(options = {}) {
       return options.beacon !== false;
     },
   };
+  if (options.noBeacon) delete navigator.sendBeacon;
   vm.runInNewContext(source, {
     window, document, location, navigator, Image: Pixel, Date: Clock, Intl, URL, URLSearchParams,
     AbortSignal: options.oldBrowser ? undefined : AbortSignal,
-    localStorage: { getItem: () => options.optOut ? 't' : null },
+    localStorage: { getItem: () => {
+      if (options.storageThrows) throw new Error('Privacy mode');
+      return options.optOut ? 't' : null;
+    } },
     setInterval: (fn) => timers.push(fn),
     fetch: async (url, config) => {
       requests.push({ url: String(url), config });
@@ -92,11 +96,11 @@ test('updates both menu/footer copies and live post count; the saved fallback ca
   assert.equal(new URL(app.beacons[0]).searchParams.get('p'), '/posts/example');
 });
 
-test('a late snapshot does not overwrite a counter that has already finished', async () => {
+test('a late smaller snapshot does not overwrite a counter that has already finished', async () => {
   let resolve;
   const delayed = new Promise((r) => { resolve = r; });
   const app = browser({ fetch: (url) => String(url).startsWith('/data/') ? delayed : json({ count: '99' }) });
-  await settle(); resolve(json(snapshot)); await settle();
+  await settle(); resolve(json({ ...snapshot, total: 98 })); await settle();
   assert.equal(app.spans.visitors[0].textContent, '99');
   assert.equal(app.spans.today[0].textContent, '99');
 });
@@ -109,7 +113,7 @@ test('blocked third-party counters use same-origin saved counts and expose their
   assert.equal(app.spans.visitors[0].textContent, '280');
   assert.equal(app.spans.today[0].textContent, '37');
   assert.equal(app.spans.pageviews[0].textContent, '4');
-  assert.match(app.spans.today[0].title, /저장된 집계/);
+  assert.match(app.spans.today[0].title, /저장값 조회 시점/);
 });
 
 test('yesterday snapshot is never displayed as today and failures never fabricate zero', async () => {
@@ -220,4 +224,99 @@ test('snapshot never carries yesterday into today and bounds public counter conc
   assert.equal(result.today, undefined);
   assert.equal(result.total, 280);
   assert(peak <= 4);
+});
+
+test('an older live cache must not roll larger saved counts backwards, in either completion order', async () => {
+  for (const snapshotFirst of [true, false]) {
+    let resolve;
+    const pending = new Promise((r) => { resolve = r; });
+    const older = { count: '1' };
+    const app = browser({ post: true, fetch: (url) => {
+      const saved = String(url).startsWith('/data/');
+      return saved === snapshotFirst ? json(saved ? snapshot : older) : pending.then(() => json(saved ? snapshot : older));
+    } });
+    await settle(); resolve(); await settle();
+    for (const [name, value] of [['visitors', '280'], ['today', '37'], ['pageviews', '4']]) assert.equal(app.spans[name][0].textContent, value);
+  }
+});
+
+test('a five-minute refresh preserves larger observed counts when both upstream caches regress', async () => {
+  let refresh = false;
+  const app = browser({ post: true, fetch: (url) => String(url).startsWith('/data/')
+    ? json(refresh ? { ...snapshot, total: 1, today: { ...snapshot.today, count: 0 }, pageviews: { '/posts/example': 0 } } : snapshot)
+    : json({ count: refresh ? '0' : new URL(url).searchParams.has('start') ? '38' : '281' }) });
+  await settle(); refresh = true;
+  app.advance('2026-10-17T11:06:00Z'); app.timers[0](); await settle();
+  assert.equal(app.spans.visitors[0].textContent, '281');
+  assert.equal(app.spans.today[0].textContent, '38');
+});
+
+test('today and a post must never visibly exceed the cumulative counter; no fabricated total is used', async () => {
+  const app = browser({ post: true, snapshot: {}, fetch: (url) => String(url).startsWith('/data/')
+    ? json({}) : json({ count: new URL(url).pathname.includes('TOTAL') && !new URL(url).searchParams.has('start') ? '3' : '4' }) });
+  await settle();
+  assert.equal(app.spans.visitors[0].textContent, '3');
+  assert.equal(app.spans.today[0].textContent, '—');
+  assert.equal(app.spans.pageviews[0].textContent, '—');
+});
+
+test('UTC rollover clears the daily high-water mark so a genuine new-day zero is accepted', async () => {
+  let nextDay = false;
+  const app = browser({ fetch: (url) => String(url).startsWith('/data/') ? json(snapshot)
+    : json({ count: new URL(url).searchParams.has('start') ? nextDay ? '0' : '38' : '281' }) });
+  await settle(); nextDay = true;
+  app.advance('2026-10-18T00:00:01Z'); app.timers[0](); await settle();
+  assert.equal(app.spans.today[0].textContent, '0');
+  assert.equal(app.spans.visitors[0].textContent, '281');
+});
+
+test('temporarily conflicting counters reappear when the cumulative cache catches up', async () => {
+  let refreshed = false;
+  const app = browser({ post: true, fetch: (url) => String(url).startsWith('/data/') ? json({})
+    : json({ count: new URL(url).pathname.includes('TOTAL') && !new URL(url).searchParams.has('start') ? refreshed ? '5' : '3' : '4' }) });
+  await settle(); assert.equal(app.spans.today[0].textContent, '—');
+  assert.match(app.spans.today[0].title, /갱신 시점/);
+  refreshed = true;
+  app.advance('2026-10-17T11:06:00Z'); app.timers[0](); await settle();
+  assert.equal(app.spans.today[0].textContent, '4');
+  assert.equal(app.spans.pageviews[0].textContent, '4');
+});
+
+test('build snapshots also omit contradictions instead of publishing a fabricated total', async () => {
+  const { snapshot: result, failures } = await refreshSnapshot(['/p'], {}, {
+    now, read: async (path, params) => path === 'TOTAL' && !params.start ? 3 : 4,
+  });
+  assert.equal(result.total, 3);
+  assert.equal(result.today, undefined);
+  assert.deepEqual(result.pageviews, {});
+  assert.equal(failures, 2);
+});
+
+test('private storage restrictions do not lose visits, and missing beacon support still sends a pixel', async () => {
+  const privateApp = browser({ storageThrows: true }); await settle();
+  assert.equal(privateApp.beacons.length, 1);
+  assert.equal(privateApp.spans.today[0].textContent, '38');
+  const legacyApp = browser({ noBeacon: true }); await settle();
+  assert.equal(legacyApp.pixels.length, 1);
+  assert.equal(legacyApp.spans.today[0].textContent, '38');
+});
+
+test('reordered independent caches always converge to observed counts without showing today above total', async () => {
+  // All six completion orders for the snapshot, total and daily counter.
+  for (const order of [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]]) {
+    const resolvers = [];
+    const app = browser({ fetch: (url) => new Promise((resolve) => {
+      const index = String(url).startsWith('/data/') ? 0 : new URL(url).searchParams.has('start') ? 2 : 1;
+      resolvers[index] = resolve;
+    }) });
+    for (const index of order) {
+      resolvers[index](json(index === 0 ? snapshot : { count: index === 1 ? '281' : '38' }));
+      await settle();
+      const total = app.spans.visitors[0].textContent;
+      const today = app.spans.today[0].textContent;
+      if (total !== '—' && today !== '—') assert(Number(total) >= Number(today));
+    }
+    assert.equal(app.spans.visitors[0].textContent, '281');
+    assert.equal(app.spans.today[0].textContent, '38');
+  }
 });

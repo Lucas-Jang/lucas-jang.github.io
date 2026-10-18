@@ -67,6 +67,20 @@ export async function refreshSnapshot(paths, previous = {}, { now = new Date(), 
       }
     }
   }));
+  if (snapshot.total !== undefined) {
+    // Independent upstream caches can temporarily disagree. Preserve the known
+    // cumulative count; omit conflicting components instead of manufacturing a sum.
+    if (snapshot.today?.count > snapshot.total) {
+      delete snapshot.today;
+      failures++;
+    }
+    for (const [path, count] of Object.entries(snapshot.pageviews)) {
+      if (count <= snapshot.total) continue;
+      delete snapshot.pageviews[path];
+      delete snapshot.pageviewsUpdatedAt[path];
+      failures++;
+    }
+  }
   return { snapshot, failures };
 }
 
