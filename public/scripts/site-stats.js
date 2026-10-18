@@ -102,17 +102,13 @@
 
   const renderStats = () => {
     const total = observed.get('visitors')?.count;
-    observed.forEach(({ count, updatedAt }, name) => {
+    observed.forEach(({ count }, name) => {
       // Each public counter has its own cache. Never invent a larger cumulative
       // count just to reconcile an independently refreshed daily/page counter.
       const inconsistent = name !== 'visitors' && total !== undefined && count > total;
       document.querySelectorAll(`[data-stat="${name}"]`).forEach((element) => {
         element.textContent = inconsistent ? '—' : formatter.format(count);
-        element.title = inconsistent
-          ? '통계별 갱신 시점이 달라 확인 중입니다. 누적 방문이 갱신되면 다시 표시합니다.'
-          : updatedAt
-            ? `저장값 조회 시점 · ${new Date(updatedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST · 원본 캐시와 배포 지연으로 수시간 이상 늦을 수 있습니다.`
-            : 'GoatCounter 공개 카운터 · 원본 캐시로 수시간 이상 지연될 수 있습니다.';
+        element.title = inconsistent ? '방문 통계 확인 중' : '';
       });
     });
   };
