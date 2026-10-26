@@ -1,0 +1,65 @@
+---
+import '../styles/vote.css';
+const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+const days = Array.from({ length: 30 }, (_, i) => i + 1);
+---
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f6f0" />
+    <meta name="description" content="2026년 11월, 가능한 날짜를 모두 선택하고 함께 만날 날을 찾아요." />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/vote/favicon.svg" type="image/svg+xml" />
+    <title>11월, 우리 만나는 날 · 일정 투표</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#calendar">달력으로 바로가기</a>
+    <header class="page-header wrap">
+      <span class="wordmark"><span class="brand-symbol" aria-hidden="true">↗</span> 우리 만나는 날</span>
+      <button type="button" id="share-button" class="button outline"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 4H6a2 2 0 0 0-2 2v10" /></svg>링크 복사</button>
+    </header>
+    <main class="wrap" id="main">
+      <section class="intro" aria-labelledby="page-title">
+        <div><p class="eyebrow"><span aria-hidden="true"></span>2026년 11월 일정 투표</p><h1 id="page-title">11월, 우리<br class="small-break" /> 언제 만날까요?</h1><p class="intro-copy">가능한 날을 모두 골라 주세요.<br />가장 많이 겹치는 날을 함께 찾아요.</p></div>
+        <div class="month-print" aria-hidden="true"><span>NOVEMBER</span><strong>11</strong><span>2026</span><i>함께할 시간</i></div>
+      </section>
+      <div class="summary-strip"><span class="live-label"><i aria-hidden="true"></i>투표 진행 중</span><span>11월 1일 – 30일</span><span id="total-voters">참여 인원 확인 중</span><a href="#results">결과 먼저 보기 <span aria-hidden="true">↓</span></a></div>
+      <div id="connection-error" class="error-banner" role="alert" hidden><span id="connection-message"></span><button type="button" id="retry-button">다시 연결</button></div>
+      <noscript><p class="error-banner">투표에 참여하려면 브라우저에서 JavaScript를 켜 주세요.</p></noscript>
+      <div class="poll-workspace">
+        <section class="calendar-panel panel" id="calendar" aria-labelledby="calendar-heading" tabindex="-1">
+          <div class="calendar-header"><div><p class="eyebrow muted">STEP 01</p><h2 id="calendar-heading">가능한 날짜 선택</h2></div><span class="month-label">2026. 11</span></div>
+          <div class="view-switch" role="group" aria-label="달력 표시 방식"><button type="button" id="select-view" aria-pressed="true">내 일정 선택</button><button type="button" id="results-view" aria-pressed="false">전체 투표 현황</button></div>
+          <p class="calendar-instruction" id="calendar-instruction">날짜를 누르면 선택돼요. 다시 누르면 취소됩니다.</p>
+          <div class="weekdays" aria-hidden="true">{weekdays.map((w, i) => <span class={i === 0 ? 'sunday' : i === 6 ? 'saturday' : ''}>{w}</span>)}</div>
+          <div class="calendar-grid" role="group" aria-label="2026년 11월 날짜" aria-describedby="calendar-instruction">
+            {days.map(d => <button type="button" class:list={['day', { sunday: (d - 1) % 7 === 0, saturday: (d - 1) % 7 === 6 }]} data-day={d} aria-label={`11월 ${d}일 ${weekdays[(d - 1) % 7]}요일`} aria-pressed="false" disabled><span class="day-number">{d}</span><span class="day-check" aria-hidden="true">✓</span><span class="day-votes"></span></button>)}
+            {Array.from({ length: 5 }, (_, i) => <span class="outside-day" aria-hidden="true">{i + 1}</span>)}
+          </div>
+          <div class="calendar-bottom"><span id="calendar-legend"><i aria-hidden="true"></i>선택한 날짜</span><div id="selection-tools"><button type="button" id="weekend-button" disabled>주말 선택</button><button type="button" id="clear-button" disabled>전체 해제</button></div><button type="button" id="refresh-button" hidden>현황 새로고침 ↻</button></div>
+          <section id="date-detail" class="date-detail" aria-labelledby="date-detail-title" hidden><div><h3 id="date-detail-title"></h3><button type="button" id="close-detail" aria-label="날짜별 참석자 닫기">×</button></div><p id="date-detail-names"></p></section>
+        </section>
+        <aside class="side-column">
+          <form id="vote-form" class="vote-panel panel" novalidate>
+            <p class="eyebrow muted">STEP 02</p><h2 id="form-heading">내 일정 알려주기</h2>
+            <label for="voter-name">참여 이름 <span>필수</span></label><input id="voter-name" name="name" type="text" maxlength="24" placeholder="이름 또는 별명" autocomplete="nickname" aria-describedby="name-hint form-error" disabled /><p id="name-hint" class="field-hint">다른 참여자에게도 보이는 이름이에요.</p>
+            <div class="selection-heading"><h3>선택한 날짜</h3><span id="selected-count">0일</span></div>
+            <div class="selected-list" id="selected-list"><p>왼쪽 달력에서 가능한 날을 골라 주세요.</p></div>
+            <p id="form-error" class="field-error" role="alert" hidden></p>
+            <div class="save-dock"><div class="dock-inner"><span class="mobile-selection" id="mobile-selection">가능한 날을 선택해 주세요</span><button type="submit" id="save-button" class="button primary" disabled><span id="save-label">투표 저장하기</span><span aria-hidden="true">↗</span></button></div></div>
+            <p id="save-state" class="save-state" role="status">아직 저장한 투표가 없어요.</p><p class="privacy-note">같은 브라우저에서 내 투표를 수정할 수 있어요.<br />이름과 선택한 날짜는 링크 방문자에게 공개됩니다.</p>
+            <button type="button" id="delete-button" class="delete-button" hidden>내 투표 삭제</button>
+          </form>
+          <section class="best-panel" aria-labelledby="best-heading"><p class="eyebrow">OUR BEST DAY <span aria-hidden="true">✳</span></p><h2 id="best-heading">함께하기 좋은 날</h2><div id="best-content"><p class="best-empty">첫 번째 일정을 기다리고 있어요.</p><p class="best-description">투표가 모이면 가장 많이 겹치는 날을 알려드려요.</p></div></section>
+        </aside>
+      </div>
+      <section class="results-section" id="results" aria-labelledby="results-heading" tabindex="-1"><div class="results-header"><div><p class="eyebrow muted">BETTER TOGETHER</p><h2 id="results-heading">우리의 일정 한눈에</h2></div><p id="refresh-state">현황을 불러오고 있어요.</p></div><div class="results-panels"><section class="panel participants-panel"><h3>참여한 사람 <span id="participant-count">0</span></h3><div id="participants"><p class="empty-state">투표 현황을 불러오는 중입니다.</p></div></section><section class="panel ranking-panel"><h3>가장 많이 겹치는 날짜</h3><p class="ranking-help">날짜를 누르면 참석 가능한 사람을 볼 수 있어요.</p><div id="ranking"><p class="empty-state">투표 현황을 불러오는 중입니다.</p></div></section></div></section>
+      <footer><span>우리 만나는 날</span><p>바쁜 일상 속, 함께할 시간을 찾아요.</p><span>2026 · NOVEMBER</span></footer>
+    </main>
+    <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description"><h2 id="delete-title">내 투표를 삭제할까요?</h2><p id="delete-description">저장한 이름과 일정이 삭제됩니다.<br />나중에 다시 투표할 수 있어요.</p><div><button type="button" id="cancel-delete" class="button outline" autofocus>돌아가기</button><button type="button" id="confirm-delete" class="button danger">투표 삭제</button></div></dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <script>import '../scripts/vote';</script>
+  </body>
+</html>

@@ -30,6 +30,7 @@ jobs:
       - run: npm ci
       - run: npm run test:car
       - run: npm run test:stats
+      - run: npm run test:vote
       - run: npm run stats:update
       - run: npm run check
       - run: npm run build
