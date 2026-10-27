@@ -1,21 +1,23 @@
 import { aggregate, countdown, dateLabel, guestGreeting, normalizeGuestName, sameVote, validDates, VOTE_DEADLINE } from '../lib/vote-model.mjs';
 import { VOTE_API } from '../lib/vote-api';
+import buildVersion from '../../public/vote/version.json';
 
 type Vote = { id: string; name: string; dates: number[]; updatedAt: string };
-type Snapshot = { votes: Vote[]; ownId: string | null; serverTime?: string; deadlineAt?: string; closed?: boolean };
+type Snapshot = { votes: Vote[]; ownId: string | null; epoch?: string; serverTime?: string; deadlineAt?: string; closed?: boolean };
 type Screen = 'cover' | 'name' | 'welcome' | 'calendar' | 'done';
-type Reply = { ok?: boolean; error?: string; code?: string; serverTime?: string; deadlineAt?: string };
+type Reply = { ok?: boolean; error?: string; code?: string; epoch?: string; serverTime?: string; deadlineAt?: string };
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const nameInput = $<HTMLInputElement>('voter-name');
 const saveButton = $<HTMLButtonElement>('save-button');
 const dayButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-day]')];
-const storage = { key: 'november-2026-vote-key', draft: 'november-2026-vote-draft' };
+const storage = { key: 'november-2026-vote-key', draft: 'november-2026-vote-draft', epoch: 'november-2026-vote-epoch' };
 let token = '', storageReady = true, initialized = false, busy = false, connected = false;
 let snapshot: Snapshot = { votes: [], ownId: null };
 let selected = new Set<number>();
 let screen: Screen = 'cover', mode: 'select' | 'results' = 'select', detailDay: number | null = null;
 let guestName = '', nameTouched = false, datesTouched = false, requestSequence = 0;
 let compactName = false;
+let pollEpoch = 'initial', hadPreviousToken = false, checkingVersion = false;
 let saved = { name: '', dates: [] as number[] }, hasVote = false;
 let clockAnchor: { server: number; tick: number } | null = null, deadline = VOTE_DEADLINE, serverClosed = false, previouslyClosed = false;
 let toastTimer: ReturnType<typeof setTimeout>;
@@ -27,6 +29,8 @@ const isDirty = () => !sameVote(draft(), saved);
 
 try {
   token = localStorage.getItem(storage.key) || '';
+  hadPreviousToken = /^[a-f0-9]{64}$/.test(token);
+  pollEpoch = localStorage.getItem(storage.epoch) || 'initial';
   if (!/^[a-f0-9]{64}$/.test(token)) {
     token = [...crypto.getRandomValues(new Uint8Array(32))].map(byte => byte.toString(16).padStart(2, '0')).join('');
     localStorage.setItem(storage.key, token);
@@ -48,6 +52,19 @@ function notify(message: string) {
   toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4500);
 }
 function connectionError(message: string) { setText('connection-message', message); $('connection-notice').hidden = false; }
+function applyEpoch(next: string) {
+  if (next === pollEpoch) return;
+  const stale = hadPreviousToken;
+  pollEpoch = next;
+  try { localStorage.setItem(storage.epoch, next); } catch { /* Keep this tab synchronized. */ }
+  if (!stale) return;
+  const hadSelection = !!nameInput.value || selected.size > 0 || hasVote;
+  selected.clear(); nameInput.value = ''; guestName = ''; saved = {name:'',dates:[]}; hasVote = false;
+  initialized = false; datesTouched = false; nameTouched = false; mode = 'select'; detailDay = null;
+  try { localStorage.removeItem(storage.draft); } catch { /* Clear the in-memory draft as well. */ }
+  if (screen !== 'cover') showScreen('cover');
+  if (hadSelection) notify('응답이 초기화됐어요. 초대장부터 다시 시작해 주세요.');
+}
 function syncClock(data: Reply | Snapshot) {
   if (data.serverTime && Number.isFinite(Date.parse(data.serverTime))) clockAnchor = { server: Date.parse(data.serverTime), tick: performance.now() };
   if (data.deadlineAt && Number.isFinite(Date.parse(data.deadlineAt))) deadline = Date.parse(data.deadlineAt);
@@ -62,6 +79,7 @@ async function request(method: 'GET' | 'POST', body?: unknown) {
   if (method === 'POST' || !response.ok) syncClock(payload);
   if (!response.ok) {
     if (payload.code === 'VOTING_CLOSED') serverClosed = true;
+    if (payload.code === 'POLL_RESET' && payload.epoch) applyEpoch(payload.epoch);
     throw new Error(payload.error || '답장을 보내지 못했어요. 잠시 후 다시 시도해 주세요.');
   }
   return payload;
@@ -87,6 +105,8 @@ async function refresh(initial = false) {
     const result = await request('GET');
     if (!Array.isArray(result.votes) || !result.votes.every(v => typeof v.id === 'string' && typeof v.name === 'string' && validDates(v.dates))) throw new Error('답장함을 열지 못했어요. 잠시 후 다시 연결해 주세요.');
     if (sequence !== requestSequence || busy) return;
+    applyEpoch(result.epoch || 'initial');
+    hadPreviousToken = true;
     syncClock(result); snapshot = result; connected = true; $('connection-notice').hidden = true;
     const own = result.votes.find(v => v.id === result.ownId);
     hasVote = !!own;
@@ -207,7 +227,7 @@ saveButton.addEventListener('click', async () => {
   if (mode === 'results') { mode = 'select'; render(); return; }
   if (hasVote && !isDirty()) { showScreen('done'); return; }
   if (!selected.size || !guestName || !connected || !storageReady) return;
-  const payload = { name: guestName, dates: [...selected].sort((a,b) => a-b) };
+  const payload = { name: guestName, dates: [...selected].sort((a,b) => a-b), epoch: pollEpoch };
   busy = true; ++requestSequence; renderControls();
   try {
     await request('POST', payload); saved = payload; hasVote = true;
@@ -230,9 +250,24 @@ window.visualViewport?.addEventListener('resize', fitViewport);
 nameInput.addEventListener('focus', fitViewport);
 nameInput.addEventListener('blur', fitViewport);
 window.addEventListener('online', () => { void refresh(); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { void refresh(); updateCountdown(); } });
+async function checkVersion() {
+  if (busy || checkingVersion || document.visibilityState !== 'visible') return;
+  checkingVersion = true;
+  try {
+    const response = await fetch(`/vote/version.json?check=${Date.now()}`, {cache:'no-store',signal:AbortSignal.timeout(8000)});
+    if (!response.ok) return;
+    const version = await response.json() as {revision?:string};
+    if (typeof version.revision !== 'string' || !/^[a-zA-Z0-9._-]{1,80}$/.test(version.revision) || version.revision === buildVersion.revision) return;
+    rememberDraft();
+    const destination = new URL(location.href); destination.searchParams.set('v',version.revision);
+    location.replace(destination.href);
+  } catch { /* An unavailable version check must not interrupt voting. */ }
+  finally { checkingVersion = false; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { void refresh(); void checkVersion(); updateCountdown(); } });
 setInterval(updateCountdown, 1000);
-setInterval(() => { if (document.visibilityState === 'visible' && !busy) void refresh(); }, 20000);
+setInterval(() => { if (document.visibilityState === 'visible' && !busy) { void refresh(); void checkVersion(); } }, 20000);
 fitViewport(); render();
+void checkVersion();
 if (!storageReady) connectionError('이 브라우저에서 답장을 보관할 수 없어요. 사이트 저장을 허용한 뒤 다시 연결해 주세요.');
 else void refresh(true);
