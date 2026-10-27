@@ -59,8 +59,8 @@ const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
           <p id="calendar-status" class="calendar-status" role="status">마감 전에는 언제든 수정할 수 있어요.</p>
         </section>
         <section class="screen done-screen" id="done-screen" aria-labelledby="done-title" hidden>
-          <div class="step-mark" aria-hidden="true">✓ <span>RSVP RECEIVED</span></div><div><p class="eyebrow">회신, 잘 받았습니다.</p><h2 id="done-title" tabindex="-1">달력에 표시했어요.<br /><em>이제 만날 일만 남았네요.</em></h2></div>
-          <div class="reply-ticket"><div><span>진단 회식 · 참석 가능일</span><span class="ticket-stamp" aria-hidden="true">접수 완료</span></div><h3 id="done-name"></h3><p class="ticket-count"><strong id="done-count">0</strong>일 가능</p><p id="done-dates"></p><p class="ticket-foot">확정된 날짜는 함께 정해요. 이건 우리의 첫 약속.</p></div>
+          <div class="step-mark" aria-hidden="true">✓ <span>RSVP RECEIVED</span></div><div><p class="eyebrow">회신, 잘 받았습니다.</p><h2 id="done-title" tabindex="-1"><span id="done-title-main">달력에 표시했어요.</span><br /><em id="done-title-note">이제 만날 일만 남았네요.</em></h2></div>
+          <div class="reply-ticket"><div><span>진단 회식 · 참석 가능일</span><span class="ticket-stamp" aria-hidden="true">접수 완료</span></div><h3 id="done-name"></h3><p class="ticket-count"><strong id="done-count">0</strong>일 가능</p><p id="done-dates"></p><p class="ticket-foot" id="ticket-foot">확정된 날짜는 함께 정해요. 이건 우리의 첫 약속.</p></div>
           <p id="best-summary" class="best-summary"></p><div class="done-actions"><button type="button" id="edit-button" class="button primary">내 일정 수정하기 <span aria-hidden="true">↗</span></button><p id="done-deadline" class="fine-print">11월 6일까지, 같은 브라우저에서 수정할 수 있어요.</p><button type="button" id="view-results-button" class="text-button">모인 일정 구경하기</button></div>
         </section>
       </div>

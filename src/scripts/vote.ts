@@ -162,6 +162,10 @@ function renderCalendar() {
   }
 }
 function renderDone() {
+  const noneAvailable = hasVote && saved.dates.length === 0;
+  setText('done-title-main', noneAvailable ? '답장, 잘 받았어요.' : '달력에 표시했어요.');
+  setText('done-title-note', noneAvailable ? '다음 기회를 노려봐요.' : '이제 만날 일만 남았네요.');
+  setText('ticket-foot', noneAvailable ? '일정이 달라지면 마감 전까지 수정해 주세요.' : '확정된 날짜는 함께 정해요. 이건 우리의 첫 약속.');
   setText('done-name', `${saved.name || guestName} 님의 답장`); setText('done-count', String(saved.dates.length));
   const allDates = saved.dates.map(d => `11.${String(d).padStart(2, '0')}`);
   const unavailable = complementDates(saved.dates);
@@ -169,7 +173,7 @@ function renderDone() {
   setText('done-dates', receipt);
   $('done-dates').setAttribute('aria-label', `가능한 날짜: ${allDates.join(', ') || '없음'}`);
   const { best, max } = aggregate(snapshot.votes);
-  setText('best-summary', best.length ? `지금은 11월 ${best[0]}일에 가장 많이 만날 수 있어요. ${max}명 가능${best.length > 1 ? ` · 공동 1위 ${best.length}일` : ''}.` : '아직은 조용한 답장함. 곧 반가운 일정들이 모일 거예요.');
+  setText('best-summary', best.length ? `지금은 11월 ${best[0]}일에 가장 많이 만날 수 있어요. ${max}명 가능${best.length > 1 ? ` · 공동 1위 ${best.length}일` : ''}.` : snapshot.votes.length ? '답장은 도착했어요. 아직 함께 가능한 날짜는 없네요.' : '아직은 조용한 답장함. 곧 반가운 일정들이 모일 거예요.');
   const closed = isClosed();
   $<HTMLButtonElement>('edit-button').disabled = closed || busy;
   setText('edit-button', closed ? '회신이 마감됐어요' : '내 일정 수정하기 ↗');
