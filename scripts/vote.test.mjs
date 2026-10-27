@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aggregate, dateLabel, sameVote, validDates, WEEKENDS } from '../src/lib/vote-model.mjs';
+import { aggregate, complementDates, DAYS, dateLabel, sameVote, validDates, WEEKENDS } from '../src/lib/vote-model.mjs';
 import { guestGreeting, countdown, VOTE_DEADLINE } from '../src/lib/vote-model.mjs';
 
 test('November 2026 starts on Sunday and ends on Monday, with 30 dates', () => {
@@ -56,4 +56,17 @@ test('countdown has stable day, hour, minute and second boundaries without negat
   assert.deepEqual(countdown(VOTE_DEADLINE - (86400 + 3600 + 60 + 1) * 1000), {closed:false,days:1,hours:1,minutes:1,seconds:1});
   assert.deepEqual(countdown(VOTE_DEADLINE), {closed:true,days:0,hours:0,minutes:0,seconds:0});
   assert.equal(countdown(VOTE_DEADLINE - 1).seconds,1);
+});
+
+test('X-marked dates roundtrip existing available votes and drafts without changing schedules', () => {
+  for (const available of [[], [1,7,14,30], DAYS]) {
+    assert.deepEqual(complementDates(complementDates(available)), available);
+  }
+  assert.deepEqual(complementDates(new Set([7,14])), DAYS.filter(day => ![7,14].includes(day)));
+  assert.deepEqual(complementDates([]), DAYS);
+  assert.deepEqual(complementDates(DAYS), []);
+  const result = aggregate([{dates:[]}, {dates:complementDates([7])}]);
+  assert.equal(result.counts[6], 0);
+  assert.equal(result.counts[7], 1);
+  assert.deepEqual(aggregate([{dates:[]}]).best, []);
 });

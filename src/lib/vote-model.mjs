@@ -1,4 +1,9 @@
 export const DAYS = Array.from({ length: 30 }, (_, i) => i + 1);
+// Both API votes and stored drafts retain available dates; only the calendar marks unavailable dates.
+export function complementDates(dates) {
+  const excluded = new Set(dates);
+  return DAYS.filter(day => !excluded.has(day));
+}
 export const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 export const dateLabel = day => `11월 ${day}일 (${WEEK[(day - 1) % 7]})`;
 export const WEEKENDS = DAYS.filter(day => [0, 6].includes((day - 1) % 7));

@@ -1,4 +1,4 @@
-import { aggregate, countdown, dateLabel, guestGreeting, normalizeGuestName, sameVote, validDates, VOTE_DEADLINE } from '../lib/vote-model.mjs';
+import { aggregate, complementDates, countdown, dateLabel, guestGreeting, normalizeGuestName, sameVote, validDates, VOTE_DEADLINE } from '../lib/vote-model.mjs';
 import { VOTE_API } from '../lib/vote-api';
 import buildVersion from '../../public/vote/version.json';
 
@@ -13,7 +13,7 @@ const dayButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-day]'
 const storage = { key: 'november-2026-vote-key', draft: 'november-2026-vote-draft', epoch: 'november-2026-vote-epoch' };
 let token = '', storageReady = true, initialized = false, busy = false, connected = false;
 let snapshot: Snapshot = { votes: [], ownId: null };
-let selected = new Set<number>();
+let selected = new Set<number>(); // X-marked unavailable dates; persisted dates remain available.
 let screen: Screen = 'cover', mode: 'select' | 'results' = 'select', detailDay: number | null = null;
 let guestName = '', nameTouched = false, datesTouched = false, requestSequence = 0;
 let compactName = false;
@@ -24,7 +24,7 @@ let toastTimer: ReturnType<typeof setTimeout>;
 function setText(id: string, value: string) { const el = $(id); if (el.textContent !== value) el.textContent = value; }
 const now = () => clockAnchor ? clockAnchor.server + performance.now() - clockAnchor.tick : Date.now();
 const isClosed = () => serverClosed || countdown(now(), deadline).closed;
-const draft = () => ({ name: normalizeGuestName(nameInput.value), dates: [...selected].sort((a, b) => a - b) });
+const draft = () => ({ name: normalizeGuestName(nameInput.value), dates: complementDates(selected) });
 const isDirty = () => !sameVote(draft(), saved);
 
 try {
@@ -40,7 +40,7 @@ if (storageReady) {
   try {
     const value = JSON.parse(localStorage.getItem(storage.draft) || 'null');
     if (value && typeof value.name === 'string' && value.name.length <= 24 && validDates(value.dates)) {
-      nameInput.value = value.name; selected = new Set(value.dates);
+      nameInput.value = value.name; selected = new Set(complementDates(value.dates));
     } else if (value) localStorage.removeItem(storage.draft);
   } catch { try { localStorage.removeItem(storage.draft); } catch { /* Preserve the session. */ } }
 }
@@ -113,7 +113,7 @@ async function refresh(initial = false) {
     if (initial || !initialized) {
       saved = own ? { name: own.name, dates: own.dates } : { name: '', dates: [] };
       let hasDraft = false; try { hasDraft = !!localStorage.getItem(storage.draft); } catch { /* Storage is unavailable. */ }
-      if (own && !hasDraft) { if (!nameTouched) nameInput.value = own.name; if (!datesTouched) selected = new Set(own.dates); }
+      if (own && !hasDraft) { if (!nameTouched) nameInput.value = own.name; if (!datesTouched) selected = new Set(complementDates(own.dates)); }
       initialized = true;
     }
     render();
@@ -128,14 +128,15 @@ function renderWelcome() {
   setText('welcome-name', `${greeting.name} 님, 잘 오셨어요.`);
   setText('welcome-title', greeting.title); setText('welcome-message', greeting.message); setText('welcome-note', greeting.note);
   setText('welcome-stamp', greeting.listed ? '명단\n확인' : '특별\n환영');
-  setText('go-calendar', isClosed() ? '모인 일정 보러 가기 →' : '가능한 날짜 고르기 →');
+  setText('go-calendar', isClosed() ? '모인 일정 보러 가기 →' : '안 되는 날 표시하기 →');
 }
 function renderCalendar() {
   const { counts, max, best } = aggregate(snapshot.votes), closed = isClosed();
+  setText('calendar-title', mode === 'select' ? '안 되는 날만 X 해주세요.' : '모인 일정을 확인해요.');
   setText('calendar-guest', `${guestName || nameInput.value || '참여자'} 님, 일정 확인 부탁드려요.`);
   $('select-view').setAttribute('aria-pressed', String(mode === 'select'));
   $('results-view').setAttribute('aria-pressed', String(mode === 'results'));
-  setText('calendar-instruction', mode === 'select' ? closed ? '회신이 마감됐어요. 함께할 날을 기다려 주세요.' : '가능한 날을 모두 눌러 주세요. 다시 누르면 취소돼요.' : '날짜를 누르면, 함께할 수 있는 사람을 보여드려요.');
+  setText('calendar-instruction', mode === 'select' ? closed ? '회신이 마감됐어요. 함께할 날을 기다려 주세요.' : '누르면 불가 X, 다시 누르면 가능. 빈칸은 가능한 날이에요.' : '날짜를 누르면, 함께할 수 있는 사람을 보여드려요.');
   $('clear-button').hidden = mode !== 'select' || closed; $('refresh-button').hidden = mode !== 'results';
   dayButtons.forEach(button => {
     const day = Number(button.dataset.day), count = counts[day - 1], chosen = selected.has(day);
@@ -145,7 +146,7 @@ function renderCalendar() {
     button.classList.toggle('is-detail', mode === 'results' && detailDay === day);
     button.style.backgroundColor = mode === 'results' && count ? `rgba(164,78,56,${.04 + count / Math.max(max, 1) * .12})` : '';
     button.setAttribute('aria-pressed', String(mode === 'select' ? chosen : detailDay === day));
-    button.setAttribute('aria-label', `${dateLabel(day)}, ${mode === 'select' ? chosen ? '선택됨' : '선택 안 됨' : `${count}명 가능`}`);
+    button.setAttribute('aria-label', `${dateLabel(day)}, ${mode === 'select' ? chosen ? '불가, 다시 누르면 가능' : '가능, 누르면 불가' : `${count}명 가능`}`);
     button.querySelector('.day-count')!.textContent = mode === 'results' && count ? `${count}명` : '';
   });
   if (mode === 'results') {
@@ -156,20 +157,22 @@ function renderCalendar() {
     } else { setText('selection-summary', `${snapshot.votes.length}명의 반가운 답장이 모였어요.`); $('selection-summary').removeAttribute('title'); }
   } else {
     const dates = [...selected].sort((a, b) => a - b);
-    const summary = dates.length ? `${dates.length}일 선택 · ${dates.map(d => `${d}일`).join(', ')}` : '아직 고른 날이 없어요.';
-    setText('selection-summary', summary); $('selection-summary').title = summary;
+    const summary = `불가 ${dates.length}일 · ${30 - dates.length}일 가능`;
+    setText('selection-summary', summary); $('selection-summary').title = `${summary}${dates.length ? ` · 불가: ${dates.join(', ')}일` : ''}`;
   }
 }
 function renderDone() {
   setText('done-name', `${saved.name || guestName} 님의 답장`); setText('done-count', String(saved.dates.length));
   const allDates = saved.dates.map(d => `11.${String(d).padStart(2, '0')}`);
-  setText('done-dates', allDates.length > 8 ? `${allDates.slice(0, 6).join(' · ')} 외 ${allDates.length - 6}일` : allDates.join(' · '));
-  $('done-dates').setAttribute('aria-label', allDates.join(', '));
+  const unavailable = complementDates(saved.dates);
+  const receipt = !unavailable.length ? '11월 내내 가능해요.' : !allDates.length ? '이번 11월은 가능한 날이 없어요.' : `불가: ${unavailable.slice(0, 8).map(d => `${d}일`).join(' · ')}${unavailable.length > 8 ? ` 외 ${unavailable.length - 8}일` : ''} · 나머지는 가능`;
+  setText('done-dates', receipt);
+  $('done-dates').setAttribute('aria-label', `가능한 날짜: ${allDates.join(', ') || '없음'}`);
   const { best, max } = aggregate(snapshot.votes);
   setText('best-summary', best.length ? `지금은 11월 ${best[0]}일에 가장 많이 만날 수 있어요. ${max}명 가능${best.length > 1 ? ` · 공동 1위 ${best.length}일` : ''}.` : '아직은 조용한 답장함. 곧 반가운 일정들이 모일 거예요.');
   const closed = isClosed();
   $<HTMLButtonElement>('edit-button').disabled = closed || busy;
-  setText('edit-button', closed ? '회신이 마감됐어요' : '일정 다시 고르기 ↗');
+  setText('edit-button', closed ? '회신이 마감됐어요' : '내 일정 수정하기 ↗');
   setText('done-deadline', closed ? '이제 날짜를 정하고, 얼굴 볼 일만 남았습니다.' : '11월 6일까지, 같은 브라우저에서 수정할 수 있어요.');
 }
 function renderControls() {
@@ -179,11 +182,11 @@ function renderControls() {
   $<HTMLButtonElement>('refresh-button').disabled = busy;
   $<HTMLButtonElement>('back-button').disabled = busy;
   nameInput.disabled = busy;
-  saveButton.disabled = busy || (closed ? !hasVote : mode === 'select' && (!connected || !storageReady || !selected.size));
-  const label = busy ? '답장 보내는 중…' : closed ? hasVote ? '내가 보낸 답장 보기' : '투표가 마감됐어요' : mode === 'results' ? '내 일정 고르러 가기' : hasVote && !isDirty() ? '저장한 답장 보기' : hasVote ? '바뀐 일정으로 답장하기' : '이날은 만날 수 있어요';
+  saveButton.disabled = busy || (closed ? !hasVote : mode === 'select' && (!connected || !storageReady));
+  const label = busy ? '답장 보내는 중…' : closed ? hasVote ? '내가 보낸 답장 보기' : '투표가 마감됐어요' : mode === 'results' ? '내 일정 표시하러 가기' : hasVote && !isDirty() ? '저장한 답장 보기' : !selected.size ? '전부 가능해요' : '이 일정으로 답장하기';
   setText('save-label', label);
-  setText('calendar-status', closed ? '회신 마감 · 11월 6일 23:59 한국시간' : busy ? '잠시만요. 반가운 답장을 전달하고 있어요.' : !connected ? '답장함에 연결하고 있어요.' : isDirty() && selected.size ? '선택한 날을 저장하면 답장이 전해집니다.' : hasVote ? '보낸 답장은 마감 전까지 바꿀 수 있어요.' : '마감 전에는 언제든 수정할 수 있어요.');
-  $('calendar-status').classList.toggle('dirty', isDirty() && selected.size > 0);
+  setText('calendar-status', closed ? '회신 마감 · 11월 6일 23:59 한국시간' : busy ? '잠시만요. 반가운 답장을 전달하고 있어요.' : !connected ? '답장함에 연결하고 있어요.' : !hasVote || isDirty() ? '버튼으로 답장해야 일정이 저장돼요.' : '보낸 답장은 마감 전까지 바꿀 수 있어요.');
+  $('calendar-status').classList.toggle('dirty', isDirty());
   $('calendar-screen').setAttribute('aria-busy', String(busy));
 }
 function updateCountdown() {
@@ -226,8 +229,8 @@ saveButton.addEventListener('click', async () => {
   if (isClosed()) { if (hasVote) showScreen('done'); return; }
   if (mode === 'results') { mode = 'select'; render(); return; }
   if (hasVote && !isDirty()) { showScreen('done'); return; }
-  if (!selected.size || !guestName || !connected || !storageReady) return;
-  const payload = { name: guestName, dates: [...selected].sort((a,b) => a-b), epoch: pollEpoch };
+  if (!guestName || !connected || !storageReady) return;
+  const payload = { name: guestName, dates: complementDates(selected), epoch: pollEpoch };
   busy = true; ++requestSequence; renderControls();
   try {
     await request('POST', payload); saved = payload; hasVote = true;
