@@ -108,11 +108,11 @@ function renderWelcome() {
   setText('welcome-name', `${greeting.name} 님, 잘 오셨어요.`);
   setText('welcome-title', greeting.title); setText('welcome-message', greeting.message); setText('welcome-note', greeting.note);
   setText('welcome-stamp', greeting.listed ? '명단\n확인' : '특별\n환영');
-  setText('go-calendar', isClosed() ? '모인 일정 보러 가기 →' : '이제, 만날 날을 골라볼까요? →');
+  setText('go-calendar', isClosed() ? '모인 일정 보러 가기 →' : '가능한 날짜 고르기 →');
 }
 function renderCalendar() {
   const { counts, max, best } = aggregate(snapshot.votes), closed = isClosed();
-  setText('calendar-guest', `${guestName || nameInput.value || '당신'} 님의 자리를 생각하며`);
+  setText('calendar-guest', `${guestName || nameInput.value || '참여자'} 님, 일정 확인 부탁드려요.`);
   $('select-view').setAttribute('aria-pressed', String(mode === 'select'));
   $('results-view').setAttribute('aria-pressed', String(mode === 'results'));
   setText('calendar-instruction', mode === 'select' ? closed ? '회신이 마감됐어요. 함께할 날을 기다려 주세요.' : '가능한 날을 모두 눌러 주세요. 다시 누르면 취소돼요.' : '날짜를 누르면, 함께할 수 있는 사람을 보여드려요.');

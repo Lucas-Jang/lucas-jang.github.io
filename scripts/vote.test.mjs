@@ -32,15 +32,19 @@ test('each invited name receives the listed welcome; everyone else is equally we
   for (const name of ['전지원', '장원준', '송창훈', ' 전지원 ', '장 원준']) {
     const greeting = guestGreeting(name);
     assert.equal(greeting.listed, true);
-    assert.match(greeting.message, /명단에도 있고/);
+    assert.match(greeting.message, /명단/);
     assert.match(greeting.message, /환영/);
   }
   for (const name of ['김민수', '전지워', '<img onerror=alert(1)>']) {
     const greeting = guestGreeting(name);
     assert.equal(greeting.listed, false);
-    assert.match(greeting.title, /명단엔 없어도/);
+    assert.match(greeting.message, /명단/);
     assert.match(greeting.message, /환영/);
   }
+  const personal = ['전지원', '장원준', '송창훈'].map(guestGreeting);
+  assert.equal(new Set(personal.map(greeting => greeting.message)).size, 3);
+  assert.deepEqual(guestGreeting(' 전지원 '), guestGreeting('전지원'));
+  assert.deepEqual(guestGreeting('김민수'), guestGreeting('김민수'));
 });
 test('deadline includes all of November 6 in Korea and closes exactly at midnight', () => {
   assert.equal(VOTE_DEADLINE, Date.parse('2026-11-06T15:00:00Z'));

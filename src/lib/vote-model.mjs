@@ -17,18 +17,39 @@ export function sameVote(a, b) {
 // November 6 is inclusive in Korea. The first closed instant is November 7 midnight.
 export const VOTE_DEADLINE = Date.parse('2026-11-07T00:00:00+09:00');
 export const INVITED_NAMES = ['전지원', '장원준', '송창훈'];
+const PERSONAL_GREETINGS = new Map([
+  ['전지원', {
+    title: '지원 님,\n반가운 지원군 등장.',
+    message: '전지원 님, 명단에서 바로 찾았어요.\n환영합니다. 이제 날짜만 지원해 주세요.',
+    note: '오늘의 안건: 메뉴 선정에도 적극 지원 부탁.',
+  }],
+  ['장원준', {
+    title: '원준 님,\n이번엔 진짜 모이죠.',
+    message: '장원준 님, 명단에 있습니다. 환영해요.\n“언제 한번”을 이번엔 실행해 봅시다.',
+    note: '구두 약속 → 날짜 확정, 추진 중.',
+  }],
+  ['송창훈', {
+    title: '창훈 님,\n출석 확인했습니다.',
+    message: '송창훈 님, 명단 확인했어요. 환영합니다.\n어려운 질문은 없어요. 언제 시간 되세요?',
+    note: '준비물: 빈속. 근황은 선택 사항.',
+  }],
+]);
+const OTHER_GREETINGS = [
+  { title: '명단엔 없어도,\n합석은 환영이죠.', message: '명단에는 이름이 없네요. 그래도 환영해요.\n인원이 늘면, 메뉴도 하나 더 시키면 되죠.', note: '명단 수정 사유: 반가운 사람 추가.' },
+  { title: '명단 담당자가\n한 분 놓쳤네요.', message: '명단엔 없지만, 오신 건 대환영입니다.\n담당자에겐 저희가 잘 얘기할게요.', note: '입장 심사 결과: 일단 같이 먹기로.' },
+  { title: '예상 밖의 손님,\n오히려 좋습니다.', message: '명단에서는 못 찾았지만, 환영해요.\n원래 재밌는 모임엔 번외 멤버가 있죠.', note: '참석 자격: 같이 밥 먹고 싶은 사람.' },
+  { title: '초대 명단보다\n식탁이 넓습니다.', message: '명단에 없다고 못 올 이유는 없죠.\n환영합니다. 수저 하나 더 놓을게요.', note: '추가 인원 접수 완료. 날짜만 남았습니다.' },
+];
 export function normalizeGuestName(value) {
   return value.normalize('NFC').trim().replace(/\s+/g, ' ');
 }
 export function guestGreeting(value) {
   const name = normalizeGuestName(value);
-  const listed = INVITED_NAMES.includes(name.replace(/\s/g, ''));
-  return {
-    name, listed,
-    title: listed ? '기다리고 있었어요.' : '명단엔 없어도,\n빈자리는 있어요.',
-    message: listed ? '명단에도 있고, 마음에도 있습니다.\n진단 회식에 오신 걸 환영해요.' : '좋은 사람은 원래 번외로 오니까요.\n진단 회식에 오신 걸 환영해요.',
-    note: listed ? '오늘의 진단: 반가움 정상 초과.' : '오늘의 진단: 뜻밖의 만남, 아주 좋음.',
-  };
+  const key = name.replace(/\s/g, '');
+  const personal = PERSONAL_GREETINGS.get(key);
+  // The same name keeps the same greeting across countdown ticks and refreshes.
+  const hash = [...key].reduce((value, char) => (Math.imul(value, 31) + char.codePointAt(0)) >>> 0, 0);
+  return { name, listed: !!personal, ...(personal || OTHER_GREETINGS[hash % OTHER_GREETINGS.length]) };
 }
 export function countdown(now, deadline = VOTE_DEADLINE) {
   const seconds = Math.max(0, Math.ceil((deadline - now) / 1000));
