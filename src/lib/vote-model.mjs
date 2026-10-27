@@ -4,6 +4,10 @@ export function complementDates(dates) {
   const excluded = new Set(dates);
   return DAYS.filter(day => !excluded.has(day));
 }
+export function unavailableFromDraft(draft) {
+  // The old UI could not submit zero available dates: an empty legacy draft was untouched.
+  return draft.version !== 2 && draft.dates.length === 0 ? [] : complementDates(draft.dates);
+}
 export const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 export const dateLabel = day => `11월 ${day}일 (${WEEK[(day - 1) % 7]})`;
 export const WEEKENDS = DAYS.filter(day => [0, 6].includes((day - 1) % 7));

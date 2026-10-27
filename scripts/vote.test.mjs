@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aggregate, complementDates, DAYS, dateLabel, sameVote, validDates, WEEKENDS } from '../src/lib/vote-model.mjs';
+import { aggregate, complementDates, DAYS, dateLabel, sameVote, unavailableFromDraft, validDates, WEEKENDS } from '../src/lib/vote-model.mjs';
 import { guestGreeting, countdown, VOTE_DEADLINE } from '../src/lib/vote-model.mjs';
 
 test('November 2026 starts on Sunday and ends on Monday, with 30 dates', () => {
@@ -59,6 +59,10 @@ test('countdown has stable day, hour, minute and second boundaries without negat
 });
 
 test('X-marked dates roundtrip existing available votes and drafts without changing schedules', () => {
+  assert.deepEqual(unavailableFromDraft({dates:[]}), []);
+  assert.deepEqual(unavailableFromDraft({dates:[7,14]}), complementDates([7,14]));
+  assert.deepEqual(unavailableFromDraft({version:2,dates:[]}), DAYS);
+  assert.deepEqual(unavailableFromDraft({version:2,dates:DAYS}), []);
   for (const available of [[], [1,7,14,30], DAYS]) {
     assert.deepEqual(complementDates(complementDates(available)), available);
   }

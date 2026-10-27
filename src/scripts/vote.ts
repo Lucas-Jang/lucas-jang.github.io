@@ -1,4 +1,4 @@
-import { aggregate, complementDates, countdown, dateLabel, guestGreeting, normalizeGuestName, sameVote, validDates, VOTE_DEADLINE } from '../lib/vote-model.mjs';
+import { aggregate, complementDates, countdown, dateLabel, guestGreeting, normalizeGuestName, sameVote, unavailableFromDraft, validDates, VOTE_DEADLINE } from '../lib/vote-model.mjs';
 import { VOTE_API } from '../lib/vote-api';
 import buildVersion from '../../public/vote/version.json';
 
@@ -24,7 +24,7 @@ let toastTimer: ReturnType<typeof setTimeout>;
 function setText(id: string, value: string) { const el = $(id); if (el.textContent !== value) el.textContent = value; }
 const now = () => clockAnchor ? clockAnchor.server + performance.now() - clockAnchor.tick : Date.now();
 const isClosed = () => serverClosed || countdown(now(), deadline).closed;
-const draft = () => ({ name: normalizeGuestName(nameInput.value), dates: complementDates(selected) });
+const draft = () => ({ version: 2, name: normalizeGuestName(nameInput.value), dates: complementDates(selected) });
 const isDirty = () => !sameVote(draft(), saved);
 
 try {
@@ -40,7 +40,7 @@ if (storageReady) {
   try {
     const value = JSON.parse(localStorage.getItem(storage.draft) || 'null');
     if (value && typeof value.name === 'string' && value.name.length <= 24 && validDates(value.dates)) {
-      nameInput.value = value.name; selected = new Set(complementDates(value.dates));
+      nameInput.value = value.name; selected = new Set(unavailableFromDraft(value));
     } else if (value) localStorage.removeItem(storage.draft);
   } catch { try { localStorage.removeItem(storage.draft); } catch { /* Preserve the session. */ } }
 }
