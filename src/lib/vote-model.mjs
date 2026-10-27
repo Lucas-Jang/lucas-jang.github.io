@@ -16,7 +16,7 @@ export function sameVote(a, b) {
 }
 // November 6 is inclusive in Korea. The first closed instant is November 7 midnight.
 export const VOTE_DEADLINE = Date.parse('2026-11-07T00:00:00+09:00');
-export const INVITED_NAMES = ['전지원', '장원준', '송창훈'];
+export const INVITED_NAMES = ['전지원', '장원준', '김인섭'];
 const PERSONAL_GREETINGS = new Map([
   ['전지원', {
     title: '지원 님,\n반가운 지원군 등장.',
@@ -28,10 +28,10 @@ const PERSONAL_GREETINGS = new Map([
     message: '장원준 님, 명단에 있습니다. 환영해요.\n“언제 한번”을 이번엔 실행해 봅시다.',
     note: '구두 약속 → 날짜 확정, 추진 중.',
   }],
-  ['송창훈', {
-    title: '창훈 님,\n출석 확인했습니다.',
-    message: '송창훈 님, 명단 확인했어요. 환영합니다.\n어려운 질문은 없어요. 언제 시간 되세요?',
-    note: '준비물: 빈속. 근황은 선택 사항.',
+  ['김인섭', {
+    title: '인섭 님,\n안 보면 섭섭하죠.',
+    message: '김인섭 님, 명단에 있습니다. 환영해요.\n이번엔 얼굴 보고, 섭섭함은 덜어봅시다.',
+    note: '인섭 있는 회식, 섭섭함 없는 저녁.',
   }],
 ]);
 const OTHER_GREETINGS = [
