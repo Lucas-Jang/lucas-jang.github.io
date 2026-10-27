@@ -29,19 +29,19 @@ test('invalid dates and malformed local drafts cannot enter the model', () => {
   assert.equal(validDates([1,7,30]),true);
 });
 test('each invited name receives the listed welcome; everyone else is equally welcome', () => {
-  for (const name of ['전지원', '장원준', '김인섭', ' 전지원 ', '장 원준']) {
+  for (const name of ['전지원', '장원준', '송창훈', ' 전지원 ', '장 원준']) {
     const greeting = guestGreeting(name);
     assert.equal(greeting.listed, true);
     assert.match(greeting.message, /명단/);
     assert.match(greeting.message, /환영/);
   }
-  for (const name of ['송창훈', '김민수', '전지워', '<img onerror=alert(1)>']) {
+  for (const name of ['김민수', '전지워', '<img onerror=alert(1)>']) {
     const greeting = guestGreeting(name);
     assert.equal(greeting.listed, false);
     assert.match(greeting.message, /명단/);
     assert.match(greeting.message, /환영/);
   }
-  const personal = ['전지원', '장원준', '김인섭'].map(guestGreeting);
+  const personal = ['전지원', '장원준', '송창훈'].map(guestGreeting);
   assert.equal(new Set(personal.map(greeting => greeting.message)).size, 3);
   assert.deepEqual(guestGreeting(' 전지원 '), guestGreeting('전지원'));
   assert.deepEqual(guestGreeting('김민수'), guestGreeting('김민수'));
