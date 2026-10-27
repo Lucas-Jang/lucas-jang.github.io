@@ -46,3 +46,9 @@ GET의 `epoch`가 브라우저에 저장된 값과 다르면 기존 응답·이�
 관리 초기화 경로는 런타임 secret `VOTE_RESET_SECRET`이 설정된 동안에만 동작한다. 비밀키는 코드나 브라우저에 넣지 않으며 관리 작업 후 환경변수를 제거하고 재배포해 경로를 비활성화한다.
 
 `public/vote/version.json`의 revision을 화면 변경 시 함께 올린다. 열린 화면은 20초마다, 또는 다시 표시될 때 새 버전을 확인하고 미저장 초안을 보관한 뒤 캐시를 우회하는 `?v=<revision>` 주소로 갱신한다. 이전 버전에 이 기능이 없던 탭은 새 버전 링크를 한 번 열어야 한다.
+
+## 링크 공유 이미지
+
+`/vote/share-invitation-v1.png`(1200×630)를 Open Graph와 Twitter 카드에 지정한다. OG 이미지 URL은 절대 HTTPS 주소이며, 파비콘/홈 화면 아이콘과 별개다. 공유 이미지 갱신 시 이미지 파일명과 해당 메타 정보를 함께 변경한다. 기존 메시지의 미리보기 갱신 여부는 메신저 캐시에 따라 다를 수 있다.
+
+디자인 원본 생성기는 `scripts/generate-vote-share.mjs`이며 생성된 PNG를 저장소에 포함한다. 빌드 시 폰트 설치는 필요 없다. 다시 생성할 때는 한국어 폰트 경로를 `VOTE_SHARE_SANS_FONT`, `VOTE_SHARE_SERIF_FONT`로 지정할 수 있다.
