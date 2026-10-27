@@ -1,24 +1,28 @@
-import { aggregate, dateLabel, sameVote, validDates, WEEKENDS } from '../lib/vote-model.mjs';
+import { aggregate, countdown, dateLabel, guestGreeting, normalizeGuestName, sameVote, validDates, VOTE_DEADLINE } from '../lib/vote-model.mjs';
 import { VOTE_API } from '../lib/vote-api';
 
 type Vote = { id: string; name: string; dates: number[]; updatedAt: string };
-type Snapshot = { votes: Vote[]; ownId: string | null };
+type Snapshot = { votes: Vote[]; ownId: string | null; serverTime?: string; deadlineAt?: string; closed?: boolean };
+type Screen = 'cover' | 'name' | 'welcome' | 'calendar' | 'done';
+type Reply = { ok?: boolean; error?: string; code?: string; serverTime?: string; deadlineAt?: string };
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const nameInput = $<HTMLInputElement>('voter-name');
 const saveButton = $<HTMLButtonElement>('save-button');
-const form = $<HTMLFormElement>('vote-form');
-const dialog = $<HTMLDialogElement>('delete-dialog');
 const dayButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-day]')];
 const storage = { key: 'november-2026-vote-key', draft: 'november-2026-vote-draft' };
 let token = '', storageReady = true, initialized = false, busy = false, connected = false;
 let snapshot: Snapshot = { votes: [], ownId: null };
 let selected = new Set<number>();
-let mode: 'select' | 'results' = 'select';
-let detailDay: number | null = null;
+let screen: Screen = 'cover', mode: 'select' | 'results' = 'select', detailDay: number | null = null;
+let guestName = '', nameTouched = false, datesTouched = false, requestSequence = 0;
+let saved = { name: '', dates: [] as number[] }, hasVote = false;
+let clockAnchor: { server: number; tick: number } | null = null, deadline = VOTE_DEADLINE, serverClosed = false, previouslyClosed = false;
 let toastTimer: ReturnType<typeof setTimeout>;
-let requestSequence = 0;
-let saved: { name: string; dates: number[] } = { name: '', dates: [] };
-let hasVote = false;
+function setText(id: string, value: string) { const el = $(id); if (el.textContent !== value) el.textContent = value; }
+const now = () => clockAnchor ? clockAnchor.server + performance.now() - clockAnchor.tick : Date.now();
+const isClosed = () => serverClosed || countdown(now(), deadline).closed;
+const draft = () => ({ name: normalizeGuestName(nameInput.value), dates: [...selected].sort((a, b) => a - b) });
+const isDirty = () => !sameVote(draft(), saved);
 
 try {
   token = localStorage.getItem(storage.key) || '';
@@ -29,204 +33,201 @@ try {
 } catch { storageReady = false; }
 if (storageReady) {
   try {
-    const restored = JSON.parse(localStorage.getItem(storage.draft) || 'null');
-    if (restored && typeof restored.name === 'string' && restored.name.length <= 24 && validDates(restored.dates)) {
-      nameInput.value = restored.name; selected = new Set(restored.dates);
-    } else if (restored) localStorage.removeItem(storage.draft);
-  } catch { try { localStorage.removeItem(storage.draft); } catch { /* Keep the session available. */ } }
+    const value = JSON.parse(localStorage.getItem(storage.draft) || 'null');
+    if (value && typeof value.name === 'string' && value.name.length <= 24 && validDates(value.dates)) {
+      nameInput.value = value.name; selected = new Set(value.dates);
+    } else if (value) localStorage.removeItem(storage.draft);
+  } catch { try { localStorage.removeItem(storage.draft); } catch { /* Preserve the session. */ } }
 }
-
-const draft = () => ({ name: nameInput.value.trim(), dates: [...selected].sort((a, b) => a - b) });
-const isDirty = () => !sameVote(draft(), saved);
 function rememberDraft() {
-  if (storageReady) { try { localStorage.setItem(storage.draft, JSON.stringify(draft())); } catch { /* Keep this session editable. */ } }
+  if (storageReady) { try { localStorage.setItem(storage.draft, JSON.stringify(draft())); } catch { /* The selection remains in memory. */ } }
 }
-function showToast(message: string) {
-  $('toast').textContent = message; $('toast').hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 5000);
+function notify(message: string) {
+  setText('toast', message); $('toast').hidden = false; clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4500);
 }
-function showError(message: string, connection = false) {
-  if (connection) { $('connection-message').textContent = message; $('connection-error').hidden = false; }
-  else { $('form-error').textContent = message; $('form-error').hidden = false; }
+function connectionError(message: string) { setText('connection-message', message); $('connection-notice').hidden = false; }
+function syncClock(data: Reply | Snapshot) {
+  if (data.serverTime && Number.isFinite(Date.parse(data.serverTime))) clockAnchor = { server: Date.parse(data.serverTime), tick: performance.now() };
+  if (data.deadlineAt && Number.isFinite(Date.parse(data.deadlineAt))) deadline = Date.parse(data.deadlineAt);
+  if ('closed' in data) serverClosed = !!data.closed;
 }
-function text<K extends keyof HTMLElementTagNameMap>(tag: K, content: string, className = '') {
-  const el = document.createElement(tag); el.textContent = content; el.className = className; return el;
-}
-async function request(method: 'GET' | 'POST' | 'DELETE', body?: unknown): Promise<Snapshot | { ok: boolean }> {
+async function request(method: 'GET' | 'POST', body?: unknown) {
   let response: Response;
-  try { response = await fetch(VOTE_API, {
-    method, mode: 'cors', credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(15000),
-    headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  }); } catch { throw new Error('연결이 원활하지 않아 결과를 확인하지 못했어요. 선택 내용은 유지됩니다. 다시 연결한 뒤 시도해 주세요.'); }
-  const payload = await response.json() as { error?: string };
-  if (!response.ok) throw new Error(payload.error || '요청을 처리하지 못했습니다. 다시 시도해 주세요.');
-  return payload as Snapshot | { ok: boolean };
+  try {
+    response = await fetch(VOTE_API, { method, mode: 'cors', credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(15000), headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  } catch { throw new Error('답장이 잠깐 길을 잃었어요. 선택은 그대로 두었으니, 다시 연결해 주세요.'); }
+  const payload = await response.json() as Reply & Snapshot;
+  if (method === 'POST' || !response.ok) syncClock(payload);
+  if (!response.ok) {
+    if (payload.code === 'VOTING_CLOSED') serverClosed = true;
+    throw new Error(payload.error || '답장을 보내지 못했어요. 잠시 후 다시 시도해 주세요.');
+  }
+  return payload;
 }
-function validateSnapshot(data: Snapshot) {
-  if (!Array.isArray(data.votes) || !data.votes.every(v => typeof v.id === 'string' && typeof v.name === 'string' && validDates(v.dates))) throw new Error('투표 응답을 확인하지 못했습니다. 다시 연결해 주세요.');
+function showScreen(next: Screen, focus = true) {
+  screen = next;
+  for (const name of ['cover', 'name', 'welcome', 'calendar', 'done']) $(`${name}-screen`).hidden = name !== next;
+  document.querySelector<HTMLElement>('.header-note')!.hidden = next !== 'cover';
+  $('back-button').hidden = next === 'cover';
+  setText('step-counter', ({ cover: 'OPEN ME', name: '01 / 04', welcome: '02 / 04', calendar: '03 / 04', done: '04 / 04' })[next]);
+  $('toast').hidden = true;
+  render();
+  if (focus) requestAnimationFrame(() => {
+    const title = $(`${next === 'calendar' ? 'calendar' : next === 'welcome' ? 'welcome' : next === 'name' ? 'name' : next === 'done' ? 'done' : 'cover'}-title`);
+    title.focus({ preventScroll: true });
+  });
 }
 async function refresh(initial = false) {
-  if (busy) return;
+  if (busy || !storageReady) return;
   const sequence = ++requestSequence;
   try {
-    const result = await request('GET') as Snapshot; validateSnapshot(result);
+    const result = await request('GET');
+    if (!Array.isArray(result.votes) || !result.votes.every(v => typeof v.id === 'string' && typeof v.name === 'string' && validDates(v.dates))) throw new Error('답장함을 열지 못했어요. 잠시 후 다시 연결해 주세요.');
     if (sequence !== requestSequence || busy) return;
-    snapshot = result; connected = true; $('connection-error').hidden = true;
+    syncClock(result); snapshot = result; connected = true; $('connection-notice').hidden = true;
     const own = result.votes.find(v => v.id === result.ownId);
     hasVote = !!own;
     if (initial || !initialized) {
       saved = own ? { name: own.name, dates: own.dates } : { name: '', dates: [] };
-      let hasDraft = false;
-      try { hasDraft = !!localStorage.getItem(storage.draft); } catch { /* Browser storage is unavailable. */ }
-      if (own && !hasDraft) { nameInput.value = own.name; selected = new Set(own.dates); }
+      let hasDraft = false; try { hasDraft = !!localStorage.getItem(storage.draft); } catch { /* Storage is unavailable. */ }
+      if (own && !hasDraft) { if (!nameTouched) nameInput.value = own.name; if (!datesTouched) selected = new Set(own.dates); }
       initialized = true;
     }
-    $('refresh-state').textContent = `${new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(new Date())} 업데이트 · 20초마다 갱신`;
     render();
   } catch (error) {
     if (sequence !== requestSequence) return;
     connected = false;
-    showError(initial ? '투표 서버에 연결하지 못했어요. 선택 내용은 유지됩니다. 다시 연결해 주세요.' : '연결이 끊겨 최신 현황을 확인할 수 없어요. 다시 연결해 주세요.', true);
-    $('refresh-state').textContent = snapshot.votes.length ? '마지막으로 불러온 결과입니다.' : '연결을 기다리고 있어요.';
-    renderControls();
+    connectionError(error instanceof Error ? error.message : '답장함 연결이 잠깐 끊겼어요. 다시 연결해 주세요.'); renderControls();
   }
 }
-function renderControls() {
-  dayButtons.forEach(button => { button.disabled = busy || !storageReady; });
-  nameInput.disabled = busy || !storageReady;
-  $<HTMLButtonElement>('weekend-button').disabled = busy || !storageReady;
-  $<HTMLButtonElement>('clear-button').disabled = busy || !selected.size;
-  saveButton.disabled = busy || !connected || !storageReady || !selected.size || (hasVote && !isDirty());
-  $('save-label').textContent = busy ? '저장하는 중…' : hasVote ? '변경한 일정 저장' : '투표 저장하기';
-  $('form-heading').textContent = hasVote ? '내 투표 수정하기' : '내 일정 알려주기';
-  $('delete-button').hidden = !hasVote;
-  $<HTMLButtonElement>('delete-button').disabled = busy;
-  $('mobile-selection').textContent = selected.size ? `${selected.size}일 선택${isDirty() ? ' · 저장 전' : ''}` : '가능한 날을 선택해 주세요';
-  const status = $('save-state');
-  status.classList.toggle('dirty', isDirty()); status.classList.toggle('saved', hasVote && !isDirty());
-  status.textContent = busy ? '저장 중입니다. 잠시만 기다려 주세요.' : isDirty() ? '변경사항이 있어요. 저장하면 결과에 반영됩니다.' : hasVote ? '✓ 내 투표가 저장되어 있어요.' : '아직 저장한 투표가 없어요.';
-  form.setAttribute('aria-busy', String(busy));
+function renderWelcome() {
+  const greeting = guestGreeting(guestName || nameInput.value);
+  setText('welcome-name', `${greeting.name} 님, 잘 오셨어요.`);
+  setText('welcome-title', greeting.title); setText('welcome-message', greeting.message); setText('welcome-note', greeting.note);
+  setText('welcome-stamp', greeting.listed ? '명단\n확인' : '특별\n환영');
+  setText('go-calendar', isClosed() ? '모인 일정 보러 가기 →' : '이제, 만날 날을 골라볼까요? →');
 }
 function renderCalendar() {
-  const { counts, max, best } = aggregate(snapshot.votes);
+  const { counts, max, best } = aggregate(snapshot.votes), closed = isClosed();
+  setText('calendar-guest', `${guestName || nameInput.value || '당신'} 님의 자리를 생각하며`);
   $('select-view').setAttribute('aria-pressed', String(mode === 'select'));
   $('results-view').setAttribute('aria-pressed', String(mode === 'results'));
-  $('selection-tools').hidden = mode !== 'select'; $('refresh-button').hidden = mode !== 'results';
-  $('calendar-instruction').textContent = mode === 'select' ? '날짜를 누르면 선택돼요. 다시 누르면 취소됩니다.' : '날짜를 눌러 참석 가능한 사람을 확인하세요.';
-  $('calendar-legend').replaceChildren(text('i', ''), text('span', mode === 'select' ? '선택한 날짜' : '진할수록 많은 사람이 가능해요'));
+  setText('calendar-instruction', mode === 'select' ? closed ? '회신이 마감됐어요. 함께할 날을 기다려 주세요.' : '가능한 날을 모두 눌러 주세요. 다시 누르면 취소돼요.' : '날짜를 누르면, 함께할 수 있는 사람을 보여드려요.');
+  $('clear-button').hidden = mode !== 'select' || closed; $('refresh-button').hidden = mode !== 'results';
   dayButtons.forEach(button => {
-    const day = Number(button.dataset.day), chosen = selected.has(day), count = counts[day - 1];
+    const day = Number(button.dataset.day), count = counts[day - 1], chosen = selected.has(day);
     button.classList.toggle('selected', mode === 'select' && chosen);
+    button.classList.toggle('has-count', mode === 'results' && count > 0);
     button.classList.toggle('is-best', mode === 'results' && best.includes(day));
     button.classList.toggle('is-detail', mode === 'results' && detailDay === day);
-    button.style.backgroundColor = mode === 'results' && count ? `rgba(65,118,68,${.04 + count / Math.max(max, 1) * .16})` : '';
+    button.style.backgroundColor = mode === 'results' && count ? `rgba(164,78,56,${.04 + count / Math.max(max, 1) * .12})` : '';
     button.setAttribute('aria-pressed', String(mode === 'select' ? chosen : detailDay === day));
     button.setAttribute('aria-label', `${dateLabel(day)}, ${mode === 'select' ? chosen ? '선택됨' : '선택 안 됨' : `${count}명 가능`}`);
-    button.querySelector('.day-votes')!.textContent = mode === 'results' && count ? `${count}명 가능` : '';
+    button.querySelector('.day-count')!.textContent = mode === 'results' && count ? `${count}명` : '';
   });
-  $('date-detail').hidden = mode !== 'results' || detailDay === null;
-  if (detailDay !== null) {
-    const available = snapshot.votes.filter(v => v.dates.includes(detailDay!));
-    $('date-detail-title').textContent = `${dateLabel(detailDay)} · ${available.length}명 가능`;
-    $('date-detail-names').textContent = available.map(v => v.name).join(', ') || '아직 이 날짜에 가능한 사람이 없어요.';
+  if (mode === 'results') {
+    if (detailDay !== null) {
+      const names = snapshot.votes.filter(v => v.dates.includes(detailDay!)).map(v => v.name);
+      setText('selection-summary', `${detailDay}일 · ${names.length ? names.slice(0, 2).join(', ') + (names.length > 2 ? ` 외 ${names.length - 2}명` : '') : '아직 가능한 분이 없어요.'}`);
+      $('selection-summary').title = names.join(', ');
+    } else { setText('selection-summary', `${snapshot.votes.length}명의 반가운 답장이 모였어요.`); $('selection-summary').removeAttribute('title'); }
+  } else {
+    const dates = [...selected].sort((a, b) => a - b);
+    const summary = dates.length ? `${dates.length}일 선택 · ${dates.map(d => `${d}일`).join(', ')}` : '아직 고른 날이 없어요.';
+    setText('selection-summary', summary); $('selection-summary').title = summary;
   }
 }
-function renderSelection() {
-  $('selected-count').textContent = `${selected.size}일`;
-  const root = $('selected-list'); root.replaceChildren();
-  if (!selected.size) root.append(text('p', '달력에서 가능한 날을 골라 주세요.'));
-  [...selected].sort((a, b) => a - b).forEach(day => {
-    const button = text('button', `11.${String(day).padStart(2, '0')} ×`); button.type = 'button'; button.disabled = busy;
-    button.setAttribute('aria-label', `${dateLabel(day)} 선택 해제`);
-    button.addEventListener('click', () => { selected.delete(day); changed(); }); root.append(button);
-  });
+function renderDone() {
+  setText('done-name', `${saved.name || guestName} 님의 답장`); setText('done-count', String(saved.dates.length));
+  const allDates = saved.dates.map(d => `11.${String(d).padStart(2, '0')}`);
+  setText('done-dates', allDates.length > 8 ? `${allDates.slice(0, 6).join(' · ')} 외 ${allDates.length - 6}일` : allDates.join(' · '));
+  $('done-dates').setAttribute('aria-label', allDates.join(', '));
+  const { best, max } = aggregate(snapshot.votes);
+  setText('best-summary', best.length ? `지금은 11월 ${best[0]}일에 가장 많이 만날 수 있어요. ${max}명 가능${best.length > 1 ? ` · 공동 1위 ${best.length}일` : ''}.` : '아직은 조용한 답장함. 곧 반가운 일정들이 모일 거예요.');
+  const closed = isClosed();
+  $<HTMLButtonElement>('edit-button').disabled = closed || busy;
+  setText('edit-button', closed ? '회신이 마감됐어요' : '일정 다시 고르기 ↗');
+  setText('done-deadline', closed ? '이제 날짜를 정하고, 얼굴 볼 일만 남았습니다.' : '11월 6일까지, 같은 브라우저에서 수정할 수 있어요.');
 }
-function renderResults() {
-  const { counts, max, best, ranked } = aggregate(snapshot.votes);
-  $('total-voters').textContent = `${snapshot.votes.length}명 참여`; $('participant-count').textContent = String(snapshot.votes.length);
-  const participants = $('participants'); participants.replaceChildren();
-  if (!snapshot.votes.length) participants.append(text('p', '아직 참여자가 없어요. 첫 번째로 일정을 남겨 주세요.', 'empty-state'));
-  else {
-    const list = text('ul', '', 'participant-list');
-    snapshot.votes.forEach(vote => {
-      const row = text('li', '', 'participant');
-      const avatar = text('span', [...vote.name][0] || '?', 'participant-avatar'); avatar.setAttribute('aria-hidden', 'true');
-      const info = text('div', ''); const name = text('p', vote.name, 'participant-name');
-      if (vote.id === snapshot.ownId) name.append(text('span', '나', 'participant-me'));
-      info.append(name, text('p', vote.dates.map(day => `11.${String(day).padStart(2, '0')}`).join(' · '), 'participant-dates'));
-      row.append(avatar, info, text('span', `${vote.dates.length}일 가능`, 'participant-days')); list.append(row);
-    }); participants.append(list);
-  }
-  const ranking = $('ranking'); ranking.replaceChildren();
-  if (!ranked.length) ranking.append(text('p', '투표가 모이면 많이 겹치는 날짜를 보여드려요.', 'empty-state'));
-  ranked.slice(0, 5).forEach(day => {
-    const count = counts[day - 1], rank = ranked.filter(d => counts[d - 1] > count).length + 1;
-    const row = text('button', '', `rank-row${count === max ? ' winner' : ''}`); row.type = 'button';
-    const track = text('span', '', 'rank-track'), fill = text('span', ''); fill.style.width = `${count / snapshot.votes.length * 100}%`; track.append(fill); track.setAttribute('aria-hidden', 'true');
-    row.append(text('span', String(rank), 'rank-number'), text('span', dateLabel(day), 'rank-date'), track, text('span', `${count}명`, 'rank-count'));
-    row.addEventListener('click', () => { mode = 'results'; detailDay = day; renderCalendar(); $('date-detail').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' }); $<HTMLButtonElement>('close-detail').focus({ preventScroll: true }); }); ranking.append(row);
-  });
-  const target = $('best-content'); target.replaceChildren();
-  if (!best.length) target.append(text('p', '첫 번째 일정을 기다리고 있어요.', 'best-empty'), text('p', '투표가 모이면 가장 많이 겹치는 날을 알려드려요.', 'best-description'));
-  else {
-    const date = text('p', `11월 ${best[0]}일`, 'best-date'); date.append(text('small', dateLabel(best[0]).split('(')[1].replace(')', '요일')));
-    const track = text('div', '', 'attendance-track'), fill = text('span', ''); fill.style.width = `${max / snapshot.votes.length * 100}%`; track.append(fill);
-    target.append(date, text('p', `전체 ${snapshot.votes.length}명 중 ${max}명이 만날 수 있어요.`, 'best-description'), track);
-    if (best.length > 1) target.append(text('p', `공동 1위 ${best.length}일 · ${best.map(d => `11.${String(d).padStart(2, '0')}`).join(', ')}`, 'best-ties'));
-  }
+function renderControls() {
+  const closed = isClosed();
+  dayButtons.forEach(button => { button.disabled = busy || (mode === 'select' && (closed || !storageReady)); });
+  $<HTMLButtonElement>('clear-button').disabled = busy || !selected.size;
+  $<HTMLButtonElement>('refresh-button').disabled = busy;
+  $<HTMLButtonElement>('back-button').disabled = busy;
+  nameInput.disabled = busy;
+  saveButton.disabled = busy || (closed ? !hasVote : mode === 'select' && (!connected || !storageReady || !selected.size));
+  const label = busy ? '답장 보내는 중…' : closed ? hasVote ? '내가 보낸 답장 보기' : '투표가 마감됐어요' : mode === 'results' ? '내 일정 고르러 가기' : hasVote && !isDirty() ? '저장한 답장 보기' : hasVote ? '바뀐 일정으로 답장하기' : '이날은 만날 수 있어요';
+  setText('save-label', label);
+  setText('calendar-status', closed ? '회신 마감 · 11월 6일 23:59 한국시간' : busy ? '잠시만요. 반가운 답장을 전달하고 있어요.' : !connected ? '답장함에 연결하고 있어요.' : isDirty() && selected.size ? '선택한 날을 저장하면 답장이 전해집니다.' : hasVote ? '보낸 답장은 마감 전까지 바꿀 수 있어요.' : '마감 전에는 언제든 수정할 수 있어요.');
+  $('calendar-status').classList.toggle('dirty', isDirty() && selected.size > 0);
+  $('calendar-screen').setAttribute('aria-busy', String(busy));
 }
-function render() { renderCalendar(); renderSelection(); renderResults(); renderControls(); }
-function changed() { $('form-error').hidden = true; nameInput.removeAttribute('aria-invalid'); rememberDraft(); renderCalendar(); renderSelection(); renderControls(); }
+function updateCountdown() {
+  const time = countdown(now(), deadline), closed = isClosed();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  setText('countdown-clock', closed ? '답장이 모두 모였어요' : `${time.days}일 ${pad(time.hours)}:${pad(time.minutes)}:${pad(time.seconds)}`);
+  setText('countdown-label', closed ? '회신 마감' : '회신 마감까지');
+  $('countdown-block').classList.toggle('closed', closed);
+  $('countdown-clock').setAttribute('aria-label', closed ? '투표가 마감되었습니다.' : `투표 종료까지 ${time.days}일 ${time.hours}시간 ${time.minutes}분 ${time.seconds}초`);
+  if (closed !== previouslyClosed) { previouslyClosed = closed; renderControls(); renderCalendar(); renderDone(); renderWelcome(); }
+}
+function render() { renderWelcome(); renderCalendar(); renderDone(); renderControls(); updateCountdown(); }
+function selectChanged() { datesTouched = true; rememberDraft(); renderCalendar(); renderControls(); }
+$('open-invitation').addEventListener('click', () => showScreen('name'));
+$('name-form').addEventListener('submit', event => {
+  event.preventDefault(); const name = normalizeGuestName(nameInput.value);
+  if (!name || name.length > 24 || /[\x00-\x1F]/.test(name)) {
+    setText('name-error', '반가운 이름을 1~24자로 적어 주세요.'); $('name-error').hidden = false; nameInput.setAttribute('aria-invalid', 'true'); nameInput.focus(); return;
+  }
+  nameInput.value = name; guestName = name; nameInput.blur(); rememberDraft(); showScreen('welcome');
+});
+nameInput.addEventListener('input', () => { nameTouched = true; $('name-error').hidden = true; nameInput.removeAttribute('aria-invalid'); rememberDraft(); });
+$('rename-button').addEventListener('click', () => showScreen('name'));
+$('go-calendar').addEventListener('click', () => { mode = isClosed() ? 'results' : 'select'; showScreen('calendar'); });
+$('back-button').addEventListener('click', () => { if (!busy) showScreen(({ name: 'cover', welcome: 'name', calendar: 'welcome', done: 'calendar', cover: 'cover' } as const)[screen]); });
 dayButtons.forEach(button => button.addEventListener('click', () => {
   const day = Number(button.dataset.day);
-  if (mode === 'select') { selected.has(day) ? selected.delete(day) : selected.add(day); changed(); }
-  else { detailDay = detailDay === day ? null : day; renderCalendar(); }
+  if (mode === 'select' && !isClosed()) { selected.has(day) ? selected.delete(day) : selected.add(day); selectChanged(); }
+  else if (mode === 'results') { detailDay = detailDay === day ? null : day; renderCalendar(); }
 }));
-nameInput.addEventListener('input', () => { $('form-error').hidden = true; nameInput.removeAttribute('aria-invalid'); rememberDraft(); renderControls(); });
-$('weekend-button').addEventListener('click', () => { WEEKENDS.forEach(day => selected.add(day)); changed(); showToast('11월의 토요일·일요일을 선택했어요.'); });
-$('clear-button').addEventListener('click', () => { selected.clear(); changed(); });
-$('select-view').addEventListener('click', () => { mode = 'select'; renderCalendar(); });
-$('results-view').addEventListener('click', () => { mode = 'results'; renderCalendar(); });
-$('close-detail').addEventListener('click', () => { const previous = detailDay; detailDay = null; renderCalendar(); dayButtons.find(b => Number(b.dataset.day) === previous)?.focus(); });
+$('select-view').addEventListener('click', () => { mode = 'select'; detailDay = null; renderCalendar(); renderControls(); });
+$('results-view').addEventListener('click', () => { mode = 'results'; detailDay = null; renderCalendar(); renderControls(); });
+$('clear-button').addEventListener('click', () => { selected.clear(); selectChanged(); });
 $('refresh-button').addEventListener('click', () => { void refresh(); });
-$('retry-button').addEventListener('click', () => { void refresh(!initialized); });
-$('share-button').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText('https://lucas-jang.github.io/vote/'); showToast('투표 링크를 복사했어요. 함께 만날 사람에게 보내 주세요.'); }
-  catch { showToast('주소창의 페이지 링크를 복사해 주세요.'); }
-});
-form.addEventListener('submit', async event => {
-  event.preventDefault(); if (busy) return;
-  if (!nameInput.value.trim() || nameInput.value.trim().length > 24) { nameInput.setAttribute('aria-invalid', 'true'); showError('이름을 1~24자로 입력해 주세요.'); nameInput.focus(); return; }
-  if (!selected.size) { showError('가능한 날짜를 하나 이상 선택해 주세요.'); $('calendar').focus(); return; }
-  if (!connected || !storageReady) { showError('먼저 투표 서버 연결과 브라우저 저장 기능을 확인해 주세요.'); return; }
-  const payload = draft(); busy = true; ++requestSequence; $('form-error').hidden = true; render();
+$('retry-button').addEventListener('click', () => { if (!storageReady) location.reload(); else void refresh(!initialized); });
+$('edit-button').addEventListener('click', () => { if (isClosed()) return; mode = 'select'; showScreen('calendar'); });
+$('view-results-button').addEventListener('click', () => { mode = 'results'; detailDay = null; showScreen('calendar'); });
+saveButton.addEventListener('click', async () => {
+  if (busy) return;
+  if (isClosed()) { if (hasVote) showScreen('done'); return; }
+  if (mode === 'results') { mode = 'select'; render(); return; }
+  if (hasVote && !isDirty()) { showScreen('done'); return; }
+  if (!selected.size || !guestName || !connected || !storageReady) return;
+  const payload = { name: guestName, dates: [...selected].sort((a,b) => a-b) };
+  busy = true; ++requestSequence; renderControls();
   try {
-    await request('POST', payload);
-    saved = payload; hasVote = true;
-    try { localStorage.removeItem(storage.draft); } catch { /* Acknowledged by the server. */ }
-    showToast('✓ 내 투표가 저장됐어요. 결과를 확인해 보세요.');
-    mode = 'results'; detailDay = null;
-  } catch (error) { showError(error instanceof Error ? error.message : '저장 결과를 확인하지 못했어요. 다시 저장해도 투표는 중복되지 않습니다.'); }
+    await request('POST', payload); saved = payload; hasVote = true;
+    try { localStorage.removeItem(storage.draft); } catch { /* Server has acknowledged the reply. */ }
+    showScreen('done');
+  } catch (error) { notify(error instanceof Error ? error.message : '답장을 보내지 못했어요. 다시 시도해 주세요.'); }
   finally { busy = false; render(); }
   await refresh();
 });
-$('delete-button').addEventListener('click', () => { if (!busy) dialog.showModal(); });
-$('cancel-delete').addEventListener('click', () => dialog.close());
-$('confirm-delete').addEventListener('click', async () => {
-  if (busy) return; busy = true; ++requestSequence; $<HTMLButtonElement>('confirm-delete').disabled = true; renderControls();
-  try {
-    await request('DELETE'); saved = { name: '', dates: [] }; hasVote = false; selected.clear(); nameInput.value = '';
-    try { localStorage.removeItem(storage.draft); } catch { /* No local draft. */ }
-    dialog.close(); mode = 'select'; detailDay = null; showToast('내 투표를 삭제했어요. 다시 참여할 수 있습니다.');
-  } catch (error) { dialog.close(); showError(error instanceof Error ? error.message : '삭제 결과를 확인하지 못했어요. 다시 연결해 주세요.'); }
-  finally { busy = false; $<HTMLButtonElement>('confirm-delete').disabled = false; render(); }
-  await refresh();
-});
-window.addEventListener('beforeunload', event => { if (isDirty()) { event.preventDefault(); event.returnValue = ''; } });
+function fitViewport() {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+  $('app').style.setProperty('--app-height', `${Math.floor(viewport.height)}px`);
+  $('app').classList.toggle('keyboard-open', viewport.height < window.innerHeight * .78 || (viewport.height < 500 && document.activeElement === nameInput));
+}
+window.visualViewport?.addEventListener('resize', fitViewport);
+nameInput.addEventListener('focus', fitViewport);
+nameInput.addEventListener('blur', fitViewport);
 window.addEventListener('online', () => { void refresh(); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void refresh(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { void refresh(); updateCountdown(); } });
+setInterval(updateCountdown, 1000);
 setInterval(() => { if (document.visibilityState === 'visible' && !busy) void refresh(); }, 20000);
-render();
-if (!storageReady) showError('이 브라우저에서 내 투표를 보관할 수 없어요. 브라우저의 사이트 저장 기능을 허용한 뒤 새로고침해 주세요.', true);
+fitViewport(); render();
+if (!storageReady) connectionError('이 브라우저에서 답장을 보관할 수 없어요. 사이트 저장을 허용한 뒤 다시 연결해 주세요.');
 else void refresh(true);
