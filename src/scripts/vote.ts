@@ -15,6 +15,7 @@ let snapshot: Snapshot = { votes: [], ownId: null };
 let selected = new Set<number>();
 let screen: Screen = 'cover', mode: 'select' | 'results' = 'select', detailDay: number | null = null;
 let guestName = '', nameTouched = false, datesTouched = false, requestSequence = 0;
+let compactName = false;
 let saved = { name: '', dates: [] as number[] }, hasVote = false;
 let clockAnchor: { server: number; tick: number } | null = null, deadline = VOTE_DEADLINE, serverClosed = false, previouslyClosed = false;
 let toastTimer: ReturnType<typeof setTimeout>;
@@ -67,6 +68,7 @@ async function request(method: 'GET' | 'POST', body?: unknown) {
 }
 function showScreen(next: Screen, focus = true) {
   screen = next;
+  fitViewport();
   for (const name of ['cover', 'name', 'welcome', 'calendar', 'done']) $(`${name}-screen`).hidden = name !== next;
   document.querySelector<HTMLElement>('.header-note')!.hidden = next !== 'cover';
   $('back-button').hidden = next === 'cover';
@@ -219,7 +221,10 @@ function fitViewport() {
   const viewport = window.visualViewport;
   if (!viewport) return;
   $('app').style.setProperty('--app-height', `${Math.floor(viewport.height)}px`);
-  $('app').classList.toggle('keyboard-open', viewport.height < window.innerHeight * .78 || (viewport.height < 500 && document.activeElement === nameInput));
+  if (screen !== 'name') compactName = false;
+  else if (viewport.height < 500 && document.activeElement === nameInput) compactName = true;
+  // Keep the compact form until submission so keyboard blur cannot move the tapped button.
+  $('app').classList.toggle('keyboard-open', compactName || viewport.height < window.innerHeight * .78);
 }
 window.visualViewport?.addEventListener('resize', fitViewport);
 nameInput.addEventListener('focus', fitViewport);
