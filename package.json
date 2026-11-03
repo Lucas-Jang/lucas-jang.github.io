@@ -14,6 +14,8 @@
     "test:car": "node --test scripts/car-motion.test.mjs",
     "test:stats": "node --test scripts/site-stats.test.mjs",
     "test:vote": "node --test scripts/vote.test.mjs",
+    "test:bjj": "node --test scripts/bjj-motion.test.mjs",
+    "bjj:bake": "node scripts/bake-bjj-motion.mjs",
     "stats:update": "node scripts/fetch-goatcounter-stats.mjs"
   },
   "dependencies": {
@@ -21,10 +23,13 @@
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.5",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.4",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@types/three": "^0.187.0",
+    "esbuild": "^0.28.2",
     "pagefind": "^1.5.2",
     "typescript": "^6.0.3"
   }

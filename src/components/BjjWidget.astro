@@ -1,0 +1,68 @@
+---
+---
+<section class="bjj-widget" aria-label="주짓수 기술 애니메이션" hidden data-pagefind-ignore>
+  <header class="bjj-heading">
+    <div><span class="bjj-eyebrow">ON THE MAT / TECHNIQUE STUDIES</span><h2>움직임으로 보는 주짓수</h2></div>
+    <span class="bjj-legend"><i></i>흰 도복 · 기술 시연자 <i></i>파란 도복 · 파트너</span>
+  </header>
+  <div class="bjj-techniques" role="group" aria-label="주짓수 기술 선택">
+    <button data-technique="double" aria-pressed="true">더블렉 테이크다운</button><button data-technique="triangle" aria-pressed="false">삼각조르기</button><button data-technique="armbar" aria-pressed="false">암바</button><button data-technique="omoplata" aria-pressed="false">오모플라타</button><button data-technique="bow" aria-pressed="false">보우앤애로우</button>
+  </div>
+  <div class="bjj-stage">
+    <canvas aria-label="더블렉 테이크다운 3D 시연. 마우스나 손가락으로 시점을 회전할 수 있습니다."></canvas>
+    <div class="bjj-stage-label"><span data-tech-name>DOUBLE LEG TAKEDOWN</span><span data-phase>스탠딩</span></div>
+    <span class="bjj-drag-hint">드래그 · 시점 회전</span>
+    <p class="bjj-fallback" hidden>3D 화면을 표시할 수 없습니다. WebGL을 지원하는 브라우저에서 열어 주세요.</p>
+  </div>
+  <div class="bjj-playback">
+    <button class="bjj-toggle" aria-label="애니메이션 재생">재생</button><button class="bjj-restart" aria-label="처음으로">↺</button>
+    <input class="bjj-timeline" type="range" min="0" max="1000" step="1" value="0" aria-label="기술 진행 위치" />
+    <label class="bjj-speed-label">속도 <select class="bjj-speed" aria-label="재생 속도"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label>
+  </div>
+  <div class="bjj-bottom"><p data-tech-description>레벨 체인지에서 양다리 포획, 방향 전환과 착지까지.</p><button class="bjj-view">시점 초기화</button></div>
+  <p class="bjj-note">동작을 단순화한 애니메이션입니다. <a href="https://www.youtube.com/shorts/jA3DIYh8IIU" target="_blank" rel="noopener noreferrer">더블렉 참고 영상 ↗</a></p>
+</section>
+<style>
+  .bjj-widget[hidden] { display: none; }
+  .bjj-widget { margin: 2rem 0; overflow: hidden; border: 1px solid var(--line,#9db4c0); border-radius: 14px; background: #e7eef0; color: #142d3d; }
+  .bjj-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; padding: 1.5rem 1.5rem 1rem; }
+  .bjj-eyebrow { font-size: .62rem; font-weight: 700; letter-spacing: .18em; color: #4f7186; }
+  .bjj-heading h2 { margin: .5rem 0 0; font-size: clamp(1.2rem,2.3vw,1.8rem); letter-spacing: -.045em; }
+  .bjj-legend { display: flex; align-items: center; gap: .4rem; font-size: .68rem; flex-wrap: wrap; }
+  .bjj-legend i { width: .6rem; height: .6rem; border-radius: 50%; background: #faf7ef; border: 1px solid #8198a6; }
+  .bjj-legend i:nth-of-type(2) { background: #366d9c; margin-left: .5rem; }
+  .bjj-techniques { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0 1.5rem 1.2rem; }
+  .bjj-widget button, .bjj-widget select { font: inherit; cursor: pointer; color: #142d3d; }
+  .bjj-techniques button { min-height: 40px; border: 1px solid #acbdc5; border-radius: 24px; background: transparent; padding: .5rem .9rem; font-size: .78rem; }
+  .bjj-techniques button[aria-pressed="true"] { background: #142d3d; color: #f3f5f6; border-color: #142d3d; }
+  .bjj-stage { position: relative; height: clamp(300px,44vw,480px); background: #cedee4; }
+  .bjj-stage canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+  .bjj-stage canvas[hidden] { display: none; }
+  .bjj-stage-label { position: absolute; top: 1.2rem; left: 1.5rem; display: grid; gap: .4rem; pointer-events: none; }
+  .bjj-stage-label span:first-child { font-size: .58rem; letter-spacing: .15em; color: #4f7186; }
+  .bjj-stage-label span:last-child { font-size: .86rem; font-weight: 600; }
+  .bjj-drag-hint { position: absolute; bottom: 1rem; right: 1.5rem; font-size: .64rem; color: #4f7186; pointer-events: none; }
+  .bjj-fallback { position: absolute; inset: 20% 10%; text-align: center; }
+  .bjj-playback { display: flex; align-items: center; gap: .8rem; padding: .8rem 1.5rem; }
+  .bjj-toggle, .bjj-restart { height: 44px; min-width: 44px; border: 1px solid #9db4c0; background: transparent; border-radius: 8px; font-size: .76rem !important; }
+  .bjj-toggle { width: 76px; flex-shrink: 0; }
+  .bjj-timeline { flex: 1; width: 0; min-width: 40px; accent-color: #284b61; cursor: pointer; }
+  .bjj-speed-label { display: flex; align-items: center; gap: .3rem; font-size: .7rem; white-space: nowrap; }
+  .bjj-speed { min-height: 44px; border: 0; background: transparent; }
+  .bjj-bottom { display: flex; align-items: center; gap: 1rem; justify-content: space-between; padding: 0 1.5rem; }
+  .bjj-bottom p, .bjj-note { font-size: .75rem; line-height: 1.65; margin: 0; }
+  .bjj-view { min-height: 44px; flex-shrink: 0; border: 0; background: transparent; text-decoration: underline; font-size: .7rem !important; }
+  .bjj-note { padding: .1rem 1.5rem 1.1rem; color: #4f7186; font-size: .65rem; }
+  .bjj-widget :is(button,input,select):focus-visible { outline: 3px solid #142d3d; outline-offset: 3px; }
+  @media(max-width:40rem) { .bjj-heading { align-items: start; flex-direction: column; padding: 1rem; } .bjj-techniques { padding: 0 1rem 1rem; } .bjj-techniques button { font-size: .7rem; padding: .4rem .65rem; } .bjj-playback { padding: .6rem .8rem; gap: .4rem; } .bjj-speed-label { font-size: 0; } .bjj-speed { font-size: .75rem !important; } .bjj-bottom { align-items: start; padding-inline: 1rem; gap: .4rem; } .bjj-note { padding-inline: 1rem; } }
+</style>
+<script>
+  const widget = document.querySelector<HTMLElement>('.bjj-widget');
+  if (widget && new URLSearchParams(location.search).get('category') === 'BJJ') {
+    widget.hidden = false;
+    import('../scripts/bjj-widget').then(({ mountBjjWidget }) => mountBjjWidget(widget)).catch(() => {
+      const fallback = widget.querySelector<HTMLElement>('.bjj-fallback');
+      if (fallback) { fallback.textContent = '애니메이션을 불러오지 못했습니다. 페이지를 새로고침해 주세요.'; fallback.hidden = false; }
+    });
+  }
+</script>
