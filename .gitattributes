@@ -1,0 +1,3 @@
+# Preserve upstream CC0 data verbatim. LICENSE.md uses a Setext heading made of
+# equals signs; it is not a merge conflict marker.
+assets/bjj/source/* -text -whitespace conflict-marker-size=32
