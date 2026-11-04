@@ -7,6 +7,25 @@ const data=JSON.parse(text.slice(text.indexOf('=')+1).trim().replace(/;$/,''));
 const V=(a,i)=>new T.Vector3(a[i],a[i+1],a[i+2]);
 const tip=(a,i)=>V(a,7+i*16+6);
 const elbow=(a,i)=>V(a,7+i*16+3);
+test('all five techniques, including the double leg, have two complete 3D rigs',()=>{
+ assert.deepEqual(Object.keys(data).sort(),['armbar','bow','double','omoplata','triangle']);
+ for(const [key,frames] of Object.entries(data)){
+  assert.equal(frames.length,361,key);
+  for(const people of frames){
+   assert.equal(people.length,2,key);
+   for(const person of people){assert.equal(person.length,71,key);assert.ok(person.every(Number.isFinite),key);}
+  }
+ }
+});
+test('both characters keep the same shoulder and hip proportions throughout every clip',()=>{
+ for(const [key,frames] of Object.entries(data))for(const people of frames)for(const person of people){
+  const hip=V(person,0),q=new T.Quaternion(...person.slice(3,7)),up=new T.Vector3(0,1,0).applyQuaternion(q);
+  for(let limb=0;limb<4;limb++){
+   const centre=hip.clone().addScaledVector(up,limb<2?.48:0);
+   assert.ok(Math.abs(V(person,7+limb*16).distanceTo(centre)-(limb<2?.205:.135))<2e-6,`${key}: changing rig proportions`);
+  }
+ }
+});
 test('every generated limb retains its bone lengths and a bounded bend',()=>{
  for(const[key,frames]of Object.entries(data))for(const[f,people]of frames.entries())for(const[p,a]of people.entries())for(let i=0;i<4;i++){
   const k=7+i*16,start=V(a,k),joint=V(a,k+3),end=V(a,k+6),upper=i<2?.36:.47,lower=i<2?.34:.46;

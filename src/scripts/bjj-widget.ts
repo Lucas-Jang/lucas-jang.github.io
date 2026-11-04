@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { techniques, type Pose, type V } from './bjj-poses';
-import {drawReferenceDouble,referencePhase,referenceMeta} from './reference-double';
 import {obstacles,solveLimb,sharedAnchor,outside,type Obstacle,type LimbSolution} from './bjj-constraints';
 import {motionData} from './bjj-motion-data';
 export {setCandidateCollector} from './bjj-constraints';
@@ -185,12 +184,9 @@ export function posePair(players:[Grappler,Grappler],a0:Pose,a1:Pose,b0:Pose,b1:
 
 export function mountBjjWidget(widget:HTMLElement) {
   const canvas=widget.querySelector<HTMLCanvasElement>('canvas')!;
-  const referenceCanvas=document.createElement('canvas');
-  canvas.after(referenceCanvas);
-  const referenceContext=referenceCanvas.getContext('2d')!;
   let renderer:THREE.WebGLRenderer|undefined;
   try {renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});}
-  catch {widget.querySelectorAll<HTMLButtonElement>('[data-technique]').forEach(button=>{if(button.dataset.technique!=='double'){button.disabled=true;button.title='이 기기에서는 3D 기술 표시를 지원하지 않습니다.';}});}
+  catch {widget.querySelector<HTMLElement>('.bjj-fallback')!.hidden=false;return;}
   if(renderer){renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
   renderer.setClearColor(0xcedee4);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;}
@@ -205,36 +201,21 @@ export function mountBjjWidget(widget:HTMLElement) {
   const controls=new OrbitControls(camera,canvas);controls.enablePan=false;controls.enableZoom=false;controls.enableDamping=true;controls.dampingFactor=.12;controls.minPolarAngle=.15;controls.maxPolarAngle=Math.PI*.48;controls.target.set(0,.65,0);
   // A = white attacker, B = blue partner. Anatomical side identity is retained
   // throughout each clip, including the armbar's perpendicular turn.
+  // Identical unscaled rigs and orthographic projection preserve both body sizes.
   const a=new Grappler(scene,0xf2efe5,0x7c648b),b=new Grappler(scene,0x366d9c,0xe8e0cf);
   const sides:Record<string,[number,number]>={double:[1,1],triangle:[-1,1],armbar:[1,-1],omoplata:[-1,1],bow:[1,1]};
   const toggle=widget.querySelector<HTMLButtonElement>('.bjj-toggle')!,timeline=widget.querySelector<HTMLInputElement>('.bjj-timeline')!,speedInput=widget.querySelector<HTMLSelectElement>('.bjj-speed')!;
   const phase=widget.querySelector<HTMLElement>('[data-phase]')!,name=widget.querySelector<HTMLElement>('[data-tech-name]')!;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let key='double',progress=0,playing=!reduced.matches,visible=true,raf=0,previous=0,destroyed=false;
-  const viewButton=widget.querySelector<HTMLButtonElement>('.bjj-view')!;
-  const updateMode=()=>{
-    const isReference=key==='double';canvas.hidden=isReference;referenceCanvas.hidden=!isReference;
-    canvas.setAttribute('aria-hidden',String(isReference));referenceCanvas.setAttribute('aria-hidden',String(!isReference));
-    viewButton.disabled=isReference;viewButton.hidden=isReference;viewButton.textContent='시점 초기화';
-    widget.querySelector('.bjj-drag-hint')!.textContent=isReference?'재생 막대로 동작을 천천히 살펴보세요':'드래그 · 시점 회전';
-    if(isReference){name.textContent='DOUBLE LEG TAKEDOWN';widget.querySelector('[data-tech-description]')!.textContent='상체 타이에서 진입해, 양다리를 감싸고 매트까지 이어집니다.';}
-  };
   const syncPlay=()=>{toggle.textContent=playing?'일시정지':progress>=1?'다시 재생':'재생';toggle.setAttribute('aria-label',playing?'애니메이션 일시정지':'애니메이션 재생');};
   const resetView=()=>{camera.position.set(...techniques[key].camera);controls.target.set(key==='double'?.3:0,key==='double'?.75:.5,0);controls.update();};
-  const resize=()=>{const {width,height}=canvas.parentElement!.getBoundingClientRect();if(!width||!height)return;renderer?.setSize(width,height,false);const dpr=Math.min(devicePixelRatio,2);referenceCanvas.width=Math.round(width*dpr);referenceCanvas.height=Math.round(height*dpr);const aspect=width/height;const half=aspect<1.3?1.75:1.45;camera.left=-half*aspect;camera.right=half*aspect;camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();schedule();};
+  const resize=()=>{const {width,height}=canvas.parentElement!.getBoundingClientRect();if(!width||!height)return;renderer?.setSize(width,height,false);const aspect=width/height;const half=aspect<1.3?1.75:1.45;camera.left=-half*aspect;camera.right=half*aspect;camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();schedule();};
   const draw=(time:number)=>{
     raf=0;if(destroyed)return;
     const delta=previous?Math.min((time-previous)/1000,.08):0;previous=time;
-    const duration=key==='double'?referenceMeta.clip.duration:12;
+    const duration=12;
     if(playing){progress=Math.min(1,progress+delta/duration*Number(speedInput.value));if(progress>=1){playing=false;syncPlay();}}
-    if(key==='double'){
-      const frame=Math.round(progress*110),{width,height}=referenceCanvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio,2);
-      referenceContext.setTransform(dpr,0,0,dpr,0,0);drawReferenceDouble(referenceContext,width,height,frame);
-      phase.textContent=referencePhase(frame);
-      referenceCanvas.setAttribute('aria-label',`더블렉 테이크다운, 참고 영상 ${frame}번 프레임의 두 인물 리그. ${referencePhase(frame)}`);
-      timeline.value=String(Math.round(progress*1000));timeline.setAttribute('aria-valuetext',`더블렉 테이크다운, 원본 프레임 ${frame}/110, ${referencePhase(frame)}`);
-      if(playing&&visible&&!document.hidden)raf=requestAnimationFrame(draw);return;
-    }
     const tech=techniques[key],frames=tech.frames;
     let index=0;while(index<frames.length-2 && progress>=frames[index+1].t)index++;
     const first=frames[index],next=frames[index+1];
@@ -255,11 +236,11 @@ export function mountBjjWidget(widget:HTMLElement) {
   timeline.addEventListener('input',()=>{playing=false;progress=Number(timeline.value)/1000;syncPlay();schedule();});
   widget.querySelectorAll<HTMLButtonElement>('[data-technique]').forEach(button=>button.addEventListener('click',()=>{
     key=button.dataset.technique!;progress=0;playing=!reduced.matches;
-    timeline.value='0';phase.textContent=key==='double'?referencePhase(0):techniques[key].frames[0].label;
+    timeline.value='0';phase.textContent=techniques[key].frames[0].label;
     widget.querySelectorAll<HTMLButtonElement>('[data-technique]').forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
     name.textContent=techniques[key].name;widget.querySelector('[data-tech-description]')!.textContent=techniques[key].description;
     canvas.setAttribute('aria-label',`${techniques[key].korean} 3D 시연. 드래그해서 시점을 회전할 수 있습니다.`);
-    updateMode();resize();resetView();syncPlay();schedule();
+    resize();resetView();syncPlay();schedule();
   }));
   widget.querySelector('.bjj-view')!.addEventListener('click',()=>{resetView();schedule();});
   const onMotion=()=>{if(reduced.matches){playing=false;syncPlay();}};reduced.addEventListener('change',onMotion);
@@ -269,5 +250,5 @@ export function mountBjjWidget(widget:HTMLElement) {
   const cleanup=()=>{destroyed=true;cancelAnimationFrame(raf);observer.disconnect();sizeObserver.disconnect();reduced.removeEventListener('change',onMotion);document.removeEventListener('visibilitychange',onVisibility);controls.dispose();scene.traverse(object=>{if(object instanceof THREE.Mesh){object.geometry.dispose();const ms=Array.isArray(object.material)?object.material:[object.material];ms.forEach(m=>m.dispose());}});renderer?.dispose();};
   window.addEventListener('pagehide',event=>{if(!event.persisted)cleanup();},{once:true});
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();playing=false;syncPlay();widget.querySelector<HTMLElement>('.bjj-fallback')!.hidden=false;});
-  updateMode();resetView();resize();syncPlay();schedule();
+  resetView();resize();syncPlay();schedule();
 }

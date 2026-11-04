@@ -7,9 +7,16 @@ const source=await fs.readFile(new URL('../src/scripts/bjj-widget.ts',import.met
 await build({stdin:{contents:source+'\nexport {Grappler,THREE,techniques};',resolveDir:fileURLToPath(new URL('../src/scripts/',import.meta.url)),loader:'ts'},bundle:true,platform:'node',format:'cjs',outfile:fileURLToPath(new URL('../.astro/bjj-bake-runtime.cjs',import.meta.url)),logLevel:'silent'});
 const {Grappler,THREE:T,techniques,posePair,setUseMotionData,setCandidateCollector}=require(fileURLToPath(new URL('../.astro/bjj-bake-runtime.cjs',import.meta.url)));
 setUseMotionData(false);
-const sides={triangle:[-1,1],armbar:[1,-1],omoplata:[-1,1],bow:[1,1]},motion={},diagnostics={};
+const sides={double:[1,1],triangle:[-1,1],armbar:[1,-1],omoplata:[-1,1],bow:[1,1]},motion={},diagnostics={};
+const selected=process.argv.slice(2);
+if(selected.some(key=>!sides[key]))throw new Error('Unknown technique');
+if(selected.length){
+ const text=await fs.readFile(new URL('../src/scripts/bjj-motion-data.ts',import.meta.url),'utf8');
+ Object.assign(motion,JSON.parse(text.slice(text.indexOf('=')+1).trim().replace(/;$/,'')));
+}
 const N=361;
 for(const [key,side]of Object.entries(sides)){
+if(selected.length&&!selected.includes(key))continue;
 const scene=new T.Scene(),players=[new Grappler(scene,0xffffff,0x888888),new Grappler(scene,0xffffff,0x888888)],frames=[];
 let current;
 setCandidateCollector(set=>{current.sets[set.owner*4+set.index]=set;});
