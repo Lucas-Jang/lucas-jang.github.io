@@ -2,13 +2,56 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import * as T from 'three';
-const text=await fs.readFile(new URL('../src/scripts/bjj-motion-data.ts',import.meta.url),'utf8');
+import {build} from 'esbuild';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+const require=createRequire(import.meta.url);
+await fs.mkdir(new URL('../.astro/',import.meta.url),{recursive:true});
+await build({stdin:{contents:"export {contacts} from './src/scripts/bjj-collision.ts';export {sampleMotion} from './src/scripts/bjj-motion-sample.ts';",resolveDir:fileURLToPath(new URL('../',import.meta.url)),loader:'ts'},bundle:true,platform:'node',format:'cjs',outfile:fileURLToPath(new URL('../.astro/bjj-test-volumes.cjs',import.meta.url)),logLevel:'silent'});
+const {contacts,sampleMotion}=require('../.astro/bjj-test-volumes.cjs');
+const text=await fs.readFile(process.env.BJJ_MOTION_DATA_PATH??new URL('../src/scripts/bjj-motion-data.ts',import.meta.url),'utf8');
 const data=JSON.parse(text.slice(text.indexOf('=')+1).trim().replace(/;$/,''));
 const V=(a,i)=>new T.Vector3(a[i],a[i+1],a[i+2]);
 const tip=(a,i)=>V(a,7+i*16+6);
 const elbow=(a,i)=>V(a,7+i*16+3);
 const sample=(key,p)=>data[key][Math.round(p*(data[key].length-1))];
 const bodyPoint=(person,point)=>new T.Vector3(...point).applyQuaternion(new T.Quaternion(...person.slice(3,7))).add(V(person,0));
+test('a forearm whose centreline clears a head still collides when its visible radius overlaps',()=>{
+ const people=structuredClone(data.triangle[0]),head=bodyPoint(people[1],[0,.73,0]),q=new T.Quaternion(...people[1].slice(3,7));
+ const right=new T.Vector3(1,0,0).applyQuaternion(q),forward=new T.Vector3(0,0,1).applyQuaternion(q);
+ const a=head.clone().addScaledVector(right,.19).addScaledVector(forward,-.08),b=head.clone().addScaledVector(right,.19).addScaledVector(forward,.08);
+ people[0].splice(10,3,...a.toArray());people[0].splice(13,3,...b.toArray());
+ assert.ok(contacts(people).some(c=>c.kind==='limb-body'&&c.owner===0&&c.limb===0&&c.part===1&&c.other===1&&c.shape.name==='head'&&c.depth>.01));
+});
+test('crossing limbs are detected even away from every head and torso',()=>{
+ const people=structuredClone(data.double[0]);people[0].splice(10,3,4.8,5,5);people[0].splice(13,3,5.2,5,5);
+ people[1].splice(26,3,5,4.8,5);people[1].splice(29,3,5,5.2,5);
+ assert.ok(contacts(people).some(c=>c.kind==='limb-limb'&&c.owner===0&&c.limb===0&&c.other===1&&c.peer.limb===1&&c.depth>.1));
+});
+test('equivalent ellipsoid orientations do not swing the hand sideways between identical poses',()=>{
+ const a=structuredClone(data.double[0]),b=structuredClone(a),offset=16;
+ const q=new T.Quaternion(...a[0].slice(offset,offset+4));
+ const halfTurn=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),Math.PI);
+ b[0].splice(offset,4,...q.clone().multiply(halfTurn).toArray());
+ const mid=sampleMotion([a,b],.5)[0],result=new T.Quaternion(...mid.slice(offset,offset+4));
+ const before=new T.Vector3(0,0,1).applyQuaternion(q),after=new T.Vector3(0,0,1).applyQuaternion(result);
+ assert.ok(Math.abs(before.dot(after))>.99999);
+});
+for(const key of ['triangle','double','armbar','omoplata','bow'])test(`${key}: visible body, limbs, hands and feet remain separate between stored frames`,()=>{
+ const frames=data[key],steps=(frames.length-1)*4;
+ for(let i=0;i<=steps;i++){
+  const people=sampleMotion(frames,i/steps),bad=contacts(people).filter(c=>c.depth>.006);
+  assert.equal(bad.length,0,`${key} F${(i/4).toFixed(2)}: ${bad.map(c=>`${c.kind} ${c.owner}/${c.limb??'body'} -> ${c.other}/${c.shape?.name??c.peer?.limb}: ${(c.depth*1000).toFixed(1)}mm`).join(', ')}`);
+ }
+});
+test('the renderer interpolation keeps bone lengths at quarter-frame positions',()=>{
+ for(const frames of Object.values(data))for(let f=0;f<frames.length-1;f++)for(const fraction of [.25,.5,.75]){
+  for(const person of sampleMotion(frames,(f+fraction)/(frames.length-1)))for(let limb=0;limb<4;limb++){
+   const k=7+limb*16;assert.ok(Math.abs(V(person,k).distanceTo(V(person,k+3))-(limb<2?.36:.47))<2e-6);
+   assert.ok(Math.abs(V(person,k+3).distanceTo(V(person,k+6))-(limb<2?.34:.46))<2e-6);
+  }
+ }
+});
 test('the reference review includes at least ten distinct Shorts for every technique',async()=>{
  const study=JSON.parse(await fs.readFile(new URL('../src/scripts/bjj-references.json',import.meta.url),'utf8'));
  for(const key of Object.keys(data)){

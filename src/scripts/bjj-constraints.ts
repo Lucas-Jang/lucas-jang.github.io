@@ -1,16 +1,18 @@
 import * as T from 'three';
-export type Obstacle={owner:number;name:string;inverse:T.Matrix4;matrix:T.Matrix4;capsule:boolean};
+import {bodyColliders,surface,type BodyCollider} from './bjj-collision';
+export type Obstacle={owner:number;name:string;inverse:T.Matrix4;matrix:T.Matrix4;capsule:boolean;collider:BodyCollider};
 export type LimbSolution={start:T.Vector3;joint:T.Vector3;end:T.Vector3;rotation:T.Quaternion;goal:T.Vector3;clearance:number;basis:T.Vector3};
 export type CandidateSet={owner:number;index:number;start:T.Vector3;end:T.Vector3;goal:T.Vector3;body:T.Quaternion;leg:boolean;candidates:{joint:T.Vector3;end:T.Vector3;goal:T.Vector3;cost:number}[]};
 let collector:((set:CandidateSet)=>void)|undefined;
 export function setCandidateCollector(value:typeof collector){collector=value;}
 const Y=new T.Vector3(0,1,0);
 export const MAT=-.015;
-export function obstacles(bodies:T.Group[]):Obstacle[]{return bodies.flatMap((body,owner)=>[0,1,5].flatMap((index)=>{
+export function obstacles(bodies:T.Group[]):Obstacle[]{const volumes=bodyColliders(bodies.map(b=>b.position),bodies.map(b=>b.quaternion));return bodies.flatMap((body,owner)=>[0,1,5].flatMap((index)=>{
   // Named meshes are selected explicitly; the head is a nested group.
   const object=index===5?body.getObjectByName('rig-head'):body.children[index];
   if(!object)return [];object.updateWorldMatrix(true,false);
-  return [{owner,name:index===0?'torso':index===1?'pelvis':'head',inverse:object.matrixWorld.clone().invert(),matrix:object.matrixWorld.clone(),capsule:index===0}];
+  const name=index===0?'torso':index===1?'pelvis':'head';
+  return [{owner,name,inverse:object.matrixWorld.clone().invert(),matrix:object.matrixWorld.clone(),capsule:index===0,collider:volumes.find(s=>s.owner===owner&&s.name===name)!}];
 }));}
 export function core(point:T.Vector3,o:Obstacle){const p=point.clone().applyMatrix4(o.inverse);return o.capsule?Math.hypot(p.x,p.z,Math.max(0,Math.abs(p.y)-.1))/.18:p.length();}
 export function projectSurface(point:T.Vector3,o:Obstacle,margin=.055){
@@ -22,7 +24,7 @@ export function projectSurface(point:T.Vector3,o:Obstacle,margin=.055){
  return surface.addScaledVector(surface.clone().sub(axis).normalize(),margin);
 }
 export function outside(point:T.Vector3,shapes:Obstacle[],margin=.055){
- const result=point.clone();for(let n=0;n<5;n++)for(const o of shapes)if(core(result,o)<1.10)result.copy(projectSurface(result,o,margin));return result;
+ const result=point.clone();for(let n=0;n<5;n++)for(const o of shapes)if(surface(result,o.collider).distance<margin)result.copy(projectSurface(result,o,margin));return result;
 }
 export function sharedAnchor(preferred:T.Vector3,starts:T.Vector3[],shapes:Obstacle[]){
  let p=preferred.clone();for(let n=0;n<25;n++){
@@ -37,8 +39,9 @@ function candidateCost(start:T.Vector3,joint:T.Vector3,end:T.Vector3,shapes:Obst
   const f=k/10,p=a.clone().lerp(b,f),radius=leg?(upper?.094:.076):(upper?.073:.060);
   const floor=Math.max(0,MAT+radius+.004-p.y);cost+=floor*floor*3000+Math.max(0,floor-.012)*100000;
   for(const o of shapes){
-   if(o.owner===owner&&upper&&f<.55)continue;
-   const score=core(p,o);min=Math.min(min,score);const penetration=Math.max(0,1.17-score);cost+=penetration*penetration*40+Math.max(0,.84-score)*100000;
+   if(o.owner===owner&&upper&&f*a.distanceTo(b)<(leg?.28:.15)&&(o.name==='torso'||o.name==='pelvis'))continue;
+   const distance=surface(p,o.collider).distance;min=Math.min(min,distance-radius);
+   const penetration=Math.max(0,radius+.009-distance);cost+=penetration*penetration*3000+Math.max(0,penetration-.004)*100000;
   }
  }
  return {cost,min};

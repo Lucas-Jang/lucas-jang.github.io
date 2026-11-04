@@ -17,7 +17,8 @@
     "test:bjj": "node --test scripts/bjj-motion.test.mjs",
     "bjj:bake": "node scripts/bake-bjj-motion.mjs",
     "stats:update": "node scripts/fetch-goatcounter-stats.mjs",
-    "bjj:render": "node scripts/render-bjj-study.mjs"
+    "bjj:render": "node scripts/render-bjj-study.mjs",
+    "bjj:audit": "node scripts/audit-bjj-collisions.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.2",

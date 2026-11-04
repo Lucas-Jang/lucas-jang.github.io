@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
 await fs.mkdir(new URL('../.astro/',import.meta.url),{recursive:true});
 const require=createRequire(new URL('../package.json',import.meta.url)),{build}=require('esbuild');
 const source=await fs.readFile(new URL('../src/scripts/bjj-widget.ts',import.meta.url),'utf8');
@@ -58,5 +59,15 @@ motion[key]=frames.map((frame,f)=>frame.bodies.map((body,person)=>{
 }));
 diagnostics[key]=pathInfo;console.log(key,JSON.stringify(pathInfo));
 }
-await fs.writeFile(new URL('../src/scripts/bjj-motion-data.ts',import.meta.url),'// Offline constrained trajectories, 361 normalized-time samples per clip; authored poses and shared grip anchors.\nexport const motionData:Record<string,number[][][]>='+JSON.stringify(motion)+';\n');
+// The independent per-limb trajectories are only a draft. Never publish them
+// before the coupled volume solve and between-frame audit have succeeded.
+const draft=fileURLToPath(new URL('../.astro/bjj-draft-motion.json',import.meta.url));
+await fs.writeFile(draft,JSON.stringify(motion));
+const keys=selected.length?selected:Object.keys(sides);
+execFileSync(process.env.BJJ_PYTHON??'python',['scripts/repair-bjj-motion.py',...keys],{stdio:'inherit',env:{...process.env,OPENBLAS_NUM_THREADS:'1',OMP_NUM_THREADS:'1',BJJ_MOTION_SOURCE:draft}});
+for(const key of keys)motion[key]=JSON.parse(await fs.readFile(new URL(`../.astro/bjj-volume-${key}.json`,import.meta.url),'utf8'));
+const candidate=fileURLToPath(new URL('../.astro/bjj-candidate-motion.json',import.meta.url));await fs.writeFile(candidate,JSON.stringify(motion));
+execFileSync(process.execPath,['scripts/audit-bjj-collisions.mjs','.astro/bjj-volume-audit.json',candidate],{stdio:'inherit',env:{...process.env,BJJ_AUDIT_SUBSTEPS:'4',BJJ_AUDIT_STRICT:'1'}});
+execFileSync(process.execPath,['--test','scripts/bjj-motion.test.mjs'],{stdio:'inherit',env:{...process.env,BJJ_MOTION_DATA_PATH:candidate}});
+await fs.writeFile(new URL('../src/scripts/bjj-motion-data.ts',import.meta.url),'// Offline volume-constrained trajectories; 361 normalized-time samples per clip.\nexport const motionData:Record<string,number[][][]>='+JSON.stringify(motion)+';\n');
 await fs.writeFile(new URL('../.astro/bjj-bake-diagnostics.json',import.meta.url),JSON.stringify(diagnostics,null,2));

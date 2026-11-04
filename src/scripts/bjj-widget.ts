@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { techniques, type Pose, type V } from './bjj-poses';
 import {obstacles,solveLimb,sharedAnchor,outside,type Obstacle,type LimbSolution} from './bjj-constraints';
 import {motionData} from './bjj-motion-data';
+import {sampleMotion} from './bjj-motion-sample';
 export {setCandidateCollector} from './bjj-constraints';
 let useMotionData=true;
 export function setUseMotionData(value:boolean){useMotionData=value;}
@@ -83,25 +84,17 @@ class Grappler {
 }
 
 function applyMotion(players:[Grappler,Grappler],data:number[][][],progress:number){
-  const f=THREE.MathUtils.clamp(progress,0,1)*(data.length-1),index=Math.min(data.length-2,Math.floor(f)),t=f-index;
+  const people=sampleMotion(data,progress);
   for(let person=0;person<2;person++){
-    const a=data[index][person],b=data[index+1][person],g=players[person];
-    const vec=(offset:number)=>new THREE.Vector3(a[offset],a[offset+1],a[offset+2]).lerp(new THREE.Vector3(b[offset],b[offset+1],b[offset+2]),t);
-    const q=new THREE.Quaternion(a[3],a[4],a[5],a[6]).slerp(new THREE.Quaternion(b[3],b[4],b[5],b[6]),t);
-    g.body.position.copy(vec(0));g.body.quaternion.copy(q);
+    const frame=people[person],g=players[person],vec=(offset:number)=>new THREE.Vector3(frame[offset],frame[offset+1],frame[offset+2]);
+    g.body.position.copy(vec(0));g.body.quaternion.set(frame[3],frame[4],frame[5],frame[6]);
     for(let i=0;i<4;i++){
-      const offset=7+i*16,limb=g.limbs[i],start=vec(offset),end=vec(offset+6),guess=vec(offset+3),l1=limb.foot?.47:.36,l2=limb.foot?.46:.34;
-      const axis=end.clone().sub(start),d=axis.length();axis.normalize();
-      const along=(l1*l1-l2*l2+d*d)/(2*d),centre=start.clone().addScaledVector(axis,along),radius=Math.sqrt(Math.max(0,l1*l1-along*along));
-      const bend=guess.clone().sub(centre).addScaledVector(axis,-guess.clone().sub(centre).dot(axis)).normalize();
-      const joint=centre.clone().addScaledVector(bend,radius),shin=joint.clone().sub(end).normalize();
-      const stored=new THREE.Quaternion(a[offset+9],a[offset+10],a[offset+11],a[offset+12]).slerp(new THREE.Quaternion(b[offset+9],b[offset+10],b[offset+11],b[offset+12]),t);
-      const toe=new THREE.Vector3(0,0,1).applyQuaternion(stored);toe.addScaledVector(shin,-toe.dot(shin)).normalize();
-      const rotation=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(shin.clone().cross(toe).normalize(),shin,toe));
+      const offset=7+i*16,limb=g.limbs[i],start=vec(offset),joint=vec(offset+3),end=vec(offset+6);
+      const rotation=new THREE.Quaternion(frame[offset+9],frame[offset+10],frame[offset+11],frame[offset+12]);
       segment(limb.upper,start,joint,limb.foot?.094:.073);segment(limb.lower,joint,end,limb.foot?.076:.060);
       limb.joint.position.copy(joint);limb.tip.position.copy(end);limb.tip.quaternion.copy(rotation);
       segment(limb.cuff,end,end.clone().lerp(joint,.1),limb.foot?.078:.062);
-      g.solutions[i]={start,joint,end,rotation,goal:vec(offset+13),clearance:0,basis:bend};
+      g.solutions[i]={start,joint,end,rotation,goal:vec(offset+13),clearance:0,basis:joint.clone().sub(start).normalize()};
     }
   }
 }

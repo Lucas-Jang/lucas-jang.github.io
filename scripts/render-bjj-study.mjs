@@ -19,6 +19,7 @@ const {Grappler,THREE:T,techniques,posePair,SVGRenderer}=require('../.astro/bjj-
 const out=process.argv[2]??'../outputs/bjj-motion-study';await fs.mkdir(out,{recursive:true});
 const sides={double:[1,1],triangle:[-1,1],armbar:[1,-1],omoplata:[-1,1],bow:[1,1]};
 for(const [key,tech]of Object.entries(techniques)){
+ if(process.env.BJJ_RENDER_TECHNIQUE&&process.env.BJJ_RENDER_TECHNIQUE!==key)continue;
  const scene=new T.Scene();scene.background=new T.Color(0xd8e4e8);scene.add(new T.AmbientLight(0xffffff,.5));
  const light=new T.DirectionalLight(0xffffff,.65);light.position.set(-3,6,4);scene.add(light);
  const a=new Grappler(scene,0xf2efe5,0x7c648b),b=new Grappler(scene,0x366d9c,0xe8e0cf);
@@ -26,7 +27,7 @@ for(const [key,tech]of Object.entries(techniques)){
  const camera=new T.OrthographicCamera(-2.2,2.2,1.65,-1.65,.1,100),renderer=new SVGRenderer();renderer.setSize(440,330);renderer.setQuality('low');
  const tiles=[];
  for(let view=0;view<4;view++)for(let step=0;step<6;step++){
-  const p=step/5;let i=0;while(i<tech.frames.length-2&&p>=tech.frames[i+1].t)i++;
+  const p=process.env.BJJ_RENDER_PROGRESS?Number(process.env.BJJ_RENDER_PROGRESS.split(',')[step]):step/5;let i=0;while(i<tech.frames.length-2&&p>=tech.frames[i+1].t)i++;
   const first=tech.frames[i],next=tech.frames[i+1],t=T.MathUtils.clamp((p-first.t)/(next.t-first.t),0,1);
   posePair([a,b],first.a,next.a,first.b,next.b,t*t*(3-2*t),sides[key],key,p);
   const angle=view*Math.PI/2;camera.position.set(tech.camera[0]*Math.cos(angle)+tech.camera[2]*Math.sin(angle),tech.camera[1],tech.camera[2]*Math.cos(angle)-tech.camera[0]*Math.sin(angle));camera.lookAt(key==='double'?.3:0,key==='double'?.75:.5,0);camera.updateMatrixWorld();scene.updateMatrixWorld(true);
