@@ -1,0 +1,51 @@
+---
+import studyUrl from '../assets/bjj/triangle-study.glb?url';
+---
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex" /><title>삼각조르기 · 새 모델 제작 검토</title>
+  </head>
+  <body>
+    <main data-study data-model={studyUrl}>
+      <header><a href="/?category=BJJ">← 주짓수 위젯</a><span>WORK IN PROGRESS / 01</span>
+        <h1>삼각조르기, 다시 만들기</h1>
+        <p>새 인체 모델로 제작한 동작 초안입니다. 잠금·그립·신체 접촉을 검토하고 있습니다.</p>
+      </header>
+      <div class="comparison">
+        <section aria-label="새 3D 동작">
+          <div class="stage"><canvas aria-label="삼각조르기 새 모델. 드래그로 회전, 휠 또는 두 손가락으로 확대할 수 있습니다."></canvas><p data-status role="status">모델을 불러오는 중…</p><span class="hint">드래그 · 360° 회전 / 스크롤 · 확대</span></div>
+          <div class="controls">
+            <button data-play disabled>재생</button><button data-restart disabled aria-label="처음으로">↺</button>
+            <input data-time type="range" min="0" max="22" step="0.01" value="0" aria-label="동작 시간" disabled />
+            <output data-clock>0.0 / 22.0초</output>
+            <select data-speed aria-label="재생 속도"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
+          </div>
+          <div class="views" role="group" aria-label="시점 선택">
+            <button data-view="front">기본</button><button data-view="side">측면</button><button data-view="back">후면</button><button data-view="top">상단</button>
+            <label><input data-skeleton type="checkbox" /> 골격</label>
+          </div>
+          <p data-phase>가드 · 손목 제어</p>
+          <div class="chapters" role="group" aria-label="단계로 이동">
+            <button data-seek="0">가드</button><button data-seek="4">다리 올리기</button><button data-seek="8">정강이 제어</button><button data-seek="12">각도 조정</button><button data-seek="16">잠금 검토</button>
+          </div>
+        </section>
+        <aside aria-label="비교 시연">
+          <h2>비교 시연</h2><p>Sideshow Jiu-Jitsu · How to do a Triangle Choke</p>
+          <div class="reference" data-reference><button data-load-reference>유튜브 시연 불러오기</button><div id="bjj-study-reference"></div></div>
+          <p data-reference-status>원본 영상을 보며 자세와 순서를 비교할 수 있습니다.</p>
+          <a href="https://www.youtube.com/shorts/IrOqHj6CeXo" target="_blank" rel="noopener noreferrer">유튜브에서 원본 열기 ↗</a>
+          <p class="muted">동작은 수작업 초안이며 모션 캡처가 아닙니다. 원본의 가려진 부위와 세부 그립은 추정이 포함됩니다.</p>
+        </aside>
+      </div>
+      <footer><p>흰색 · 시연자 / 파란색 · 파트너. 같은 비례의 1.78m 인체 모델을 사용합니다.</p><p>인체 메시·골격: MakeHuman Community, CC0. 훈련복 형태로 단순화했습니다.</p></footer>
+    </main>
+    <script>import {mountTriangleStudy} from '../scripts/bjj-study';mountTriangleStudy(document.querySelector<HTMLElement>('[data-study]')!);</script>
+  </body>
+</html>
+<style>
+  :global(*){box-sizing:border-box} :global(body){margin:0;background:#101a20;color:#e8edeb;font-family:system-ui,sans-serif;font-size:14px;line-height:1.6} :global(button),:global(select){font:inherit;min-height:42px;color:inherit;background:#263942;border:1px solid #58707c;border-radius:6px;padding:.45rem .8rem;cursor:pointer} :global(button:disabled){opacity:.45;cursor:wait} :global(a){color:#b7d9e5} :global(button:focus-visible),:global(input:focus-visible),:global(select:focus-visible){outline:3px solid #f4cf87;outline-offset:3px}
+  main{max-width:1440px;margin:auto;padding:32px}header{margin-bottom:24px}header span{float:right;color:#a9bdc6;font-size:11px;letter-spacing:.12em}h1{font-size:clamp(24px,4vw,38px);letter-spacing:-.05em;margin:20px 0 8px}p{margin:8px 0 16px}header p,.muted,footer{color:#a9bdc6}.comparison{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px}.stage{position:relative;height:clamp(350px,50vw,650px);border-radius:12px;background:#c5d1d5;overflow:hidden}.stage canvas{width:100%;height:100%;display:block;touch-action:none}.stage [data-status]{position:absolute;top:14px;left:18px;color:#213942;max-width:80%;pointer-events:none}.hint{position:absolute;bottom:14px;right:18px;color:#395360;font-size:12px;pointer-events:none}.controls{display:flex;align-items:center;gap:8px;margin:16px 0}.controls input{flex:1;width:20px;accent-color:#b7d9e5}.controls output{font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}.views,.chapters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.views label{margin-left:auto}.chapters button{font-size:12px;background:transparent}[data-phase]{font-size:18px;margin:22px 0 14px}aside h2{font-size:18px;margin-top:0}aside p{font-size:12px}.reference{position:relative;min-height:400px;background:#1e2c33;border-radius:10px;display:grid;place-items:center;overflow:hidden}.reference :global(iframe){width:100%;height:475px;display:block;border:0}.reference:has(iframe) [data-load-reference]{display:none}.reference:has(iframe){display:block}footer{font-size:11px;border-top:1px solid #354851;margin-top:32px;padding-top:12px}footer p{margin:4px 0}
+  @media(max-width:900px){.comparison{grid-template-columns:1fr}aside{max-width:480px}.reference{min-height:300px}main{padding:20px}.controls{flex-wrap:wrap}.controls input{min-width:100px}.controls output{font-size:11px}header span{float:none;display:block;margin-top:16px}.stage{height:430px}}
+</style>
