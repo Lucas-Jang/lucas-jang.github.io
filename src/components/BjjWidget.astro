@@ -1,4 +1,8 @@
 ---
+import study from '../scripts/bjj-references.json';
+const referenceGroups = [
+  ['double','더블렉 테이크다운'],['triangle','삼각조르기'],['armbar','마운트 암바'],['omoplata','오모플라타'],['bow','보우앤애로우']
+];
 ---
 <section class="bjj-widget" aria-label="주짓수 기술 애니메이션" hidden data-pagefind-ignore>
   <header class="bjj-heading">
@@ -19,8 +23,19 @@
     <input class="bjj-timeline" type="range" min="0" max="1000" step="1" value="0" aria-label="기술 진행 위치" />
     <label class="bjj-speed-label">속도 <select class="bjj-speed" aria-label="재생 속도"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label>
   </div>
-  <div class="bjj-bottom"><p data-tech-description>레벨 체인지에서 양다리 포획, 방향 전환과 착지까지.</p><button class="bjj-view">시점 초기화</button></div>
-  <p class="bjj-note">동작을 단순화한 애니메이션입니다. <a href="https://www.youtube.com/shorts/jA3DIYh8IIU" target="_blank" rel="noopener noreferrer">더블렉 참고 영상 ↗</a></p>
+  <div class="bjj-bottom"><p data-tech-description>무릎을 굽혀 낮추기 → 머리를 골반 옆에 두고 진입 → 뒤발 따라오기 → 코너 돌기 → 탑 안정.</p><button class="bjj-view">시점 초기화</button></div>
+  <p class="bjj-note">여러 시연의 공통 단계를 단순화해 재구성한 3D 애니메이션입니다.</p>
+  <details class="bjj-references">
+    <summary>영상 레퍼런스와 관찰 내용</summary>
+    <p>영상마다 10개 시점의 프레임과 읽을 수 있는 화면 설명을 비교했습니다. 연속 재생·음성 전사 분석은 아닙니다.</p>
+    {referenceGroups.map(([key,label]) => {
+      const clips=study.references.filter(clip=>clip.technique===key);
+      return <div data-reference-technique={key} hidden={key!=='double'}>
+        <h3>{label} · {clips.length}개</h3>
+        <ul>{clips.map(clip=><li><a href={clip.url} target="_blank" rel="noopener noreferrer">{clip.title} ↗</a><span>{clip.channel} · 비교 표본 {clip.reviewedRange[0]}–{clip.reviewedRange[1]}초</span><p>{clip.observation}</p></li>)}</ul>
+      </div>;
+    })}
+  </details>
 </section>
 <style>
   .bjj-widget[hidden] { display: none; }
@@ -53,6 +68,13 @@
   .bjj-bottom p, .bjj-note { font-size: .75rem; line-height: 1.65; margin: 0; }
   .bjj-view { min-height: 44px; flex-shrink: 0; border: 0; background: transparent; text-decoration: underline; font-size: .7rem !important; }
   .bjj-note { padding: .1rem 1.5rem 1.1rem; color: #4f7186; font-size: .65rem; }
+  .bjj-references { padding: 0 1.5rem 1.1rem; font-size: .75rem; line-height: 1.7; overflow-wrap: anywhere; }
+  .bjj-references summary { cursor: pointer; min-height: 36px; }
+  .bjj-references h3 { font-size: .85rem; }
+  .bjj-references ul { padding-left: 1.2rem; }
+  .bjj-references li { margin-bottom: .85rem; }
+  .bjj-references li span { display: block; color: #4f7186; font-size: .68rem; }
+  .bjj-references p { margin: .25rem 0 .6rem; }
   .bjj-widget :is(button,input,select):focus-visible { outline: 3px solid #142d3d; outline-offset: 3px; }
   @media(max-width:40rem) { .bjj-heading { align-items: start; flex-direction: column; padding: 1rem; } .bjj-techniques { padding: 0 1rem 1rem; } .bjj-techniques button { font-size: .7rem; padding: .4rem .65rem; } .bjj-playback { padding: .6rem .8rem; gap: .4rem; } .bjj-speed-label { font-size: 0; } .bjj-speed { font-size: .75rem !important; } .bjj-bottom { align-items: start; padding-inline: 1rem; gap: .4rem; } .bjj-note { padding-inline: 1rem; } }
 </style>

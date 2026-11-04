@@ -7,6 +7,44 @@ const data=JSON.parse(text.slice(text.indexOf('=')+1).trim().replace(/;$/,''));
 const V=(a,i)=>new T.Vector3(a[i],a[i+1],a[i+2]);
 const tip=(a,i)=>V(a,7+i*16+6);
 const elbow=(a,i)=>V(a,7+i*16+3);
+const sample=(key,p)=>data[key][Math.round(p*(data[key].length-1))];
+const bodyPoint=(person,point)=>new T.Vector3(...point).applyQuaternion(new T.Quaternion(...person.slice(3,7))).add(V(person,0));
+test('the reference review includes at least ten distinct Shorts for every technique',async()=>{
+ const study=JSON.parse(await fs.readFile(new URL('../src/scripts/bjj-references.json',import.meta.url),'utf8'));
+ for(const key of Object.keys(data)){
+  const clips=study.references.filter(r=>r.technique===key);
+  assert.ok(new Set(clips.map(r=>r.id)).size>=10,key);
+  for(const clip of clips){assert.equal(clip.url,`https://www.youtube.com/shorts/${clip.id}`);assert.ok(clip.reviewedRange[0]<clip.reviewedRange[1]&&clip.reviewedRange[1]<=clip.duration);assert.ok(clip.observation.length>10);}
+ }
+});
+test('the double leg lowers first, keeps the head beside the hip, then brings the rear foot up',()=>{
+ const initial=sample('double',0)[0],low=sample('double',.13)[0],[entry,partner]=sample('double',.29),follow=sample('double',.44)[0];
+ assert.ok(initial[1]-low[1]>.15&&low[0]-initial[0]<.3);
+ const head=bodyPoint(entry,[0,.73,0]);assert.ok(head.z-partner[2]>.20&&head.y>partner[1]+.08);
+ assert.ok(tip(follow,2).x-tip(entry,2).x>.45);
+});
+test('the triangle supports a foot at the hip and turns the pelvis before its final lock',()=>{
+ const [a,b]=sample('triangle',.12),end=sample('triangle',1)[0];
+ assert.ok(tip(a,3).distanceTo(V(b,0))<.36);
+ const up=bodyPoint(end,[0,1,0]).sub(V(end,0));assert.ok(Math.atan2(up.z,-up.x)>.5);
+});
+test('the mount armbar sits down after clearing the head and before lying back',()=>{
+ const [s,b]=sample('armbar',.35),seated=sample('armbar',.61)[0],end=sample('armbar',.8)[0];
+ assert.ok(elbow(s,2).distanceTo(bodyPoint(b,[0,.73,0]))<.5);
+ assert.ok(bodyPoint(seated,[0,1,0]).y-seated[1]>.6);
+ assert.ok(bodyPoint(end,[0,1,0]).y-end[1]<.1);
+ assert.ok(seated[1]<sample('armbar',.48)[0][1]-.15);
+});
+test('the omoplata uses the outside hand to rise before taking waist control',()=>{
+ const a=sample('omoplata',.65)[0],finish=sample('omoplata',.94)[0];
+ assert.ok(Math.abs(tip(a,1).y-.075)<.01);
+ assert.ok(bodyPoint(a,[0,1,0]).y-a[1]>.8);
+ assert.ok(tip(finish,1).y>.35);
+});
+test('the bow and arrow secures the pants before the side sit',()=>{
+ const [a,b]=sample('bow',.36),pants=bodyPoint(b,[-.18,.04,.04]);
+ assert.ok(tip(a,1).distanceTo(pants)<.20);
+});
 test('all five techniques, including the double leg, have two complete 3D rigs',()=>{
  assert.deepEqual(Object.keys(data).sort(),['armbar','bow','double','omoplata','triangle']);
  for(const [key,frames] of Object.entries(data)){
@@ -35,7 +73,7 @@ test('every generated limb retains its bone lengths and a bounded bend',()=>{
   assert.ok(angle>=24.99&&angle<=170,`${key} F${f} ${p}/${i} bend ${angle}`);
  }
 });
-test('elbows and knees do not jump between consecutive 30fps samples',()=>{
+test('elbows and knees do not jump between consecutive trajectory samples',()=>{
  for(const[key,frames]of Object.entries(data))for(let f=1;f<frames.length;f++)for(let p=0;p<2;p++)for(let i=0;i<4;i++){
   const displacement=elbow(frames[f][p],i).distanceTo(elbow(frames[f-1][p],i));
   assert.ok(displacement<.09,`${key} F${f} ${p}/${i} jump ${displacement}`);

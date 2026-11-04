@@ -131,6 +131,13 @@ export function posePair(players:[Grappler,Grappler],a0:Pose,a1:Pose,b0:Pose,b1:
   const shapes=obstacles(players.map(p=>p.body));
   const starts=players.map((g,i)=>[-1,1].map((_,j)=>new THREE.Vector3((j===0?sides[i]:-sides[i])*.205,.48,0).applyQuaternion(g.body.quaternion).add(g.body.position)));
   const goals=poses.map(p=>[...p.hands,...p.feet].map(v));
+  if(key==='double'){
+    // The partner frames on the shooter's shoulder, rather than reaching
+    // through the head as the entry moves to the outside of the hip.
+    const contact=THREE.MathUtils.smoothstep(progress,.13,.29)*(1-THREE.MathUtils.smoothstep(progress,.79,.94));
+    const shoulder=new THREE.Vector3(.22,.35,-.18).applyQuaternion(players[0].body.quaternion).add(players[0].body.position);
+    goals[1][0].lerp(outside(shoulder,shapes,.07),contact);
+  }
   if(key==='triangle'){
     goals[0][2].y=Math.min(goals[0][2].y,poses[0].h[1]+.82);
     const raise=THREE.MathUtils.smoothstep(progress,.25,.32)*(1-THREE.MathUtils.smoothstep(progress,.70,.8));
@@ -171,7 +178,7 @@ export function posePair(players:[Grappler,Grappler],a0:Pose,a1:Pose,b0:Pose,b1:
     const pants=new THREE.Vector3(-.18,.04,.04).applyQuaternion(players[1].body.quaternion).add(players[1].body.position);
     goals[0][0]=outside(collar,shapes,.065);
     const nearCollar=new THREE.Vector3(-.23,.43,.02).applyQuaternion(players[1].body.quaternion).add(players[1].body.position);
-    goals[0][1]=nearCollar.lerp(pants,THREE.MathUtils.smoothstep(progress,.24,.5));
+    goals[0][1]=nearCollar.lerp(pants,THREE.MathUtils.smoothstep(progress,.24,.36));
     goals[0][3].lerp(new THREE.Vector3(-.10,.78,-.20),THREE.MathUtils.smoothstep(progress,.4,.7));
   }
   for(let person=0;person<2;person++)for(let i=2;i<4;i++){
@@ -214,7 +221,7 @@ export function mountBjjWidget(widget:HTMLElement) {
   const draw=(time:number)=>{
     raf=0;if(destroyed)return;
     const delta=previous?Math.min((time-previous)/1000,.08):0;previous=time;
-    const duration=12;
+    const duration=techniques[key].duration??16;
     if(playing){progress=Math.min(1,progress+delta/duration*Number(speedInput.value));if(progress>=1){playing=false;syncPlay();}}
     const tech=techniques[key],frames=tech.frames;
     let index=0;while(index<frames.length-2 && progress>=frames[index+1].t)index++;
@@ -238,6 +245,7 @@ export function mountBjjWidget(widget:HTMLElement) {
     key=button.dataset.technique!;progress=0;playing=!reduced.matches;
     timeline.value='0';phase.textContent=techniques[key].frames[0].label;
     widget.querySelectorAll<HTMLButtonElement>('[data-technique]').forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
+    widget.querySelectorAll<HTMLElement>('[data-reference-technique]').forEach(group=>{group.hidden=group.dataset.referenceTechnique!==key;});
     name.textContent=techniques[key].name;widget.querySelector('[data-tech-description]')!.textContent=techniques[key].description;
     canvas.setAttribute('aria-label',`${techniques[key].korean} 3D 시연. 드래그해서 시점을 회전할 수 있습니다.`);
     resize();resetView();syncPlay();schedule();

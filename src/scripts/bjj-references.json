@@ -1,0 +1,762 @@
+{
+  "reviewDate": "2026-11-04",
+  "method": "time-sampled video frames; not continuous playback or audio transcription",
+  "references": [
+    {
+      "technique": "double",
+      "id": "Mwy4wivg7Q0",
+      "title": "How to Do a Double Leg Takedown, (Everyone Must Use)￼",
+      "channel": "BIG OSS Jiu-Jitsu Channel",
+      "url": "https://www.youtube.com/shorts/Mwy4wivg7Q0",
+      "duration": 11,
+      "reviewedRange": [
+        4.93,
+        10.67
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "멀리서 무릎만 떨어뜨리는 장면과 깊게 들어가 마무리하는 장면이 대비된다."
+    },
+    {
+      "technique": "double",
+      "id": "5izTKvHSRak",
+      "title": "Sneaky Double Leg Takedown Technique",
+      "channel": "OldSchoolTeaches",
+      "url": "https://www.youtube.com/shorts/5izTKvHSRak",
+      "duration": 16,
+      "reviewedRange": [
+        3.82,
+        13.85
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "밀착 상태에서 머리로 방향을 만들고 들어 올린다. 근접 촬영이라 발의 접지는 판단하지 않았다."
+    },
+    {
+      "technique": "double",
+      "id": "mJIVHZUGw40",
+      "title": "Double Leg for BJJ",
+      "channel": "Ryan Juliano",
+      "url": "https://www.youtube.com/shorts/mJIVHZUGw40",
+      "duration": 30,
+      "reviewedRange": [
+        4.03,
+        25.97
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "머리를 낮게 떨어뜨린 자세의 길로틴 위험과 다리 쓸기 마무리를 비교한다."
+    },
+    {
+      "technique": "double",
+      "id": "u4icqKG3kTo",
+      "title": "How to hit the Perfect Double Leg Takedown ✅",
+      "channel": "Geno Morelli",
+      "url": "https://www.youtube.com/shorts/u4icqKG3kTo",
+      "duration": 39,
+      "reviewedRange": [
+        13.39,
+        37.83
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "발로 거리를 좁히고 진입 무릎을 내린 뒤 뒤발을 앞으로 가져온다."
+    },
+    {
+      "technique": "double",
+      "id": "2S2yk39ZpJ4",
+      "title": "How To Finish a Double Leg Takedown",
+      "channel": "Boston Submission Fighting",
+      "url": "https://www.youtube.com/shorts/2S2yk39ZpJ4",
+      "duration": 40,
+      "reviewedRange": [
+        9.56,
+        38.8
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "골반이 뒤에 남은 자세와 상대 무게를 어깨 위로 받아낸 자세를 비교한다."
+    },
+    {
+      "technique": "double",
+      "id": "G_BqZDFN3zg",
+      "title": "5 Ways To Finish Your Double-Leg Takedown For MMA and BJJ",
+      "channel": "Jay Furness MMA Coaching",
+      "url": "https://www.youtube.com/shorts/G_BqZDFN3zg",
+      "duration": 13,
+      "reviewedRange": [
+        3.11,
+        4.46
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "다섯 마무리 중 turn-the-corner 구간을 채택했다. 다른 마무리를 한 동작에 섞지 않았다."
+    },
+    {
+      "technique": "double",
+      "id": "yclZSViW9V4",
+      "title": "Double leg takedown basics! Shoot and score 😎 #bjj #wrestling #jiujitsu",
+      "channel": "Kubilay Demirhan",
+      "url": "https://www.youtube.com/shorts/yclZSViW9V4",
+      "duration": 48,
+      "reviewedRange": [
+        21.49,
+        41.55
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "진입 다리와 뒤따라오는 다리, 앞을 보는 머리 위치를 나눠 설명한다."
+    },
+    {
+      "technique": "double",
+      "id": "jcwTS9roEew",
+      "title": "How to shoot a double leg in the Gi #bjj #jiujitsu #brazilianjiujitsu",
+      "channel": "Dubious Dom",
+      "url": "https://www.youtube.com/shorts/jcwTS9roEew",
+      "duration": 24,
+      "reviewedRange": [
+        8.24,
+        23.28
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "도복 그립 상황에서 팔 아래로 들어가 밀착하고 옆으로 넘어간다."
+    },
+    {
+      "technique": "double",
+      "id": "wkE6sIvUnJI",
+      "title": "Double leg takedown - 6 common mistakes",
+      "channel": "MMA Coach",
+      "url": "https://www.youtube.com/shorts/wkE6sIvUnJI",
+      "duration": 59,
+      "reviewedRange": [
+        7.93,
+        57.23
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "몸만 숙이기·팔부터 뻗기·뒤발이 남는 오류를 올바른 진입과 비교한다."
+    },
+    {
+      "technique": "triangle",
+      "id": "HLc64ThdhKY",
+      "title": "How to do a Triangle Choke",
+      "channel": "Sideshow Jiu-Jitsu ",
+      "url": "https://www.youtube.com/shorts/HLc64ThdhKY",
+      "duration": 36,
+      "reviewedRange": [
+        4.84,
+        31.16
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "한 팔을 안쪽에 남긴 뒤 골반에 발을 대고 각도를 조정하며 다시 잠근다."
+    },
+    {
+      "technique": "triangle",
+      "id": "IrOqHj6CeXo",
+      "title": "How to do a Triangle Choke 🔺",
+      "channel": "Sideshow Jiu-Jitsu ",
+      "url": "https://www.youtube.com/shorts/IrOqHj6CeXo",
+      "duration": 22,
+      "reviewedRange": [
+        2.96,
+        19.04
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "한 팔을 밀고 반대팔을 당긴 다음 정강이 제어와 골반의 발 지지로 잠금을 조정한다."
+    },
+    {
+      "technique": "triangle",
+      "id": "uVgThIndPHQ",
+      "title": "The Best Triangle Setup",
+      "channel": "Knight Jiu-Jitsu",
+      "url": "https://www.youtube.com/shorts/uVgThIndPHQ",
+      "duration": 35,
+      "reviewedRange": [
+        4.71,
+        31.87
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "골반을 옆으로 빼고 무릎을 넘겨 팔을 분리한 뒤 각도를 유지하며 잠근다."
+    },
+    {
+      "technique": "triangle",
+      "id": "9T8mq6MhI_k",
+      "title": "No-Gi Triangle Choke Setup",
+      "channel": "Auburn Jiu Jitsu",
+      "url": "https://www.youtube.com/shorts/9T8mq6MhI_k",
+      "duration": 41,
+      "reviewedRange": [
+        5.51,
+        22.64
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "손목 포획 뒤 다리를 높이고 골반 방향을 바꾼다. 노기 진입만 참고했다."
+    },
+    {
+      "technique": "triangle",
+      "id": "Nr1m9eOBrks",
+      "title": "WRIST CONTROL TO TRIANGLES - JOHN DANAHER",
+      "channel": "BJJ Fanatics",
+      "url": "https://www.youtube.com/shorts/Nr1m9eOBrks",
+      "duration": 59,
+      "reviewedRange": [
+        14.09,
+        32.58
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "손목 제어를 유지한 채 가드를 열고 다리를 상대 어깨 위로 올린다."
+    },
+    {
+      "technique": "triangle",
+      "id": "N8X6SqYgsDY",
+      "title": "Closed Guard Triangle Choke Setup #bjj",
+      "channel": "VanJitsuLife",
+      "url": "https://www.youtube.com/shorts/N8X6SqYgsDY",
+      "duration": 11,
+      "reviewedRange": [
+        1.48,
+        8.37
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "대회 시연에서 골반 상승, 다리 넘기기, 측면 각도 조정이 이어진다. 정확한 손가락 그립은 가려졌다."
+    },
+    {
+      "technique": "triangle",
+      "id": "ceg6HaONIBs",
+      "title": "Jiu Jitsu Triangle details you NEED TO KNOW!",
+      "channel": "Malachy Friedman",
+      "url": "https://www.youtube.com/shorts/ceg6HaONIBs",
+      "duration": 59,
+      "reviewedRange": [
+        7.93,
+        32.58
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "팔을 가로지르는 조정과 골반 각도에 따라 조임 방향이 달라진다."
+    },
+    {
+      "technique": "triangle",
+      "id": "FffQf34VQa8",
+      "title": "The Biggest Misconception About The Triangle Choke",
+      "channel": "JonThomasBJJ",
+      "url": "https://www.youtube.com/shorts/FffQf34VQa8",
+      "duration": 42,
+      "reviewedRange": [
+        14.42,
+        36.35
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "상대의 가슴 밀기 그립을 해제한 뒤 정강이를 잡고 잠금을 재조정한다. 머리 당기기만으로 해결하지 않는다."
+    },
+    {
+      "technique": "triangle",
+      "id": "oa-GPurs8Vw",
+      "title": "The Triangle Choke",
+      "channel": "Stay Safe Martial Arts",
+      "url": "https://www.youtube.com/shorts/oa-GPurs8Vw",
+      "duration": 52,
+      "reviewedRange": [
+        12.42,
+        39.58
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "다리 아래로 손을 넣어 각도를 만들고 정강이를 붙잡은 뒤 무릎을 모은다."
+    },
+    {
+      "technique": "triangle",
+      "id": "AZLWo1KL1V8",
+      "title": "주짓수 기술 트라이앵글초크 하는법! #shorts",
+      "channel": "Jungdohan martial artsTV",
+      "url": "https://www.youtube.com/shorts/AZLWo1KL1V8",
+      "duration": 58,
+      "reviewedRange": [
+        13.86,
+        44.14
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "가드에서 한 팔을 분리하고 다리를 올린 다음 골반을 옮겨 잠근다."
+    },
+    {
+      "technique": "armbar",
+      "id": "u1GRf9N_904",
+      "title": "How to do an Armbar From Mount in Brazilian Jiu Jitsu #submission #bjj #bjjlife",
+      "channel": "Juan Bastardo",
+      "url": "https://www.youtube.com/shorts/u1GRf9N_904",
+      "duration": 17,
+      "reviewedRange": [
+        5.84,
+        16.49
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "팔을 가슴으로 고정하고 마운트에서 머리 쪽으로 이동한 다음 다리를 넘겨 앉는다."
+    },
+    {
+      "technique": "armbar",
+      "id": "45SGFHd2SmE",
+      "title": "Armbar from mount bjj",
+      "channel": "Mr Rav",
+      "url": "https://www.youtube.com/shorts/45SGFHd2SmE",
+      "duration": 20,
+      "reviewedRange": [
+        6.87,
+        19.4
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "상체를 앞으로 실어 S마운트를 만들고 상대 머리 옆으로 무릎을 붙인다."
+    },
+    {
+      "technique": "armbar",
+      "id": "6p3870dJcZw",
+      "title": "5 Ways to Do ARMBARS From Mount( for white belts)",
+      "channel": "BIG OSS Jiu-Jitsu Channel",
+      "url": "https://www.youtube.com/shorts/6p3870dJcZw",
+      "duration": 28,
+      "reviewedRange": [
+        3.76,
+        27.16
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "여러 진입 중 마운트에서 머리 위로 다리를 넘겨 앉는 기본형만 참고했다."
+    },
+    {
+      "technique": "armbar",
+      "id": "j-PPVkogBIM",
+      "title": "S Mount Armbar | COBRINHA ONLINE #bjj #jiujitsu #cobrinhaonline",
+      "channel": "Cobrinha Brazilian Jiu-Jitsu & Fitness",
+      "url": "https://www.youtube.com/shorts/j-PPVkogBIM",
+      "duration": 34,
+      "reviewedRange": [
+        4.57,
+        32.98
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "S마운트에서 바깥손으로 매트를 짚고 다리를 넘긴 뒤 상체를 뒤로 눕힌다."
+    },
+    {
+      "technique": "armbar",
+      "id": "yIST8t91uXw",
+      "title": "Easy ARMBAR setup from Mount! 🥋 #brazilianjiujitsu #bjj #jiujitsu",
+      "channel": "Jordan Teaches Jiujitsu",
+      "url": "https://www.youtube.com/shorts/yIST8t91uXw",
+      "duration": 12,
+      "reviewedRange": [
+        4.12,
+        11.64
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "칼라 초크 반응으로 올라온 팔꿈치를 분리하고 마운트 각도를 바꾼다. 진입 변형으로 분류했다."
+    },
+    {
+      "technique": "armbar",
+      "id": "gLzuKm4qqO0",
+      "title": "Spinning arm bar from mount...  #grappling #bjj #mma #selfdefense #graciejiujitsu #submission",
+      "channel": "Chattanooga Jiu-Jitsu Academy",
+      "url": "https://www.youtube.com/shorts/gLzuKm4qqO0",
+      "duration": 45,
+      "reviewedRange": [
+        10.75,
+        43.65
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "앞으로 체중을 싣고 회전한 뒤 앉고, 마지막에 뒤로 눕는 순서가 분명하다."
+    },
+    {
+      "technique": "armbar",
+      "id": "OYQwAy1FwY0",
+      "title": "You’re Still Messing Up The S Mount Armbar - But Not After This 🔥 #bjj #jiujitsu #martialarts",
+      "channel": "Kevin Gallagher",
+      "url": "https://www.youtube.com/shorts/OYQwAy1FwY0",
+      "duration": 127,
+      "reviewedRange": [
+        17.08,
+        109.93
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "무릎을 머리 가까이 이동하고 팔을 끌어안은 상태로 S마운트를 유지한다."
+    },
+    {
+      "technique": "armbar",
+      "id": "qfQOzW2-r1A",
+      "title": "Armbar From Mount @michelalsoury7065 at 10th Planet Austin",
+      "channel": "Coach Ben BJJ",
+      "url": "https://www.youtube.com/shorts/qfQOzW2-r1A",
+      "duration": 6,
+      "reviewedRange": [
+        0.81,
+        5.82
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "매트 지지, 골반 회전, 머리 위 다리 넘기기, 착석이 빠르게 이어진다."
+    },
+    {
+      "technique": "armbar",
+      "id": "ywC2YT03t0U",
+      "title": "Armbar From S-Mount Basics",
+      "channel": "Gold BJJ",
+      "url": "https://www.youtube.com/shorts/ywC2YT03t0U",
+      "duration": 79,
+      "reviewedRange": [
+        18.87,
+        68.38
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "먼저 높은 마운트와 낮은 가슴 압박을 만들고 팔을 감싼 채 S마운트로 바꾼다."
+    },
+    {
+      "technique": "armbar",
+      "id": "liPJmVmnu5o",
+      "title": "Armbar From Mount by JOHN DANAHER",
+      "channel": "Bernardo Faria BJJ Fanatics",
+      "url": "https://www.youtube.com/shorts/liPJmVmnu5o",
+      "duration": 53,
+      "reviewedRange": [
+        7.13,
+        45.87
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "손목과 팔을 제어한 상태로 다리를 머리 위에 두고 무릎 사이에 팔을 유지한다."
+    },
+    {
+      "technique": "armbar",
+      "id": "b3w3KnDy5KA",
+      "title": "6-step Armbar from mount",
+      "channel": "Tsavo | BJJ Equipment",
+      "url": "https://www.youtube.com/shorts/b3w3KnDy5KA",
+      "duration": 23,
+      "reviewedRange": [
+        3.09,
+        22.31
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "무릎을 귀 옆으로 옮기기, S마운트, 그립 전환, 다리 넘기기 순서를 분리한다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "ra0tIjxI2Tc",
+      "title": "Easy BJJ Omoplata setup",
+      "channel": "Triumph Fight Academy",
+      "url": "https://www.youtube.com/shorts/ra0tIjxI2Tc",
+      "duration": 10,
+      "reviewedRange": [
+        2.39,
+        9.7
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "골반에 발을 두고 상대를 늘린 뒤 다리를 어깨 위로 보내고 앉는다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "0plPcGssT0M",
+      "title": "Whitebelts! The omoplata is not as hard as you think!",
+      "channel": "Matt Arroyo Jiu Jitsu ",
+      "url": "https://www.youtube.com/shorts/0plPcGssT0M",
+      "duration": 94,
+      "reviewedRange": [
+        12.64,
+        51.91
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "다리를 뻗어 상대 자세를 무너뜨린 뒤 손을 짚고 상체를 세운다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "ijGXGxy6f0E",
+      "title": "Omoplata from guard",
+      "channel": "ZombieProofBJJ",
+      "url": "https://www.youtube.com/shorts/ijGXGxy6f0E",
+      "duration": 10,
+      "reviewedRange": [
+        2.39,
+        9.7
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "팔 제어를 유지하며 다리를 크게 넘긴 뒤 상대와 같은 방향으로 앉는다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "_n2YmNKZcg8",
+      "title": "Easy Omoplata Set Up - Works No Matter How Strong They Are",
+      "channel": "JonThomasBJJ",
+      "url": "https://www.youtube.com/shorts/_n2YmNKZcg8",
+      "duration": 19,
+      "reviewedRange": [
+        6.52,
+        16.45
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "칼라·팔 제어로 반응을 만든 다음 다리를 상대 어깨 위로 보낸다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "YRX4dqIkDB8",
+      "title": "Use This Trick To Make Your Jiu Jitsu Omoplata Deadly!🥋⚠️",
+      "channel": "Malachy Friedman",
+      "url": "https://www.youtube.com/shorts/YRX4dqIkDB8",
+      "duration": 27,
+      "reviewedRange": [
+        3.63,
+        23.37
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "팔꿈치를 안쪽에 가둔 채 구르는 반응에 따라 다리와 골반 제어를 유지한다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "bcwc_5pUrW8",
+      "title": "How to Finish an Omoplata on a Posturing Opponent #omoplata",
+      "channel": "ZukaBJJ",
+      "url": "https://www.youtube.com/shorts/bcwc_5pUrW8",
+      "duration": 60,
+      "reviewedRange": [
+        8.07,
+        45.67
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "상대가 일어날 때 골반을 옆으로 옮기고 팔꿈치·손 지지로 상체를 세운다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "iZ_CYSpUX_k",
+      "title": "Omoplata Drill",
+      "channel": "JiuJitsu FLO",
+      "url": "https://www.youtube.com/shorts/iZ_CYSpUX_k",
+      "duration": 11,
+      "reviewedRange": [
+        3.78,
+        9.52
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "혼자 하는 골반 회전과 파트너를 둔 회전·착석 드릴을 나란히 보여준다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "M2j8FmvqDqo",
+      "title": "Omoplata Submission - 5 Easy Steps | BJJ | Brazilian Jiu-Jitsu",
+      "channel": "Teaching you MMA & BJJ",
+      "url": "https://www.youtube.com/shorts/M2j8FmvqDqo",
+      "duration": 34,
+      "reviewedRange": [
+        11.67,
+        29.43
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "팔꿈치를 열고 다리를 넘겨 자세를 무너뜨린 뒤 일어나 어깨를 제어한다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "cxjeSKpCouQ",
+      "title": "The Tightest Way to Finish an Omoplata #bjj #omoplata #shoulderlock",
+      "channel": "ZukaBJJ",
+      "url": "https://www.youtube.com/shorts/cxjeSKpCouQ",
+      "duration": 43,
+      "reviewedRange": [
+        14.76,
+        37.22
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "상대가 자세를 세우거나 구를 때의 팔 포획과 골반 이동을 비교한다. 변형 반응만 참고했다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "LhIWelgNHlU",
+      "title": "You’re probably making this mistake with your omoplata!🔥🥋",
+      "channel": "Edward “Scissorhands” Anthony Jiu Jitsu ",
+      "url": "https://www.youtube.com/shorts/LhIWelgNHlU",
+      "duration": 37,
+      "reviewedRange": [
+        8.84,
+        28.16
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "다리로 뒤로 차고 골반을 이동시켜 상대를 무너뜨리는 동작을 단계별로 설명한다."
+    },
+    {
+      "technique": "bow",
+      "id": "FHcP1ZjT28w",
+      "title": "How to do a bow and arrow 🏹 choke step by step 🥋#bjj #jiujitsu #brazilianjiujitsu #blackbelt",
+      "channel": "Brazilian Top Team Happy Valley ",
+      "url": "https://www.youtube.com/shorts/FHcP1ZjT28w",
+      "duration": 30,
+      "reviewedRange": [
+        7.17,
+        25.97
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "칼라를 잡고 바지를 잡은 뒤 옆으로 누워 몸을 펼친다."
+    },
+    {
+      "technique": "bow",
+      "id": "JM8mB0lmYXg",
+      "title": "Hit more BOW & ARROW CHOKES! 💥🥋",
+      "channel": "Jordan Teaches Jiujitsu",
+      "url": "https://www.youtube.com/shorts/JM8mB0lmYXg",
+      "duration": 24,
+      "reviewedRange": [
+        5.73,
+        18.27
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "칼라 그립을 유지하며 체어싯으로 각도를 만들고 다리를 어깨 위로 옮긴다."
+    },
+    {
+      "technique": "bow",
+      "id": "EX3mn6gddyA",
+      "title": "The Bow And Arrow Jiu Jitsu Secret That You Didn't Know About!",
+      "channel": "Kenny Kim",
+      "url": "https://www.youtube.com/shorts/EX3mn6gddyA",
+      "duration": 51,
+      "reviewedRange": [
+        12.18,
+        33.49
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "바지 제어가 없을 때 상대가 돌아나가는 반응과 다리 그립의 역할을 비교한다."
+    },
+    {
+      "technique": "bow",
+      "id": "XV02DcRl2OE",
+      "title": "Bow And Arrow 2 ways. Today we go for one of my favourite moves from the back. Go try it out!",
+      "channel": "Chokes And More",
+      "url": "https://www.youtube.com/shorts/XV02DcRl2OE",
+      "duration": 40,
+      "reviewedRange": [
+        5.38,
+        30.44
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "백에서 옆으로 누운 뒤 다리를 어깨 위로 넘기는 두 가지 마무리를 보여준다. 기본형만 채택했다."
+    },
+    {
+      "technique": "bow",
+      "id": "x96oLhsxH3A",
+      "title": "How to set up the bow and arrow choke #bjj #jiujitsu #bjjtechnique",
+      "channel": "Tracy Goes Hard",
+      "url": "https://www.youtube.com/shorts/x96oLhsxH3A",
+      "duration": 43,
+      "reviewedRange": [
+        5.78,
+        37.22
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "옆으로 누운 백 컨트롤에서 칼라를 확보하고 골반 각도를 옮긴다. 시작 자세 변형이다."
+    },
+    {
+      "technique": "bow",
+      "id": "3K2_0mwHq-Q",
+      "title": "How to do the Bow And Arrow Choke! Q & A with Randall Phillips #jiujitsu #brazillianjiujitsu",
+      "channel": "Auburn Jiu Jitsu",
+      "url": "https://www.youtube.com/shorts/3K2_0mwHq-Q",
+      "duration": 79,
+      "reviewedRange": [
+        18.87,
+        60.13
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "깊은 칼라 그립을 유지하고 바지를 잡은 뒤 옆으로 길게 몸을 편다."
+    },
+    {
+      "technique": "bow",
+      "id": "ahm0mGqMgLg",
+      "title": "3 Versions of Bow & Arrow Choke!",
+      "channel": "Steve & Leona Jiu-Jitsu",
+      "url": "https://www.youtube.com/shorts/ahm0mGqMgLg",
+      "duration": 18,
+      "reviewedRange": [
+        2.42,
+        11.82
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "전통형·현대형·파워형을 비교한다. 서로 다른 다리 구성을 하나로 혼합하지 않았다."
+    },
+    {
+      "technique": "bow",
+      "id": "AVUUsFmd0QY",
+      "title": "THE CLASSIC BOW AND ARROW CHOKE",
+      "channel": "Kevin Johnson",
+      "url": "https://www.youtube.com/shorts/AVUUsFmd0QY",
+      "duration": 23,
+      "reviewedRange": [
+        5.49,
+        19.91
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "백에서 칼라를 확보하고 다리 위치를 바꾼 후 바지를 잡고 옆으로 앉는다."
+    },
+    {
+      "technique": "bow",
+      "id": "Cjiiokaz35o",
+      "title": "A Bow & Arrow Choke I Hit in Competition + Technique Breakdown #bowandarrowchoke",
+      "channel": "ZukaBJJ",
+      "url": "https://www.youtube.com/shorts/Cjiiokaz35o",
+      "duration": 55,
+      "reviewedRange": [
+        13.14,
+        47.61
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "옆으로 누운 백에서 아래 다리를 빼고 무릎을 제어하며 어깨 위로 다리를 보낸다."
+    },
+    {
+      "technique": "bow",
+      "id": "6IFU8YOU-Pw",
+      "title": "The Most Powerful Submission for beginners in BJJ (Gi) - Bow & Arrow Choke",
+      "channel": "Teaching you MMA & BJJ",
+      "url": "https://www.youtube.com/shorts/6IFU8YOU-Pw",
+      "duration": 19,
+      "reviewedRange": [
+        4.54,
+        16.45
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "기술적 마운트에 가까운 시작 자세에서 다리로 어깨를 제어하는 마무리를 확인했다."
+    },
+    {
+      "technique": "bow",
+      "id": "PLjnZKcX7nc",
+      "title": "Why I don’t like the Bow & Arrow Choke",
+      "channel": "The BJJ Project",
+      "url": "https://www.youtube.com/shorts/PLjnZKcX7nc",
+      "duration": 98,
+      "reviewedRange": [
+        23.41,
+        64.35
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "칼라의 느슨함과 상대와의 연결을 비교한다. 바지 잡고 상체만 당기는 모션을 피하는 근거로 삼았다."
+    },
+    {
+      "technique": "bow",
+      "id": "hx1G-RkwBOI",
+      "title": "The Bow & Arrow Choke 💀",
+      "channel": "ZombieProofBJJ",
+      "url": "https://www.youtube.com/shorts/hx1G-RkwBOI",
+      "duration": 18,
+      "reviewedRange": [
+        4.3,
+        16.54
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "칼라·바지 그립을 확보하고 골반을 옮겨 두 그립 사이 거리를 늘린다."
+    },
+    {
+      "technique": "double",
+      "id": "RgyBjuTo-0U",
+      "title": "Best Double Leg Takedown Entry for Beginners",
+      "channel": "Geno Morelli",
+      "url": "https://www.youtube.com/shorts/RgyBjuTo-0U",
+      "duration": 5,
+      "reviewedRange": [
+        1.72,
+        4.85
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "상체 타이에서 골반까지 붙은 다음 바깥발을 내딛고 옆으로 착지한다."
+    },
+    {
+      "technique": "omoplata",
+      "id": "vEqc2im-TY8",
+      "title": "OMOPLATA OPTION🔥 #BRAZILIANJIUJITSU #JIUJITSU #MMA #GRAPPLING #BJJ #MARTIALARTS",
+      "channel": "Black Belt Randy ",
+      "url": "https://www.youtube.com/shorts/vEqc2im-TY8",
+      "duration": 43,
+      "reviewedRange": [
+        10.27,
+        37.22
+      ],
+      "method": "10 time-sampled video frames; visible on-screen text where readable",
+      "observation": "강한 상체 압박에 대한 아래쪽 마무리 변형이다. 표준 앉는 마무리와 분리해 참고했다."
+    }
+  ]
+}

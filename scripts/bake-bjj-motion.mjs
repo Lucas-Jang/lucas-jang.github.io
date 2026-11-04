@@ -58,5 +58,5 @@ motion[key]=frames.map((frame,f)=>frame.bodies.map((body,person)=>{
 }));
 diagnostics[key]=pathInfo;console.log(key,JSON.stringify(pathInfo));
 }
-await fs.writeFile(new URL('../src/scripts/bjj-motion-data.ts',import.meta.url),'// Offline constrained trajectories, sampled at 30fps; authored poses and shared grip anchors.\nexport const motionData:Record<string,number[][][]>='+JSON.stringify(motion)+';\n');
+await fs.writeFile(new URL('../src/scripts/bjj-motion-data.ts',import.meta.url),'// Offline constrained trajectories, 361 normalized-time samples per clip; authored poses and shared grip anchors.\nexport const motionData:Record<string,number[][][]>='+JSON.stringify(motion)+';\n');
 await fs.writeFile(new URL('../.astro/bjj-bake-diagnostics.json',import.meta.url),JSON.stringify(diagnostics,null,2));
