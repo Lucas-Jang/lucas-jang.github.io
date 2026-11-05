@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import PostTile from '../components/PostTile.astro';
+import PixelDojo from '../components/PixelDojo.astro';
 import BjjWidget from '../components/BjjWidget.astro';
 import { getPosts } from '../lib/posts';
 
@@ -20,6 +21,7 @@ const selectedCategory = Astro.url.searchParams.get('category') ?? 'ALL';
   </section>
   <section class="home-feed">
     <div class="home-feed-inner">
+      <PixelDojo />
       <BjjWidget />
       <section class="editorial">
         {posts.map((post) => <PostTile post={post} />)}
@@ -35,5 +37,6 @@ const selectedCategory = Astro.url.searchParams.get('category') ?? 'ALL';
     hero?.toggleAttribute('hidden', category !== 'ALL');
   </script>
 </Base>
+
 
 
