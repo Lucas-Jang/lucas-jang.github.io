@@ -1,0 +1,24 @@
+---
+---
+<div class="mat-controls" hidden data-pagefind-ignore>
+  <button aria-pressed="true" type="button">픽셀 도장 <span>켜짐</span></button>
+</div>
+<div class="mat-pair" hidden data-pagefind-ignore aria-hidden="true">
+  <span class="move-name"></span>
+  <canvas width="112" height="76"></canvas>
+</div>
+<style>
+  .mat-controls { text-align:right; margin:1rem 0 -.8rem }
+  .mat-controls button,.move-name { background:#fff9ed; color:#333147; border:1px solid #484055; font:700 12px/1.4 system-ui,sans-serif; }
+  .mat-controls button { border-radius:2rem; padding:.5rem .8rem; cursor:pointer }
+  .mat-controls button span { color:#68516b; margin-left:.35em }
+  .mat-pair { position:fixed; z-index:9; left:0; top:0; width:clamp(116px,12vw,168px); pointer-events:none; user-select:none; text-align:center; }
+  .mat-pair canvas { display:block; width:100%; image-rendering:pixelated; }
+  .move-name { display:inline-block; box-sizing:border-box; max-width:100%; word-break:keep-all; overflow-wrap:anywhere; border-radius:8px 8px 8px 2px; padding:2px 8px; box-shadow:2px 2px #48405529 }
+  .mat-controls[hidden],.mat-pair[hidden] { display:none }
+</style>
+<script>
+  if (new URLSearchParams(location.search).get('category') === 'BJJ') {
+    import('../scripts/pixel-dojo').then(({startDojo})=>startDojo());
+  }
+</script>
