@@ -1,0 +1,156 @@
+{
+  "status": "right-leg revision; full triangle/grip rebuild remains unfinished",
+  "durationSeconds": 22,
+  "motionSha256": "4a77739b08d498b4ce0b49b54a3235832d8731eb137bcb27614fa8f3b094982b",
+  "assetSha256": "1c57be1f96621f05c0a4c78d6eb38633881497dbaf4765a2775346c4fdc83707",
+  "sourceRuntimeSha256": "18b3d311bed0e6586175c9e7b53a3f32b682ccba1e16bf04ec759f5687a6df4d",
+  "scope": [
+    "white demonstrator: both legs anatomical axial roll and foot frames",
+    "right foot hip support and outside closing path",
+    "paired opposite-leg adjustment during closing",
+    "original torso, arms and partner animation retained at shared source clock"
+  ],
+  "pairedRetiming": {
+    "maximumPoseBasisDifference": 2.4712870638765594e-14,
+    "samples": 2113,
+    "displayToSourceSeconds": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        13.5,
+        13.5
+      ],
+      [
+        19.0,
+        16.0
+      ],
+      [
+        22.0,
+        22.0
+      ]
+    ]
+  },
+  "sampledRightLegSurfaces": {
+    "fps": 96,
+    "samples": 2113,
+    "maximumPenetrationMeters": 0.002499599941074848,
+    "maximumSupportErrorMeters": 0.00416531920370213,
+    "maximumLockErrorMeters": 0.005709697136435685,
+    "limitsMeters": {
+      "penetration": 0.0025,
+      "contact": 0.008
+    },
+    "scope": "interbody and self contacts involving the right leg; not a full-body clearance claim"
+  },
+  "anatomy": {
+    "kneesChecked": 8452,
+    "samples": 2113,
+    "failures": 0,
+    "minimumKneecapFacing": 0.43155102353925734,
+    "minimumAnkleFacing": 0.7526334723067614,
+    "minimumLockedRightKneeFlexionDegrees": 121.2779079060763,
+    "lockedRightKneeMinimumDegrees": 110,
+    "lockedRightKneeTargetDegrees": 120
+  },
+  "integrationTestsPassed": 5,
+  "exportParity": {
+    "points": 161568,
+    "maximumSkinErrorMeters": 1.289935589116526e-05,
+    "denseTimes": 2113,
+    "boneTransforms": 688838,
+    "maximumBoneMatrixError": 1.5380287232469314e-05,
+    "maximumJointPositionErrorMeters": 1.2823492798556108e-05
+  },
+  "preservedPoses": {
+    "times": 1321,
+    "unchangedBoneTransforms": 380448,
+    "maximumUnchangedMatrixComponent": 8.544575413882427e-06,
+    "maximumJointCentreChangeMeters": 0.00023364454401321867,
+    "maximumRightJointCentreChangeMeters": 1.043666135551806,
+    "maximumClosingLeftJointCentreChangeMeters": 0.24424493933977126,
+    "allowRightMotion": true,
+    "allowLockLegMotion": true,
+    "allowLeftRoll": true
+  },
+  "prefixAuditParity": {
+    "rangeSeconds": [
+      0,
+      13
+    ],
+    "samples": 1249,
+    "maximumPoseBasisDifference": 6.106226635438361e-16
+  },
+  "closingContinuity": {
+    "fps": 24,
+    "maximumTrackedLegJointStepMeters": 0.05999827326474895,
+    "maximumAllowedMeters": 0.06
+  },
+  "closingClearancePatch": {
+    "sourceSha256": "2de82ff527b6504531fdd4f21130fc1339bdb265700aff6230e0f68800bb79f3",
+    "scope": "demonstrator right leg and toes; paired left leg only during closing; torso/arms/partner unchanged",
+    "limitsMeters": {
+      "penetration": 0.0025,
+      "contact": 0.008,
+      "floor": 0.002
+    },
+    "frames": [
+      {
+        "time": 15.208333333333334,
+        "passed": true,
+        "iterations": 1,
+        "depth": 0.0,
+        "contactError": 0.0037613471338714967,
+        "floorError": 0.0,
+        "ankleFacing": 0.9183539828183733,
+        "toeShinDot": 0.40672497501420674,
+        "kneecapFacing": 0.642408534287119,
+        "kneeFlexionDegrees": 132.8416069894423,
+        "maximumLegJointStepMeters": 0.0
+      },
+      {
+        "time": 15.25,
+        "passed": true,
+        "iterations": 2,
+        "depth": 0.0,
+        "contactError": 0.002750643190891707,
+        "floorError": 0.0,
+        "ankleFacing": 0.9374622482123232,
+        "toeShinDot": 0.38251642662501717,
+        "kneecapFacing": 0.6759477146809775,
+        "kneeFlexionDegrees": 130.94481587977376,
+        "maximumLegJointStepMeters": 0.027440297506260942
+      },
+      {
+        "time": 15.291666666666666,
+        "passed": true,
+        "iterations": 1,
+        "depth": 0.0004344464687164873,
+        "contactError": 0.0041059957364318915,
+        "floorError": 0.0,
+        "ankleFacing": 0.942561226270628,
+        "toeShinDot": 0.272310134549569,
+        "kneecapFacing": 0.6881277063453894,
+        "kneeFlexionDegrees": 130.20129068740917,
+        "maximumLegJointStepMeters": 0.02339797963736666
+      }
+    ]
+  },
+  "runtimeContinuity": {
+    "sampleFps": 60,
+    "maximumBoneStepLimitMeters": 0.06,
+    "integrationTestPassed": true
+  },
+  "formReference": {
+    "source": "https://github.com/Eelis/GrappleMap",
+    "revision": "032c8f91809786b7b784852abd07cf3e10c0ea35",
+    "sequence": 679,
+    "bottomRightKneeFlexionDegrees": 119.7,
+    "use": "pose-shape reference only; no captured motion or expert certification"
+  },
+  "remaining": [
+    "full triangle neck/shoulder contacts and hand grips",
+    "the other four techniques"
+  ]
+}

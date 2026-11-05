@@ -19,27 +19,46 @@ test('the exported scene contains two equally proportioned weighted human surfac
   const a=skins[0].geometry.getAttribute('position'),b=skins[1].geometry.getAttribute('position');
   assert.equal(a.count,b.count);assert.ok(a.count>10000);
   for(let i=0;i<a.array.length;i++)assert.ok(Math.abs(a.array[i]-b.array[i])<1e-6);
-  for(const skin of skins){assert.equal(skin.skeleton.bones.length,163);assert.ok(skin.geometry.getAttribute('skinWeight'));assert.ok(skin.geometry.getAttribute('color'));}
+  for(const skin of skins){
+    assert.equal(skin.skeleton.bones.length,163);assert.ok(skin.geometry.getAttribute('color'));
+    const weights=skin.geometry.getAttribute('skinWeight');assert.equal(weights.itemSize,4);
+    for(let i=0;i<weights.count;i++)assert.ok(Math.abs(weights.getX(i)+weights.getY(i)+weights.getZ(i)+weights.getW(i)-1)<1e-5);
+  }
 });
 test('both actors have full duration finite animation tracks',()=>{
   assert.ok(model.animations.length>=1);
   const targets=new Set();
   for(const clip of model.animations){assert.ok(Math.abs(clip.duration-22)<1e-4);for(const track of clip.tracks){targets.add(track.name);assert.ok([...track.values].every(Number.isFinite));}}
   assert.ok([...targets].some(n=>n.includes('spine05')));assert.ok([...targets].some(n=>n.includes('neck01')));assert.ok([...targets].some(n=>n.includes('finger')));
+  assert.ok([...targets].some(n=>n.includes('metacarpal')),'Palm cupping corrections must reach the browser');
+});
+
+test('animated poses preserve the same bone offset lengths throughout the clip',()=>{
+  snapshot(0);
+  const offsets=skins.map(s=>s.skeleton.bones.map(b=>b.position.length()));
+  const boneSets=skins.map(s=>new Set(s.skeleton.bones));
+  for(let frame=0;frame<=22*24;frame++){
+    snapshot(frame/24);
+    for(let p=0;p<skins.length;p++)for(let i=0;i<skins[p].skeleton.bones.length;i++){
+      const bone=skins[p].skeleton.bones[i];if(!boneSets[p].has(bone.parent))continue;
+      assert.ok(Math.abs(bone.position.length()-offsets[p][i])<.0005,`Changing proportion: ${bone.name} at ${frame/24}s`);
+    }
+  }
 });
 test('seeking backwards after the end restores both actors deterministically',()=>{
   const before=snapshot(8);snapshot(22);snapshot(0);const after=snapshot(8);
   assert.deepEqual(after,before);
 });
 test('the exported full clip has no frame-to-frame bone teleportation',()=>{
-  let previous=snapshot(0),maximum=0;
+  let previous=snapshot(0),maximum=0,worst='';
   for(let frame=1;frame<=22*60;frame++){
     const next=snapshot(frame/60);
     for(let p=0;p<next.length;p++)for(let bone=0;bone<next[p].length;bone++){
-      const delta=Math.hypot(...next[p][bone].map((v,i)=>v-previous[p][bone][i]));maximum=Math.max(maximum,delta);
+      const delta=Math.hypot(...next[p][bone].map((v,i)=>v-previous[p][bone][i]));
+      if(delta>maximum){maximum=delta;worst=`actor ${p}, ${skins[p].skeleton.bones[bone].userData.name??skins[p].skeleton.bones[bone].name}, ${frame/60}s`;}
       assert.ok(next[p][bone].every(v=>Number.isFinite(v)&&Math.abs(v)<4));
     }
     previous=next;
   }
-  assert.ok(maximum<.10,`largest 1/60-second bone displacement: ${maximum}m`);
+  assert.ok(maximum<.06,`largest 1/60-second bone displacement: ${maximum}m (${worst})`);
 });

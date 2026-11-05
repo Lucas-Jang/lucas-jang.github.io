@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {trianglePhase} from './bjj-triangle-clip';
 
 type ReferencePlayer={seekTo:(time:number,allowSeekAhead:boolean)=>void;playVideo:()=>void;pauseVideo:()=>void;mute:()=>void;destroy:()=>void};
 type ReferenceAPI={Player:new(element:string,options:Record<string,unknown>)=>ReferencePlayer};
@@ -33,8 +34,7 @@ export async function mountTriangleStudy(root:HTMLElement){
   const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(canvas.parentElement!);resize();
   let stopped=false,raf=0,time=0,previous=0,playing=false,mixer:T.AnimationMixer|undefined,reference:ReferencePlayer|undefined;
   let actions:T.AnimationAction[]=[],helpers:T.SkeletonHelper[]=[];
-  const phases:[[number,string],...[number,string][]]=[[0,'가드 · 손목 제어'],[2,'팔 분리 · 골반에 발 지지'],[4,'다리 올리기'],[6,'상대 자세 낮추기'],[8,'정강이 제어'],[10,'발 지지 · 골반 이동'],[12,'측면 각도 만들기'],[14,'반대 다리 접기'],[16,'삼각 잠금 · 접촉 검토']];
-  const sync=()=>{play.textContent=playing?'일시정지':time>=22?'다시 재생':'재생';slider.value=String(time);clock.value=`${time.toFixed(1)} / 22.0초`;phase.textContent=[...phases].reverse().find(([t])=>time>=t)![1];slider.setAttribute('aria-valuetext',`${time.toFixed(1)}초, ${phase.textContent}`);};
+  const sync=()=>{play.textContent=playing?'일시정지':time>=22?'다시 재생':'재생';slider.value=String(time);clock.value=`${time.toFixed(1)} / 22.0초`;phase.textContent=trianglePhase(time);slider.setAttribute('aria-valuetext',`${time.toFixed(1)}초, ${phase.textContent}`);};
   const seek=(value:number)=>{time=T.MathUtils.clamp(value,0,22);if(mixer)seekStudyTime(mixer,actions,time);sync();};
   const draw=(now:number)=>{if(stopped)return;const dt=previous?Math.min((now-previous)/1000,.1):0;previous=now;if(playing){seek(time+dt*Number(speed.value));if(time>=22){playing=false;reference?.pauseVideo();sync();}}controls.update();renderer.render(scene,camera);if(!document.hidden)raf=requestAnimationFrame(draw);};
   raf=requestAnimationFrame(draw);
@@ -57,7 +57,7 @@ export async function mountTriangleStudy(root:HTMLElement){
   root.querySelector<HTMLButtonElement>('[data-load-reference]')!.addEventListener('click',event=>{
     const button=event.currentTarget as HTMLButtonElement;button.disabled=true;button.textContent='시연을 불러오는 중…';
     const refStatus=root.querySelector<HTMLElement>('[data-reference-status]')!;
-    const create=()=>{const api=(window as YouTubeWindow).YT;if(!api)return;reference=new api.Player('bjj-study-reference',{videoId:'IrOqHj6CeXo',host:'https://www.youtube-nocookie.com',playerVars:{playsinline:1,rel:0,origin:location.origin},events:{onReady:()=>{button.hidden=true;refStatus.textContent='원본은 자체 재생 버튼으로 조작합니다. 단계와 자세를 나란히 비교해 주세요.';},onError:()=>{button.hidden=true;refStatus.textContent='유튜브 재생을 사용할 수 없습니다. 아래 링크로 원본을 열어 주세요.';}}});};
+    const create=()=>{const api=(window as YouTubeWindow).YT;if(!api)return;reference=new api.Player('bjj-study-reference',{videoId:'Nr1m9eOBrks',host:'https://www.youtube-nocookie.com',playerVars:{playsinline:1,rel:0,origin:location.origin},events:{onReady:()=>{button.hidden=true;refStatus.textContent='원본은 자체 재생 버튼으로 조작합니다. 단계와 자세를 나란히 비교해 주세요.';},onError:()=>{button.hidden=true;refStatus.textContent='유튜브 재생을 사용할 수 없습니다. 아래 링크로 원본을 열어 주세요.';}}});};
     if((window as YouTubeWindow).YT)create();else{(window as YouTubeWindow).onYouTubeIframeAPIReady=create;const script=document.createElement('script');script.src='https://www.youtube.com/iframe_api';script.onerror=()=>{button.disabled=false;button.textContent='다시 불러오기';};document.head.append(script);}
   });
 }

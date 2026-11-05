@@ -3,7 +3,7 @@ import bpy,math,os
 from pathlib import Path
 from mathutils import Vector
 root=Path(__file__).resolve().parent.parent
-out=root/'.astro/bjj-rebuild'
+out=Path(os.environ.get('BJJ_AUTHORING_OUT',str(root/'.astro/bjj-rebuild'))).resolve()
 bpy.ops.wm.open_mainfile(filepath=str(out/'triangle-authoring.blend'))
 scene=bpy.context.scene;camera=scene.camera
 def view(location):

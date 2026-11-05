@@ -1,13 +1,14 @@
 ---
 import study from '../scripts/bjj-references.json';
+import triangleUrl from '../assets/bjj/triangle-study.glb?url';
 const referenceGroups = [
   ['double','더블렉 테이크다운'],['triangle','삼각조르기'],['armbar','마운트 암바'],['omoplata','오모플라타'],['bow','보우앤애로우']
 ];
 ---
-<section class="bjj-widget" aria-label="주짓수 기술 애니메이션" hidden data-pagefind-ignore>
+<section class="bjj-widget" aria-label="주짓수 기술 애니메이션" hidden data-pagefind-ignore data-triangle-model={triangleUrl}>
   <header class="bjj-heading">
     <div><span class="bjj-eyebrow">ON THE MAT / TECHNIQUE STUDIES</span><h2>움직임으로 보는 주짓수</h2></div>
-    <span class="bjj-legend"><i></i>흰 도복 · 기술 시연자 <i></i>파란 도복 · 파트너</span>
+    <span class="bjj-legend"><i></i>흰색 · 기술 시연자 <i></i>파란색 · 파트너</span>
   </header>
   <div class="bjj-techniques" role="group" aria-label="주짓수 기술 선택">
     <button data-technique="double" aria-pressed="true">더블렉 테이크다운</button><button data-technique="triangle" aria-pressed="false">삼각조르기</button><button data-technique="armbar" aria-pressed="false">암바</button><button data-technique="omoplata" aria-pressed="false">오모플라타</button><button data-technique="bow" aria-pressed="false">보우앤애로우</button>
@@ -15,13 +16,13 @@ const referenceGroups = [
   <div class="bjj-stage">
     <canvas aria-label="더블렉 테이크다운 3D 시연. 마우스나 손가락으로 시점을 회전할 수 있습니다."></canvas>
     <div class="bjj-stage-label"><span data-tech-name>DOUBLE LEG TAKEDOWN</span><span data-phase>스탠딩</span></div>
-    <span class="bjj-drag-hint">드래그 · 시점 회전</span>
+    <span class="bjj-drag-hint">드래그 · 360° 회전 / 스크롤 · 확대</span>
     <p class="bjj-fallback" hidden>3D 화면을 표시할 수 없습니다. WebGL을 지원하는 브라우저에서 열어 주세요.</p>
   </div>
   <div class="bjj-playback">
     <button class="bjj-toggle" aria-label="애니메이션 재생">재생</button><button class="bjj-restart" aria-label="처음으로">↺</button>
     <input class="bjj-timeline" type="range" min="0" max="1000" step="1" value="0" aria-label="기술 진행 위치" />
-    <label class="bjj-speed-label">속도 <select class="bjj-speed" aria-label="재생 속도"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label>
+    <label class="bjj-speed-label">속도 <select class="bjj-speed" aria-label="재생 속도"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label>
   </div>
   <div class="bjj-bottom"><p data-tech-description>무릎을 굽혀 낮추기 → 머리를 골반 옆에 두고 진입 → 뒤발 따라오기 → 코너 돌기 → 탑 안정.</p><button class="bjj-view">시점 초기화</button></div>
   <p class="bjj-note">여러 시연의 공통 단계를 단순화해 재구성한 3D 애니메이션입니다.</p>
@@ -51,7 +52,7 @@ const referenceGroups = [
   .bjj-techniques button { min-height: 40px; border: 1px solid #acbdc5; border-radius: 24px; background: transparent; padding: .5rem .9rem; font-size: .78rem; }
   .bjj-techniques button[aria-pressed="true"] { background: #142d3d; color: #f3f5f6; border-color: #142d3d; }
   .bjj-stage { position: relative; height: clamp(300px,44vw,480px); background: #cedee4; }
-  .bjj-stage canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+  .bjj-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .bjj-stage canvas[hidden] { display: none; }
   .bjj-stage-label { position: absolute; top: 1.2rem; left: 1.5rem; display: grid; gap: .4rem; pointer-events: none; }
   .bjj-stage-label span:first-child { font-size: .58rem; letter-spacing: .15em; color: #4f7186; }

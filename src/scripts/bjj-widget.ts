@@ -4,6 +4,8 @@ import { techniques, type Pose, type V } from './bjj-poses';
 import {obstacles,solveLimb,sharedAnchor,outside,type Obstacle,type LimbSolution} from './bjj-constraints';
 import {motionData} from './bjj-motion-data';
 import {sampleMotion} from './bjj-motion-sample';
+import {triangleClip,trianglePhase} from './bjj-triangle-clip';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 export {setCandidateCollector} from './bjj-constraints';
 let useMotionData=true;
 export function setUseMotionData(value:boolean){useMotionData=value;}
@@ -192,13 +194,13 @@ export function mountBjjWidget(widget:HTMLElement) {
   renderer.setClearColor(0xcedee4);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;}
   const scene=new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff,0x657b87,2.3));
-  const light=new THREE.DirectionalLight(0xfff6e5,3);light.position.set(-3,6,4);light.castShadow=true;light.shadow.mapSize.set(1024,1024);
-  light.shadow.camera.left=-3;light.shadow.camera.right=3;light.shadow.camera.top=3;light.shadow.camera.bottom=-3;light.shadow.normalBias=.025;scene.add(light);
-  const mat=mesh(new THREE.BoxGeometry(4.8,.06,3.7),material(0x7895a6),[1,1,1],scene);mat.position.y=-.045;mat.castShadow=false;
+  const light=new THREE.DirectionalLight(0xfff6e5,3);light.position.set(-3,6,4);light.castShadow=true;light.shadow.mapSize.set(2048,2048);
+  Object.assign(light.shadow.camera,{left:-3,right:3,top:3,bottom:-3,near:.2,far:15});light.shadow.normalBias=.005;scene.add(light);
+  const mat=mesh(new THREE.BoxGeometry(4.8,.06,3.7),material(0x7895a6),[1,1,1],scene);mat.position.y=-.038;mat.castShadow=false;
   const grid=new THREE.GridHelper(4.8,8,0xb3c8d2,0x93afbd);grid.position.y=-.008;grid.scale.z=3.7/4.8;scene.add(grid);
   const floor=mesh(new THREE.PlaneGeometry(200,200),material(0xcedee4),[1,1,1],scene);floor.rotation.x=-Math.PI/2;floor.position.y=-.079;floor.castShadow=false;
   const camera=new THREE.OrthographicCamera(-3,3,2,-2,.1,100);
-  const controls=new OrbitControls(camera,canvas);controls.enablePan=false;controls.enableZoom=false;controls.enableDamping=true;controls.dampingFactor=.12;controls.minPolarAngle=.15;controls.maxPolarAngle=Math.PI*.48;controls.target.set(0,.65,0);
+  const controls=new OrbitControls(camera,canvas);controls.enablePan=false;controls.enableZoom=true;controls.minZoom=.65;controls.maxZoom=3.5;controls.enableDamping=true;controls.dampingFactor=.12;controls.minPolarAngle=.02;controls.maxPolarAngle=Math.PI*.49;controls.target.set(0,.65,0);
   // A = white attacker, B = blue partner. Anatomical side identity is retained
   // throughout each clip, including the armbar's perpendicular turn.
   // Identical unscaled rigs and orthographic projection preserve both body sizes.
@@ -208,24 +210,48 @@ export function mountBjjWidget(widget:HTMLElement) {
   const phase=widget.querySelector<HTMLElement>('[data-phase]')!,name=widget.querySelector<HTMLElement>('[data-tech-name]')!;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let key='double',progress=0,playing=!reduced.matches,visible=true,raf=0,previous=0,destroyed=false;
+  let triangle:THREE.Group|undefined,triangleMixer:THREE.AnimationMixer|undefined,triangleLoading:Promise<void>|undefined;
+  let triangleActions:THREE.AnimationAction[]=[];
+  const fallback=widget.querySelector<HTMLElement>('.bjj-fallback')!;
+  const disposeModel=(model:THREE.Object3D)=>model.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}if(o instanceof THREE.SkinnedMesh)o.skeleton.dispose();});
+  const loadTriangle=()=>{
+    if(triangleLoading)return triangleLoading;
+    triangleLoading=(async()=>{
+      if(key==='triangle'){fallback.textContent='삼각조르기 모델을 불러오는 중…';fallback.hidden=false;}
+      try{
+        const model=await new GLTFLoader().loadAsync(widget.dataset.triangleModel!);
+        if(destroyed){disposeModel(model.scene);return;}
+        triangle=model.scene;triangle.visible=key==='triangle';
+        triangle.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}if(o instanceof THREE.SkinnedMesh)o.frustumCulled=false;});
+        scene.add(triangle);triangleMixer=new THREE.AnimationMixer(triangle);
+        triangleActions=model.animations.map(clip=>{const action=triangleMixer!.clipAction(clip);action.setLoop(THREE.LoopOnce,1);action.clampWhenFinished=true;action.play();return action;});
+        if(!triangleActions.length)throw new Error('Triangle clip has no animation');
+        if(key==='triangle')fallback.hidden=true;schedule();
+      }catch(error){console.error(error);if(triangle){scene.remove(triangle);disposeModel(triangle);triangle=undefined;}triangleMixer=undefined;triangleLoading=undefined;if(key==='triangle'){playing=false;syncPlay();fallback.textContent='삼각조르기를 불러오지 못했습니다. 기술을 다시 선택해 주세요.';fallback.hidden=false;}}
+    })();
+    return triangleLoading;
+  };
   const syncPlay=()=>{toggle.textContent=playing?'일시정지':progress>=1?'다시 재생':'재생';toggle.setAttribute('aria-label',playing?'애니메이션 일시정지':'애니메이션 재생');};
-  const resetView=()=>{camera.position.set(...techniques[key].camera);controls.target.set(key==='double'?.3:0,key==='double'?.75:.5,0);controls.update();};
-  const resize=()=>{const {width,height}=canvas.parentElement!.getBoundingClientRect();if(!width||!height)return;renderer?.setSize(width,height,false);const aspect=width/height;const half=aspect<1.3?1.75:1.45;camera.left=-half*aspect;camera.right=half*aspect;camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();schedule();};
+  const resetView=()=>{camera.position.set(...techniques[key].camera);camera.zoom=1;camera.updateProjectionMatrix();controls.target.set(key==='triangle'?-.2:key==='double'?.3:0,key==='double'?.75:.48,0);controls.update();};
+  const resize=()=>{const {width,height}=canvas.parentElement!.getBoundingClientRect();if(!width||!height)return;renderer?.setSize(width,height,false);const aspect=width/height;const half=key==='triangle'?Math.max(.95,1.35/aspect):aspect<1.3?1.75:1.45;camera.left=-half*aspect;camera.right=half*aspect;camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();schedule();};
   const draw=(time:number)=>{
     raf=0;if(destroyed)return;
     const delta=previous?Math.min((time-previous)/1000,.08):0;previous=time;
-    const duration=techniques[key].duration??16;
-    if(playing){progress=Math.min(1,progress+delta/duration*Number(speedInput.value));if(progress>=1){playing=false;syncPlay();}}
+    const duration=key==='triangle'?triangleClip.duration:techniques[key].duration??16;
+    if(playing&&(key!=='triangle'||triangleMixer)){progress=Math.min(1,progress+delta/duration*Number(speedInput.value));if(progress>=1){playing=false;syncPlay();}}
     const tech=techniques[key],frames=tech.frames;
     let index=0;while(index<frames.length-2 && progress>=frames[index+1].t)index++;
     const first=frames[index],next=frames[index+1];
     const fraction=THREE.MathUtils.clamp((progress-first.t)/(next.t-first.t),0,1);
     const eased=fraction*fraction*(3-2*fraction);
-    posePair([a,b],first.a,next.a,first.b,next.b,eased,sides[key],key,progress);
+    if(key==='triangle'){
+      for(const action of triangleActions){action.enabled=true;action.paused=false;}
+      triangleMixer?.setTime(progress*triangleClip.duration);
+    }else posePair([a,b],first.a,next.a,first.b,next.b,eased,sides[key],key,progress);
     const active=progress>=next.t?next:first;
-    phase.textContent=active.label;
+    phase.textContent=key==='triangle'?trianglePhase(progress*triangleClip.duration):active.label;
     timeline.value=String(Math.round(progress*1000));
-    timeline.setAttribute('aria-valuetext',`${tech.korean}, ${active.label}, ${Math.round(progress*100)}%`);
+    timeline.setAttribute('aria-valuetext',`${tech.korean}, ${phase.textContent}, ${Math.round(progress*100)}%`);
     controls.update();renderer?.render(scene,camera);
     if(visible&&!document.hidden)raf=requestAnimationFrame(draw);
   };
@@ -236,10 +262,12 @@ export function mountBjjWidget(widget:HTMLElement) {
   timeline.addEventListener('input',()=>{playing=false;progress=Number(timeline.value)/1000;syncPlay();schedule();});
   widget.querySelectorAll<HTMLButtonElement>('[data-technique]').forEach(button=>button.addEventListener('click',()=>{
     key=button.dataset.technique!;progress=0;playing=!reduced.matches;
+    a.root.visible=b.root.visible=key!=='triangle';if(triangle)triangle.visible=key==='triangle';
+    fallback.hidden=true;if(key==='triangle')void loadTriangle();
     timeline.value='0';phase.textContent=techniques[key].frames[0].label;
     widget.querySelectorAll<HTMLButtonElement>('[data-technique]').forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
     widget.querySelectorAll<HTMLElement>('[data-reference-technique]').forEach(group=>{group.hidden=group.dataset.referenceTechnique!==key;});
-    name.textContent=techniques[key].name;widget.querySelector('[data-tech-description]')!.textContent=techniques[key].description;
+    name.textContent=techniques[key].name;widget.querySelector('[data-tech-description]')!.textContent=key==='triangle'?triangleClip.description:techniques[key].description;
     canvas.setAttribute('aria-label',`${techniques[key].korean} 3D 시연. 드래그해서 시점을 회전할 수 있습니다.`);
     resize();resetView();syncPlay();schedule();
   }));
@@ -248,7 +276,7 @@ export function mountBjjWidget(widget:HTMLElement) {
   const observer=new IntersectionObserver(([entry])=>{visible=entry.isIntersecting;if(!visible&&raf){cancelAnimationFrame(raf);raf=0;}else schedule();});observer.observe(widget);
   const sizeObserver=new ResizeObserver(resize);sizeObserver.observe(canvas.parentElement!);
   const onVisibility=()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0;}else schedule();};document.addEventListener('visibilitychange',onVisibility);
-  const cleanup=()=>{destroyed=true;cancelAnimationFrame(raf);observer.disconnect();sizeObserver.disconnect();reduced.removeEventListener('change',onMotion);document.removeEventListener('visibilitychange',onVisibility);controls.dispose();scene.traverse(object=>{if(object instanceof THREE.Mesh){object.geometry.dispose();const ms=Array.isArray(object.material)?object.material:[object.material];ms.forEach(m=>m.dispose());}});renderer?.dispose();};
+  const cleanup=()=>{destroyed=true;cancelAnimationFrame(raf);observer.disconnect();sizeObserver.disconnect();reduced.removeEventListener('change',onMotion);document.removeEventListener('visibilitychange',onVisibility);controls.dispose();triangleMixer?.stopAllAction();disposeModel(scene);renderer?.dispose();};
   window.addEventListener('pagehide',event=>{if(!event.persisted)cleanup();},{once:true});
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();playing=false;syncPlay();widget.querySelector<HTMLElement>('.bjj-fallback')!.hidden=false;});
   resetView();resize();syncPlay();schedule();
