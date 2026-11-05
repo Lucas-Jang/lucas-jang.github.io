@@ -5,7 +5,7 @@ const referenceGroups = [
   ['double','더블렉 테이크다운'],['triangle','삼각조르기'],['armbar','마운트 암바'],['omoplata','오모플라타'],['bow','보우앤애로우']
 ];
 ---
-<section class="bjj-widget" aria-label="주짓수 기술 애니메이션" hidden data-pagefind-ignore data-triangle-model={triangleUrl}>
+<section class="bjj-widget" aria-label="주짓수 기술 애니메이션" data-pagefind-ignore data-triangle-model={triangleUrl}>
   <header class="bjj-heading">
     <div><span class="bjj-eyebrow">ON THE MAT / TECHNIQUE STUDIES</span><h2>움직임으로 보는 주짓수</h2></div>
     <span class="bjj-legend"><i></i>흰색 · 기술 시연자 <i></i>파란색 · 파트너</span>
@@ -81,8 +81,7 @@ const referenceGroups = [
 </style>
 <script>
   const widget = document.querySelector<HTMLElement>('.bjj-widget');
-  if (widget && new URLSearchParams(location.search).get('category') === 'BJJ') {
-    widget.hidden = false;
+  if (widget) {
     import('../scripts/bjj-widget').then(({ mountBjjWidget }) => mountBjjWidget(widget)).catch(() => {
       const fallback = widget.querySelector<HTMLElement>('.bjj-fallback');
       if (fallback) { fallback.textContent = '애니메이션을 불러오지 못했습니다. 페이지를 새로고침해 주세요.'; fallback.hidden = false; }

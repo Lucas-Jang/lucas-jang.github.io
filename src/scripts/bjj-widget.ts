@@ -280,4 +280,5 @@ export function mountBjjWidget(widget:HTMLElement) {
   window.addEventListener('pagehide',event=>{if(!event.persisted)cleanup();},{once:true});
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();playing=false;syncPlay();widget.querySelector<HTMLElement>('.bjj-fallback')!.hidden=false;});
   resetView();resize();syncPlay();schedule();
+  widget.querySelector<HTMLButtonElement>('[data-technique="triangle"]')!.click();
 }
