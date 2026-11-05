@@ -14,7 +14,7 @@
   .mat-controls button span { color:#68516b; margin-left:.35em }
   .mat-pair { position:fixed; z-index:9; left:0; top:0; width:clamp(116px,12vw,168px); pointer-events:none; user-select:none; text-align:center; }
   .mat-pair canvas { display:block; width:100%; image-rendering:pixelated; }
-  .move-name { display:inline-block; white-space:nowrap; border-radius:8px 8px 8px 2px; padding:2px 8px; box-shadow:2px 2px #48405529 }
+  .move-name { display:inline-block; box-sizing:border-box; max-width:100%; word-break:keep-all; overflow-wrap:anywhere; border-radius:8px 8px 8px 2px; padding:2px 8px; box-shadow:2px 2px #48405529 }
   .mat-controls[hidden],.mat-pair[hidden] { display:none }
 </style>
 <script>
